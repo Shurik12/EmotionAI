@@ -174,27 +174,32 @@
         }
         
         .emotion-item {
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
         
         .emotion-label {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
+            font-size: 14px;
         }
         
+        .emotion-label span:first-child {
+            font-weight: 500;
+        }
+
         .emotion-bar {
-            height: 10px;
+            height: 8px;
             background-color: var(--medium-gray);
-            border-radius: 5px;
+            border-radius: 4px;
             overflow: hidden;
         }
-        
+
         .emotion-fill {
             height: 100%;
-            border-radius: 5px;
+            border-radius: 4px;
             width: 0%;
-            transition: width 0.5s;
+            transition: width 0.5s ease-out;
         }
         
         .main-emotion {
@@ -202,8 +207,48 @@
             font-weight: 500;
             color: var(--primary-color);
             margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--medium-gray);
         }
         
+        .model-selection h3 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .model-selection div {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .model-selection label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 8px 15px;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid var(--medium-gray);
+            transition: all 0.3s;
+        }
+
+        .model-selection label:hover {
+            border-color: var(--primary-color);
+        }
+
+        .model-selection input[type="radio"] {
+            margin-right: 8px;
+        }
+
+        .model-selection input[type="radio"]:checked + span {
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
         .frame-result {
             margin-bottom: 30px;
             border-bottom: 1px solid var(--medium-gray);
@@ -261,6 +306,23 @@
             <button class="btn" id="uploadBtn" disabled>Analyze Emotions</button>
         </div>
         
+        <div class="model-selection" style="margin: 20px 0; text-align: center;">
+            <h3>Select Model</h3>
+            <div style="display: flex; justify-content: center; gap: 20px; margin-top: 10px;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="radio" name="model" value="default" checked style="margin-right: 8px;">
+                    EmotionNet (Basic)
+                </label>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="radio" name="model" value="emotieff" style="margin-right: 8px;">
+                    EmotiEffLib (Advanced)
+                </label>
+            </div>
+            <p style="font-size: 12px; color: var(--dark-gray); margin-top: 5px;">
+                EmotionNet: Basic emotions | EmotiEffLib: Detailed emotion analysis
+            </p>
+        </div>
+
         <div class="progress-container" id="progressContainer">
             <div class="progress-header">
                 <h3>Processing</h3>
@@ -421,6 +483,9 @@
                 return;
             }
             
+            // Get selected model
+            const selectedModel = document.querySelector('input[name="model"]:checked').value;
+            
             // Reset UI
             previewContainer.innerHTML = '';
             resultsContainer.innerHTML = '';
@@ -435,6 +500,7 @@
             
             const formData = new FormData();
             formData.append('file', currentFile);
+            formData.append('model', selectedModel);  // Add model selection to form data
             
             fetch('/upload', {
                 method: 'POST',
@@ -465,6 +531,8 @@
                 selectFileBtn.disabled = false;
             });
         }
+
+
         
         function checkProgress() {
             if (!currentTaskId) return;
@@ -527,6 +595,15 @@
         function displayResults(data) {
             previewContainer.innerHTML = '';
             resultsContainer.innerHTML = '';
+
+            // Add model info display
+            const modelInfo = document.createElement('div');
+            modelInfo.className = 'result-card';
+            modelInfo.innerHTML = `
+                <h3>Analysis Complete</h3>
+                <p>Model used: <strong>${data.model_name || 'EmotionNet'}</strong></p>
+            `;
+            resultsContainer.appendChild(modelInfo);
             
             if (data.type === 'image') {
                 // Display image preview
@@ -570,23 +647,25 @@
             const mainPred = result.main_prediction;
             const additional = result.additional_probs;
             
-            // Get color based on emotion
+            // Get color based on emotion - updated for both models
             const getColorForEmotion = (emotion) => {
-                switch(emotion.toLowerCase()) {
-                    case 'happy':
-                        return '#34a853'; // Green
-                    case 'angry':
-                        return '#ea4335'; // Red
-                    case 'sad/fear':
-                        return '#4285f4'; // Blue
-                    case 'neutral':
-                        return '#fbbc05'; // Yellow
-                    case 'surprise/disgust':
-                        return '#673ab7'; // Purple
-                    default:
-                        return '#4285f4'; // Default blue
-                }
+                const emotionLower = emotion.toLowerCase();
+                if (emotionLower.includes('happy') || emotionLower.includes('happiness')) return '#34a853'; // Green
+                if (emotionLower.includes('angry') || emotionLower.includes('anger')) return '#ea4335'; // Red
+                if (emotionLower.includes('sad') || emotionLower.includes('fear') || emotionLower.includes('sadness')) return '#4285f4'; // Blue
+                if (emotionLower.includes('neutral')) return '#fbbc05'; // Yellow
+                if (emotionLower.includes('surprise') || emotionLower.includes('disgust')) return '#673ab7'; // Purple
+                return '#4285f4'; // Default blue
             };
+            
+            // Sort emotions by probability (highest first)
+            const sortedEmotions = Object.entries(additional)
+                .map(([emotion, prob]) => ({
+                    emotion,
+                    prob: parseFloat(prob),
+                    percentage: (parseFloat(prob) * 100).toFixed(1)
+                }))
+                .sort((a, b) => b.prob - a.prob);
             
             const resultHTML = `
                 <div class="result-card">
@@ -594,17 +673,16 @@
                         Detected Emotion: ${mainPred.label} (${(mainPred.probability * 100).toFixed(1)}%)
                     </div>
                     <div class="emotion-display">
-                        ${Object.entries(additional).map(([emotion, prob]) => {
-                            const percentage = (parseFloat(prob) * 100).toFixed(1);
-                            const color = getColorForEmotion(emotion);
+                        ${sortedEmotions.map(item => {
+                            const color = getColorForEmotion(item.emotion);
                             return `
                                 <div class="emotion-item">
                                     <div class="emotion-label">
-                                        <span>${emotion}</span>
-                                        <span>${percentage}%</span>
+                                        <span>${item.emotion}</span>
+                                        <span>${item.percentage}%</span>
                                     </div>
                                     <div class="emotion-bar">
-                                        <div class="emotion-fill" style="width: ${percentage}%; background-color: ${color};"></div>
+                                        <div class="emotion-fill" style="width: ${item.percentage}%; background-color: ${color};"></div>
                                     </div>
                                 </div>
                             `;

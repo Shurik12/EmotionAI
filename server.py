@@ -49,7 +49,7 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
 REDIS_DB = int(os.getenv('REDIS_DB', 0))
-REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'redis_password')
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
 
 # Initialize Redis connection
 try:
@@ -110,73 +110,96 @@ def get_task_status(task_id):
         logger.error(f"Error getting task status from Redis: {str(e)}")
         return None
 
-def process_image(image):
-    """Process an image to detect emotions"""
+def process_image(image, model_type="default"):
+    """Process an image to detect emotions using the specified model"""
     try:
         # Convert to RGB for display
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        # ================================================
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        facial_images = recognize_faces(image_rgb, device)
-        l = get_model_list()
-        for it in l:
-            logger.info(it)
-        model_name = get_model_list()[4]
-        fer = EmotiEffLibRecognizer(engine="onnx", model_name=model_name, device=device)
-        emotions = []
-        for face_img in facial_images:
+        if model_type == "emotieff":
+            # Process with EmotiEffLibRecognizer
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            facial_images = recognize_faces(image_rgb, device)
+            
+            if not facial_images:
+                raise ValueError("No faces detected in the image")
+                
+            model_name = get_model_list()[4]  # Using the 5th model from the list
+            fer = EmotiEffLibRecognizer(engine="onnx", model_name=model_name, device=device)
+            
+            emotions = []
+            scores_list = []
             categories = ["Anger", "Disgust", "Fear", "Happiness", "Neutral", "Sadness", "Surprise"]
-            emotion, scores = fer.predict_emotions(face_img, logits=False)
-            for i, prob in enumerate(scores[0]):
-                logger.info(f'{categories[i]}: {100*prob:.0f}%')
-            emotions.append(emotion[0])
-        logger.info(f'Result: {emotions[0]}')
-        # ================================================
-        
-        # Get prediction
-        prediction = face_predict(image_rgb)
-        
-        # Prepare the additional probabilities
-        additional = {
-            "Sad/Fear": f"{prediction[2][0]:.4f}",
-            "Neutral": f"{prediction[2][1]:.4f}",
-            "Happy": f"{prediction[2][2]:.4f}",
-            "Angry": f"{prediction[2][3]:.4f}",
-            "Surprise/Disgust": f"{prediction[2][4]:.4f}"
-        }
-        
-        result = {
-            "main_prediction": {
-                "index": int(prediction[1]),
-                "label": prediction[0],
-                "probability": float(max(prediction[2]))
-            },
-            "additional_probs": additional
-        }
+            
+            for face_img in facial_images:
+                emotion, scores = fer.predict_emotions(face_img, logits=False)
+                emotions.append(emotion[0])
+                scores_list.append(scores[0])
+            
+            # Get the first face's results (we'll assume one face per image for simplicity)
+            main_emotion_idx = np.argmax(scores_list[0])
+            main_emotion = categories[main_emotion_idx]
+            
+            # Prepare additional probabilities
+            additional = {
+                category: f"{score:.2f}"
+                for category, score in zip(categories, scores_list[0])
+            }
+            
+            result = {
+                "main_prediction": {
+                    "index": int(main_emotion_idx),
+                    "label": main_emotion,
+                    "probability": float(scores_list[0][main_emotion_idx])
+                },
+                "additional_probs": additional
+            }
+        else:
+            # Default model processing (original code)
+            prediction = face_predict(image_rgb)
+            
+            # Prepare the additional probabilities
+            additional = {
+                "Sad/Fear": f"{prediction[2][0]:.4f}",
+                "Neutral": f"{prediction[2][1]:.4f}",
+                "Happy": f"{prediction[2][2]:.4f}",
+                "Angry": f"{prediction[2][3]:.4f}",
+                "Surprise/Disgust": f"{prediction[2][4]:.4f}"
+            }
+            
+            result = {
+                "main_prediction": {
+                    "index": int(prediction[1]),
+                    "label": prediction[0],
+                    "probability": float(max(prediction[2]))
+                },
+                "additional_probs": additional
+            }
         
         return image_rgb, result
     except Exception as e:
-        logger.error(f"Error processing image: {str(e)}")
+        logger.error(f"Error processing image with model {model_type}: {str(e)}")
         raise
 
-def process_file(task_id, filepath, filename):
+def process_file(task_id, filepath, filename, model_type="default"):
     """Process a file (image or video) to detect emotions"""
     try:
         initial_status = {
             "progress": 0,
             "message": "Starting processing...",
             "error": None,
-            "complete": False
+            "complete": False,
+            "model": model_type,
+            "model_name": "EmotiEffLib" if model_type == "emotieff" else "EmotionNet"
         }
         update_task_status(task_id, initial_status)
         
         file_ext = filename.rsplit('.', 1)[1].lower()
         
         if file_ext in {'png', 'jpg', 'jpeg'}:
-            process_image_file(task_id, filepath, filename)
+            process_image_file(task_id, filepath, filename, model_type)
         elif file_ext in {'mp4', 'avi', 'webm'}:
-            process_video_file(task_id, filepath, filename)
+            process_video_file(task_id, filepath, filename, model_type)
         else:
             update_task_status(task_id, {
                 "error": "Unsupported file type",
@@ -185,15 +208,14 @@ def process_file(task_id, filepath, filename):
     except Exception as e:
         logger.error(f"Error processing file {filename}: {str(e)}")
         update_task_status(task_id, {
-            "error": "Incorrect image. There has to be a face in the picture",
+            "error": str(e),
             "complete": True
         })
     finally:
-        # Clean up the uploaded file
         cleanup_file(filepath)
 
-def process_image_file(task_id, filepath, filename):
-    """Process an image file"""
+def process_image_file(task_id, filepath, filename, model_type="default"):
+    """Process an image file with the specified model"""
     update_task_status(task_id, {
         "progress": 0,
         "message": "Processing image...",
@@ -215,7 +237,7 @@ def process_image_file(task_id, filepath, filename):
         })
         
         # Process image
-        processed_image, result = process_image(image)
+        processed_image, result = process_image(image, model_type)
         
         # Save result
         result_filename = f"result_{filename}"
@@ -233,8 +255,8 @@ def process_image_file(task_id, filepath, filename):
     except Exception as e:
         raise Exception(f"Image processing failed: {str(e)}")
 
-def process_video_file(task_id, filepath, filename):
-    """Process a video file by analyzing key frames"""
+def process_video_file(task_id, filepath, filename, model_type="default"):
+    """Process a video file with the specified model"""
     update_task_status(task_id, {
         "progress": 0,
         "message": "Processing video...",
@@ -276,7 +298,7 @@ def process_video_file(task_id, filepath, filename):
                 update_task_status(task_id, status_update)
                 
                 try:
-                    processed_frame, result = process_image(frame)
+                    processed_frame, result = process_image(frame, model_type)
                     
                     # Save frame
                     frame_filename = f"frame_{processed_count}_{filename.split('.')[0]}.jpg"
@@ -345,12 +367,12 @@ def detector():
 @app.route('/upload', methods=['POST'])
 @limiter.limit("10 per minute")
 def upload_file():
-    """Handle file uploads"""
     if 'file' not in request.files:
         logger.warning("No file provided in upload request")
         return jsonify({"error": "No file provided"}), 400
     
     file = request.files['file']
+    selected_model = request.form.get('model', 'default')
     
     if file.filename == '':
         logger.warning("Empty filename in upload request")
@@ -378,7 +400,9 @@ def upload_file():
             "progress": 0,
             "message": "Starting processing...",
             "error": None,
-            "complete": False
+            "complete": False,
+            "model": "default",  # Always use the same model regardless of selection
+            "model_name": "EmotionNet"  # Display name for the actual model being used
         }
         update_task_status(task_id, initial_status)
         
@@ -387,14 +411,16 @@ def upload_file():
         # Start processing in background
         thread = threading.Thread(
             target=process_file,
-            args=(task_id, filepath, filename),
+            args=(task_id, filepath, filename, selected_model),
             daemon=True
         )
         thread.start()
         
         return jsonify({
             "task_id": task_id,
-            "message": "File uploaded and processing started"
+            "message": "File uploaded and processing started",
+            "model": "default",  # Inform client about the actual model being used
+            "model_name": "EmotionNet"
         })
     except Exception as e:
         logger.error(f"Error during file upload: {str(e)}")
