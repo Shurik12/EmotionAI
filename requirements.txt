@@ -9,6 +9,7 @@ matplotlib
 mediapipe
 more-itertools
 moviepy==1.0.3
+gunicorn
 nltk
 noisereduce
 numpy
@@ -30,3 +31,10 @@ torchaudio
 torchvision
 tqdm
 transformers
+werkzeug
+flask
+flask_limiter
+wsgi
+redis
+facenet_pytorch
+gevent
