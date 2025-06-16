@@ -256,3 +256,9 @@ sudo systemctl restart emotion_detection.service
 # Service configuration
 /etc/systemd/system/emotion_detection.service
 ```
+4. Install redis server
+```bash
+sudo apt update
+sudo apt install redis-server
+sudo vim /etc/redis/redis.conf
+```
