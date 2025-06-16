@@ -38,3 +38,5 @@ wsgi
 redis
 facenet_pytorch
 gevent
+onnx
+onnxruntime
