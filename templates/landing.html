@@ -6,204 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EmotionAI | Распознавание эмоций</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --black: #000000;
-            --white: #FFFFFF;
-            --gray-1: #F5F5F5;
-            --gray-2: #E0E0E0;
-            --gray-3: #9E9E9E;
-            --gray-4: #424242;
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--white);
-            color: var(--black);
-            line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        /* Header */
-        header {
-            padding: 30px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--gray-2);
-        }
-        
-        .logo {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--black);
-            text-decoration: none;
-        }
-        
-        /* Hero Section */
-        .hero {
-            padding: 100px 0;
-            text-align: center;
-        }
-        
-        .hero h1 {
-            font-size: 64px;
-            font-weight: 700;
-            margin-bottom: 24px;
-            line-height: 1.1;
-        }
-        
-        .hero p {
-            font-size: 20px;
-            color: var(--gray-4);
-            max-width: 700px;
-            margin: 0 auto 40px;
-        }
-        
-        /* Button Styles */
-        .btn {
-            display: inline-block;
-            background-color: var(--black);
-            color: var(--white);
-            padding: 16px 32px;
-            border-radius: 0;
-            text-decoration: none;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            border: 1px solid var(--black);
-            cursor: pointer;
-            font-size: 16px;
-        }
-        
-        .btn:hover {
-            background-color: var(--white);
-            color: var(--black);
-        }
-        
-        .btn-outline {
-            background: transparent;
-            color: var(--black);
-            border: 1px solid var(--black);
-            margin-left: 16px;
-        }
-        
-        .btn-outline:hover {
-            background-color: var(--black);
-            color: var(--white);
-        }
-        
-        /* Features Section */
-        .features {
-            padding: 80px 0;
-            background-color: var(--gray-1);
-        }
-        
-        .section-title {
-            text-align: center;
-            margin-bottom: 60px;
-            font-size: 36px;
-            font-weight: 600;
-        }
-        
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 30px;
-        }
-        
-        .feature-card {
-            background: var(--white);
-            padding: 40px;
-            text-align: center;
-        }
-        
-        .feature-icon {
-            font-size: 40px;
-            margin-bottom: 20px;
-        }
-
-	.feature-icon img {
- 	   width: 60px; /* Matching original font-size */
- 	   height: 60px;
- 	   object-fit: contain;
- 	   filter: grayscale(100%) contrast(100%);
-	}	
-        
-        .feature-card h3 {
-            font-size: 22px;
-            margin-bottom: 16px;
-        }
-        
-        .feature-card p {
-            color: var(--gray-4);
-        }
-        
-        /* Footer */
-        footer {
-            padding: 60px 0;
-            text-align: center;
-            background-color: var(--black);
-            color: var(--white);
-        }
-        
-        .footer-logo {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 20px;
-        }
-        
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-        
-        .footer-links a {
-            color: var(--white);
-            text-decoration: none;
-        }
-        
-        .copyright {
-            color: var(--gray-3);
-        }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 48px;
-            }
-            
-            .hero p {
-                font-size: 18px;
-            }
-            
-            .features-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .btn-container {
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-            }
-            
-            .btn-outline {
-                margin-left: 0;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <div class="container">
@@ -261,12 +64,29 @@
             <div class="footer-logo">EmotionAI</div>
             <div class="footer-links">
                 <a href="/detector">Демо</a>
-                <a href="#">Документация</a>
-                <a href="#">Цены</a>
-                <a href="#">Контакты</a>
+                <a href="/privacy-policy">Политика конфиденциальности</a>
+                <a href="/personal-data-policy">Обработка персональных данных</a>
+                <a href="/contact">Контакты</a>
             </div>
             <p class="copyright">© 2025 EmotionAI Technologies. Все права защищены.</p>
         </footer>
     </div>
+    <div id="cookieConsent" style="position: fixed; bottom: 0; left: 0; right: 0; background: var(--black); color: white; padding: 15px; text-align: center; display: none; z-index: 1000;">
+        <p>Мы используем файлы cookie для улучшения работы сайта. 
+        <a href="/privacy-policy" style="color: var(--primary-color);">Подробнее</a>
+        <button id="acceptCookies" style="margin-left: 15px; padding: 5px 15px; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer;">Принять</button></p>
+    </div>
+
+    <script>
+        // Проверяем, не согласился ли уже пользователь
+        if (!localStorage.getItem('cookiesAccepted')) {
+            document.getElementById('cookieConsent').style.display = 'block';
+        }
+
+        document.getElementById('acceptCookies').addEventListener('click', function() {
+            localStorage.setItem('cookiesAccepted', 'true');
+            document.getElementById('cookieConsent').style.display = 'none';
+        });
+    </script>
 </body>
 </html>
