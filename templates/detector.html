@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Emotion Detection AI</title>
+    <title>EmotionAI | Распознавание эмоций</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -288,47 +288,47 @@
 </head>
 <body>
     <div class="container">
-        <h1>AI Emotion Detection</h1>
+        <h1>Распознавание эмоций с помощью ИИ</h1>
         
         <div class="upload-section">
             <div class="upload-container" id="dropArea">
                 <div class="upload-icon">📁</div>
                 <div class="upload-text">
-                    <h3>Drag & Drop your file here</h3>
-                    <p>or</p>
+                    <h3>Перетащите файл сюда</h3>
+                    <p>или</p>
                 </div>
                 <input type="file" id="fileInput" class="file-input" accept="image/*,video/*">
-                <button class="btn" id="selectFileBtn">Select File</button>
-                <p class="supported-formats">Supported formats: JPG, PNG, MP4, AVI, WEBM (Max 16MB)</p>
+                <button class="btn" id="selectFileBtn">Выбрать файл</button>
+                <p class="supported-formats">Поддерживаемые форматы: JPG, PNG, MP4, AVI, WEBM (макс. 16MB)</p>
             </div>
             
             <div class="file-info" id="fileInfo"></div>
-            <button class="btn" id="uploadBtn" disabled>Analyze Emotions</button>
+            <button class="btn" id="uploadBtn" disabled>Анализировать эмоции</button>
         </div>
         
         <div class="model-selection" style="margin: 20px 0; text-align: center;">
-            <h3>Select Model</h3>
+            <h3>Выбор модели</h3>
             <div style="display: flex; justify-content: center; gap: 20px; margin-top: 10px;">
                 <label style="display: flex; align-items: center; cursor: pointer;">
                     <input type="radio" name="model" value="default" checked style="margin-right: 8px;">
-                    EmotionNet (Basic)
+                    Модель1
                 </label>
                 <label style="display: flex; align-items: center; cursor: pointer;">
                     <input type="radio" name="model" value="emotieff" style="margin-right: 8px;">
-                    EmotiEffLib (Advanced)
+                    Модель2
                 </label>
             </div>
             <p style="font-size: 12px; color: var(--dark-gray); margin-top: 5px;">
-                EmotionNet: Basic emotions | EmotiEffLib: Detailed emotion analysis
+                Модель1: 5 эмоций | Модель2: 7 эмоций
             </p>
         </div>
 
         <div class="progress-container" id="progressContainer">
             <div class="progress-header">
-                <h3>Processing</h3>
+                <h3>Обработка</h3>
             </div>
             <div class="progress-wheel" id="progressWheel"></div>
-            <div class="progress-text" id="progressText">Starting processing...</div>
+            <div class="progress-text" id="progressText">Начало обработки...</div>
         </div>
         
         <div class="preview-container" id="previewContainer"></div>
@@ -433,12 +433,12 @@
             const maxSize = 16 * 1024 * 1024; // 16MB
             
             if (!validTypes.includes(file.type)) {
-                showError('Invalid file type. Please upload an image (JPG, PNG) or video (MP4, AVI, WEBM).');
+                showError('Неподдерживаемый формат файла. Загрузите изображение (JPG, PNG) или видео (MP4, AVI, WEBM).');
                 return false;
             }
             
             if (file.size > maxSize) {
-                showError('File is too large. Maximum size is 16MB.');
+                showError('Файл слишком большой. Максимальный размер 16MB.');
                 return false;
             }
             
@@ -479,7 +479,7 @@
         
         function uploadFile() {
             if (!currentFile) {
-                showError('Please select a file first');
+                showError('Сначала выберите файл');
                 return;
             }
             
@@ -492,7 +492,7 @@
             
             // Show progress container
             progressContainer.style.display = 'block';
-            progressText.textContent = 'Uploading file...';
+            progressText.textContent = 'Загрузка файла...';
             
             // Disable buttons during upload
             uploadBtn.disabled = true;
@@ -508,7 +508,7 @@
             })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    throw new Error('Ошибка отклика сети');
                 }
                 return response.json();
             })
@@ -518,12 +518,12 @@
                 }
                 
                 currentTaskId = data.task_id;
-                progressText.textContent = 'Processing file...';
+                progressText.textContent = 'Обработка файла...';
                 checkProgress();
             })
             .catch(error => {
                 console.error('Error:', error);
-                showError(error.message || 'An error occurred during upload');
+                showError(error.message || 'Во время загрузки произошла ошибка');
                 hideProgress();
                 
                 // Re-enable buttons
@@ -541,7 +541,7 @@
                 fetch(`/progress/${currentTaskId}`)
                     .then(response => {
                         if (!response.ok) {
-                            throw new Error('Failed to check progress');
+                            throw new Error('Не удалось проверить прогресс');
                         }
                         return response.json();
                     })
@@ -558,7 +558,7 @@
                             clearInterval(progressInterval);
                             progressWheel.style.animation = 'none';
                             progressWheel.style.border = '6px solid var(--secondary-color)';
-                            progressText.textContent = 'Processing complete!';
+                            progressText.textContent = 'Обработка завершена!';
                             
                             setTimeout(() => {
                                 hideProgress();
@@ -571,9 +571,9 @@
                         }
                     })
                     .catch(error => {
-                        console.error('Error checking progress:', error);
+                        console.error('Ошибка при проверке прогресса:', error);
                         clearInterval(progressInterval);
-                        showError(error.message || 'Failed to check progress');
+                        showError(error.message || 'Не удалось проверить прогресс');
                         hideProgress();
                         
                         // Re-enable buttons
@@ -600,8 +600,8 @@
             const modelInfo = document.createElement('div');
             modelInfo.className = 'result-card';
             modelInfo.innerHTML = `
-                <h3>Analysis Complete</h3>
-                <p>Model used: <strong>${data.model_name || 'EmotionNet'}</strong></p>
+                <h3>Анализ завершен</h3>
+                <p>Используемая модель: <strong>${data.model_name || 'Модель1'}</strong></p>
             `;
             resultsContainer.appendChild(modelInfo);
             
@@ -609,7 +609,7 @@
                 // Display image preview
                 const img = document.createElement('img');
                 img.src = data.image_url;
-                img.alt = 'Processed image with emotion detection';
+                img.alt = 'Обработанное изображение с распознаванием эмоций';
                 previewContainer.appendChild(img);
                 
                 // Display results
@@ -618,8 +618,8 @@
             else if (data.type === 'video') {
                 resultsContainer.innerHTML = `
                     <div class="result-card">
-                        <h3>Video Analysis Complete</h3>
-                        <p>Processed ${data.frames_processed} key frames</p>
+                        <h3>Видеоанализ завершен</h3>
+                        <p>Обработанные ${data.frames_processed} ключевые кадры</p>
                     </div>
                 `;
                 

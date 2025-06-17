@@ -122,7 +122,7 @@ def process_image(image, model_type="default"):
             facial_images = recognize_faces(image_rgb, device)
             
             if not facial_images:
-                raise ValueError("No faces detected in the image")
+                raise ValueError("На изображении не обнаружено лиц")
                 
             model_name = get_model_list()[4]  # Using the 5th model from the list
             fer = EmotiEffLibRecognizer(engine="onnx", model_name=model_name, device=device)
@@ -186,11 +186,11 @@ def process_file(task_id, filepath, filename, model_type="default"):
     try:
         initial_status = {
             "progress": 0,
-            "message": "Starting processing...",
+            "message": "Начало обработки...",
             "error": None,
             "complete": False,
             "model": model_type,
-            "model_name": "EmotiEffLib" if model_type == "emotieff" else "EmotionNet"
+            "model_name": "Модель2" if model_type == "emotieff" else "Модель2"
         }
         update_task_status(task_id, initial_status)
         
@@ -202,7 +202,7 @@ def process_file(task_id, filepath, filename, model_type="default"):
             process_video_file(task_id, filepath, filename, model_type)
         else:
             update_task_status(task_id, {
-                "error": "Unsupported file type",
+                "error": "Неподдерживаемый формат файла",
                 "complete": True
             })
     except Exception as e:
@@ -369,18 +369,18 @@ def detector():
 def upload_file():
     if 'file' not in request.files:
         logger.warning("No file provided in upload request")
-        return jsonify({"error": "No file provided"}), 400
+        return jsonify({"error": "Файл не предоставлен"}), 400
     
     file = request.files['file']
     selected_model = request.form.get('model', 'default')
     
     if file.filename == '':
         logger.warning("Empty filename in upload request")
-        return jsonify({"error": "No selected file"}), 400
+        return jsonify({"error": "Файл не выбран"}), 400
     
     if not file or not allowed_file(file.filename):
         logger.warning(f"Invalid file type attempted: {file.filename}")
-        return jsonify({"error": "Invalid file type. Supported types: JPG, PNG, MP4, AVI, WEBM"}), 400
+        return jsonify({"error": "Неподдерживаемый формат файла. Поддерживаются: JPG, PNG, MP4, AVI, WEBM"}), 400
     
     try:
         # Create unique task ID
@@ -398,11 +398,11 @@ def upload_file():
 
         initial_status = {
             "progress": 0,
-            "message": "Starting processing...",
+            "message": "Начало обработки...",
             "error": None,
             "complete": False,
-            "model": "default",  # Always use the same model regardless of selection
-            "model_name": "EmotionNet"  # Display name for the actual model being used
+            "model": "default",
+            "model_name": "Модель1"
         }
         update_task_status(task_id, initial_status)
         
@@ -418,9 +418,9 @@ def upload_file():
         
         return jsonify({
             "task_id": task_id,
-            "message": "File uploaded and processing started",
+            "message": "Файл загружен, начата обработка",
             "model": "default",  # Inform client about the actual model being used
-            "model_name": "EmotionNet"
+            "model_name": "Модель1"
         })
     except Exception as e:
         logger.error(f"Error during file upload: {str(e)}")
@@ -439,13 +439,13 @@ def get_progress(task_id):
 def request_entity_too_large(error):
     """Handle file size limit exceeded"""
     logger.warning("File size limit exceeded in upload request")
-    return jsonify({"error": "File too large. Maximum size is 16MB"}), 413
+    return jsonify({"error": "Файл слишком большой. Максимальный размер 16MB"}), 413
 
 @app.errorhandler(429)
 def ratelimit_handler(e):
     """Handle rate limiting"""
     logger.warning(f"Rate limit exceeded: {str(e)}")
-    return jsonify({"error": "Rate limit exceeded. Please try again later."}), 429
+    return jsonify({"error": "Превышен лимит запросов. Пожалуйста, попробуйте позже."}), 429
     
 if __name__ == '__main__':
     # Development configuration
