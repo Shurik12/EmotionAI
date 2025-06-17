@@ -356,13 +356,8 @@ def recognize_faces(frame: np.ndarray, device: str) -> List[np.array]:
 
 @app.route('/')
 def index():
-    """Render the main landing page"""
-    return render_template('landing.html')
-
-@app.route('/detector')
-def detector():
-    """Render the emotion detector page"""
-    return render_template('detector.html')
+    """Render the single page application"""
+    return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
 @limiter.limit("10 per minute")
