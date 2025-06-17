@@ -433,6 +433,85 @@ footer {
 	z-index: 1000;
 }
 
+/* Navigation */
+.main-nav {
+    display: flex;
+    gap: 20px;
+}
+
+.nav-link {
+    color: var(--black);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 8px 12px;
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+.nav-link:hover {
+    background-color: var(--gray-1);
+}
+
+/* Active navigation link */
+.nav-link.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* SPA transitions */
+#app-content {
+    min-height: 60vh;
+    transition: opacity 0.3s ease;
+}
+
+#app-content.fade-out {
+    opacity: 0;
+}
+
+/* Detector container */
+.detector-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Cookie consent styles */
+#cookieConsent {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--black);
+    color: white;
+    padding: 15px;
+    text-align: center;
+    display: none;
+    z-index: 1000;
+}
+
+#cookieConsent p {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+#cookieConsent a {
+    color: var(--primary-color);
+    margin: 0 5px;
+}
+
+#acceptCookies {
+    margin-left: 15px;
+    padding: 5px 15px;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
 	.hero h1 {
@@ -464,4 +543,19 @@ footer {
 	.container {
 		padding: 15px;
 	}
+
+	header {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .main-nav {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .nav-link {
+        padding: 6px 10px;
+        font-size: 14px;
+    }
 }
