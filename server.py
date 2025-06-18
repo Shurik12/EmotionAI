@@ -39,6 +39,9 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+from flask_cors import CORS
+CORS(app)  # Enable CORS for all routes
+
 # Configuration
 UPLOAD_FOLDER = 'static/uploads'
 RESULTS_FOLDER = 'static/results'
