@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EmotionAI | Распознавание эмоций</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -50,6 +50,7 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--gray-2);
+            position: relative;
         }
 
         .logo {
@@ -639,6 +640,30 @@
             cursor: pointer;
         }
 
+        /* Loading State */
+        .loading-state {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid var(--medium-gray);
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .hero h1 {
@@ -687,8 +712,9 @@
             }
 
             header {
-                flex-direction: column;
-                gap: 20px;
+                padding: 15px 0;
+                flex-direction: row;
+                align-items: center;
             }
 
             .main-nav {
@@ -707,6 +733,105 @@
             }
         }
 
+        @media (max-width: 480px) {
+            /* Mobile-specific adjustments */
+            .hero {
+                padding: 60px 0;
+            }
+            
+            .hero h1 {
+                font-size: 20px;
+                margin-bottom: 15px;
+            }
+            
+            .hero p {
+                font-size: 12px;
+                margin-bottom: 20px;
+            }
+            
+            .btn {
+                padding: 12px 24px;
+                font-size: 14px;
+            }
+            
+            .feature-card {
+                padding: 15px;
+                min-height: 80px;
+            }
+            
+            .feature-card p {
+                font-size: 13px;
+            }
+            
+            .upload-container {
+                padding: 30px 15px;
+            }
+            
+            .model-selection div {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            /* Make file input more touch-friendly */
+            #selectFileBtn {
+                padding: 12px 20px;
+            }
+            
+            /* Adjust modal for mobile */
+            .modal-content {
+                width: 90%;
+                margin: 20% auto;
+                padding: 20px;
+            }
+            
+            /* Navigation adjustments */
+            .main-nav {
+                flex-direction: column;
+                gap: 10px;
+                width: 100%;
+                display: none;
+                position: absolute;
+                top: 70px;
+                left: 0;
+                background: white;
+                padding: 15px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                z-index: 100;
+            }
+            
+            .main-nav.show {
+                display: flex;
+            }
+            
+            .btn-container {
+                margin-top: 15px;
+            }
+            
+            /* Detector page adjustments */
+            .detector-container {
+                padding: 10px;
+            }
+            
+            .emotion-label {
+                font-size: 13px;
+            }
+            
+            /* Footer adjustments */
+            .footer-links {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            /* Hide desktop logo on mobile */
+            .desktop-logo {
+                display: none;
+            }
+        }
+
         /* SPA transitions */
         #app-content {
             min-height: 60vh;
@@ -721,8 +846,9 @@
 <body>
     <div class="container">
         <header>
+            <button id="mobileMenuBtn" style="display: none; background: none; border: none; font-size: 24px;">☰</button>
             <a href="/" class="logo" id="home-link">EmotionAI</a>
-            <nav class="main-nav">
+            <nav class="main-nav" id="mainNav">
                 <a href="#features" class="nav-link">Возможности</a>
                 <a href="#detector" class="nav-link">Демо</a>
                 <a href="#privacy" class="nav-link">Конфиденциальность</a>
@@ -816,6 +942,18 @@
                 if (event.target === document.getElementById('applicationModal')) {
                     closeApplicationModal();
                 }
+            });
+
+            // Mobile menu functionality
+            document.getElementById('mobileMenuBtn').addEventListener('click', function() {
+                document.getElementById('mainNav').classList.toggle('show');
+            });
+
+            // Close mobile menu when clicking a link
+            document.querySelectorAll('.main-nav a').forEach(link => {
+                link.addEventListener('click', function() {
+                    document.getElementById('mainNav').classList.remove('show');
+                });
             });
 
             // Form submission handler
@@ -1152,7 +1290,7 @@
             `;
         }
 
-         function initializeDetector() {
+        function initializeDetector() {
             // DOM elements
             const dropArea = document.getElementById('dropArea');
             const fileInput = document.getElementById('fileInput');
@@ -1211,6 +1349,21 @@
             
             dropArea.addEventListener('drop', handleDrop, false);
             
+            // Touch events for mobile
+            dropArea.addEventListener('touchstart', handleTouchStart, false);
+            dropArea.addEventListener('touchend', handleTouchEnd, false);
+            
+            function handleTouchStart(e) {
+                e.preventDefault();
+                dropArea.classList.add('highlight');
+            }
+            
+            function handleTouchEnd(e) {
+                e.preventDefault();
+                dropArea.classList.remove('highlight');
+                fileInput.click();
+            }
+            
             function handleDrop(e) {
                 const dt = e.dataTransfer;
                 const files = dt.files;
@@ -1233,10 +1386,16 @@
                 
                 currentFile = file;
                 
-                // Display file info
+                // Display file info - mobile optimized
                 fileInfo.innerHTML = `
-                    Selected file: <strong>${file.name}</strong> (${formatFileSize(file.size)})
-                    <button class="btn" id="clearFileBtn" style="margin-left: 10px; background-color: var(--error-color);">Clear</button>
+                    <div style="word-break: break-all;">
+                        Выбран файл: <strong>${file.name}</strong><br>
+                        (${formatFileSize(file.size)})
+                    </div>
+                    <button class="btn" id="clearFileBtn" 
+                            style="margin-top: 8px; background-color: var(--error-color);">
+                        Очистить
+                    </button>
                 `;
                 
                 // Add event listener to clear button
@@ -1305,6 +1464,13 @@
                     return;
                 }
                 
+                // Show loading state
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'loading-state';
+                loadingDiv.innerHTML = '<div class="loading-spinner"></div>';
+                document.body.appendChild(loadingDiv);
+                loadingDiv.style.display = 'flex';
+                
                 // Get selected model
                 const selectedModel = document.querySelector('input[name="model"]:checked').value;
                 
@@ -1351,6 +1517,10 @@
                     // Re-enable buttons
                     uploadBtn.disabled = false;
                     selectFileBtn.disabled = false;
+                })
+                .finally(() => {
+                    loadingDiv.style.display = 'none';
+                    loadingDiv.remove();
                 });
             }
 
@@ -1430,6 +1600,7 @@
                     const img = document.createElement('img');
                     img.src = data.image_url;
                     img.alt = 'Обработанное изображение с распознаванием эмоций';
+                    img.loading = 'lazy';
                     previewContainer.appendChild(img);
                     
                     // Display results
@@ -1454,6 +1625,7 @@
                         const img = document.createElement('img');
                         img.src = frame.image_url;
                         img.alt = `Video frame ${frame.frame + 1}`;
+                        img.loading = 'lazy';
                         frameDiv.appendChild(img);
                         
                         displayEmotionResult(frame.result, frameDiv);
