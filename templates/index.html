@@ -42,7 +42,50 @@
         <button id="acceptCookies">Принять</button></p>
     </div>
 
+    <!-- Application Form Modal -->
+    <div id="applicationModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Отправить заявку</h2>
+            <form id="planApplicationForm">
+                <input type="hidden" id="selectedPlan" name="plan" value="">
+                
+                <div class="form-group">
+                    <label for="name">Имя*</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email*</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone">Телефон*</label>
+                    <input type="tel" id="phone" name="phone" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="company">Название компании (если есть)</label>
+                    <input type="text" id="company" name="company">
+                </div>
+                
+                <button type="submit" class="btn">Отправить заявку</button>
+            </form>
+        </div>
+    </div>
+
     <script>
+        // Modal handling functions
+        function openApplicationModal(plan) {
+            document.getElementById('selectedPlan').value = plan;
+            document.getElementById('applicationModal').style.display = 'block';
+        }
+
+        function closeApplicationModal() {
+            document.getElementById('applicationModal').style.display = 'none';
+        }
+
         // SPA Router
         document.addEventListener('DOMContentLoaded', function() {
             // Check cookies consent
@@ -55,17 +98,58 @@
                 document.getElementById('cookieConsent').style.display = 'none';
             });
 
+            // Modal functionality
+            document.querySelector('.close-modal').addEventListener('click', closeApplicationModal);
+            
+            window.addEventListener('click', function(event) {
+                if (event.target === document.getElementById('applicationModal')) {
+                    closeApplicationModal();
+                }
+            });
+
+            // Form submission handler
+            document.getElementById('planApplicationForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = {
+                    plan: document.getElementById('selectedPlan').value,
+                    name: document.getElementById('name').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value,
+                    company: document.getElementById('company').value || ''
+                };
+                
+                fetch('/submit_application', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Спасибо за вашу заявку! Мы свяжемся с вами в ближайшее время.');
+                        closeApplicationModal();
+                        document.getElementById('planApplicationForm').reset();
+                    } else {
+                        alert('Произошла ошибка при отправке заявки. Пожалуйста, попробуйте позже.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Произошла ошибка при отправке заявки. Пожалуйста, попробуйте позже.');
+                });
+            });
+
             // Handle navigation
             function loadContent(hash) {
                 const contentDiv = document.getElementById('app-content');
                 
-                // Default to home if no hash
                 if (!hash) hash = '#home';
                 
-                // Clear previous content
                 contentDiv.innerHTML = '';
                 
-                // Load appropriate content
                 switch(hash) {
                     case '#home':
                         loadHomeContent();
@@ -119,12 +203,93 @@
                 <section class="hero">
                     <h1>Razuma – флагманская ИИ-платформа для комплексного анализа эмоций по фото и видео</h1>
                     <p>Razuma – это ИИ модель анализа эмоций потребителей: быстро, точно, без личного присутствия. Она разработана для анализа эффективности маркетинговых исследований, поведения потребителей, проверки гипотез, A/B-тестирования продуктов и услуг, когда особенно важно выводить новые продукты, повышать удовлетворенность клиентов и снижать затраты.</p>
+                    
+                    <h3 style="text-align: center; margin: 30px 0 20px; font-size: 18px; font-weight: 500;">
+                        Платформа Razuma применяется в различных сферах, где важно понимать эмоциональное восприятие продукта или услуги потребителем:
+                    </h3>
+                    
+                    <div class="features-grid" style="max-width: 800px; margin: 0 auto 40px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+                        <div class="feature-card" style="padding: 15px; min-height: auto;">
+                            <p style="font-size: 14px; font-weight: 500;">Анализ промо-роликов и A/B-тестирование креативов</p>
+                        </div>
+                        <div class="feature-card" style="padding: 15px; min-height: auto;">
+                            <p style="font-size: 14px; font-weight: 500;">Продуктовое и UX тестирование</p>
+                        </div>
+                        <div class="feature-card" style="padding: 15px; min-height: auto;">
+                            <p style="font-size: 14px; font-weight: 500;">Глубокая оценка эмоционального восприятия клиентского опыта</p>
+                        </div>
+                        <div class="feature-card" style="padding: 15px; min-height: auto;">
+                            <p style="font-size: 14px; font-weight: 500;">Оценка эффективности выступлений и презентаций</p>
+                        </div>
+                        <div class="feature-card" style="padding: 15px; min-height: auto;">
+                            <p style="font-size: 14px; font-weight: 500;">Редактирование сценариев для повышения эмоционального отклика</p>
+                        </div>
+                    </div>
+                    
                     <div class="btn-container">
                         <a href="#detector" class="btn">Анализировать сейчас</a>
                         <a href="#features" class="btn btn-outline">Узнать больше</a>
                     </div>
                 </section>
+
+                <section class="pricing">
+                    <h2 class="section-title">Наши тарифы</h2>
+                    <div class="pricing-grid">
+                        <div class="pricing-card">
+                            <h3>Free</h3>
+                            <div class="price">Бесплатно</div>
+                            <ul class="features-list">
+                                <li>Анализ 3-х фото в месяц</li>
+                                <li>До 30 секунд видео или аудио в месяц</li>
+                            </ul>
+                            <button class="btn use-plan-btn" data-plan="free">Использовать</button>
+                        </div>
+                        
+                        <div class="pricing-card featured">
+                            <div class="featured-badge">Рекомендуем</div>
+                            <h3>Pro</h3>
+                            <div class="price">9 990 ₽/мес</div>
+                            <ul class="features-list">
+                                <li>Ведение до 10 проектов</li>
+                                <li>Неограниченный анализ фото</li>
+                                <li>До 2 часов видео и аудио</li>
+                                <li>Проведение A/B-анализа</li>
+                                <li>Полный API-доступ</li>
+                            </ul>
+                            <button class="btn apply-plan-btn" data-plan="pro">Отправить заявку</button>
+                        </div>
+                        
+                        <div class="pricing-card">
+                            <h3>Business</h3>
+                            <div class="price">29 990 ₽/мес</div>
+                            <ul class="features-list">
+                                <li>Неограниченное количество проектов</li>
+                                <li>Анализ любого количества фото, видео и аудио</li>
+                                <li>Проведение A/B-анализа</li>
+                                <li>Полный API-доступ</li>
+                                <li>Расширенная аналитика и техподдержка</li>
+                                <li>Персональные экспертные отчеты</li>
+                            </ul>
+                            <button class="btn apply-plan-btn" data-plan="business">Отправить заявку</button>
+                        </div>
+                    </div>
+                </section>
             `;
+
+            // Add event listeners for plan buttons
+            document.querySelectorAll('.use-plan-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    window.location.hash = '#detector';
+                    loadContent('#detector');
+                });
+            });
+
+            document.querySelectorAll('.apply-plan-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const plan = this.getAttribute('data-plan');
+                    openApplicationModal(plan);
+                });
+            });
         }
 
         function loadFeaturesContent() {
@@ -276,7 +441,7 @@
             `;
         }
 
-        function initializeDetector() {
+         function initializeDetector() {
             // DOM elements
             const dropArea = document.getElementById('dropArea');
             const fileInput = document.getElementById('fileInput');

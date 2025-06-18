@@ -18,6 +18,10 @@ from typing import List
 from facenet_pytorch import MTCNN
 from emotiefflib.facial_analysis import EmotiEffLibRecognizer, get_model_list
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 # For production server
 from gevent import monkey
 monkey.patch_all()
@@ -429,6 +433,91 @@ def get_progress(task_id):
     if status is None:
         return jsonify({"error": "Task not found"}), 404
     return jsonify(status)
+
+@app.route('/submit_application', methods=['POST'])
+@limiter.limit("5 per minute")
+def submit_application():
+    try:
+        data = request.get_json()
+        if not data or 'plan' not in data or 'email' not in data:
+            return jsonify({"error": "Недостаточно данных"}), 400
+        
+        # Save application to Redis
+        application_id = str(uuid.uuid4())
+        application_data = {
+            "id": application_id,
+            "plan": data.get('plan'),
+            "name": data.get('name', ''),
+            "email": data.get('email'),
+            "phone": data.get('phone', ''),
+            "company": data.get('company', ''),
+            "timestamp": datetime.now().isoformat(),
+            "status": "new"
+        }
+        
+        try:
+            redis_conn.setex(
+                f"application:{application_id}",
+                time=86400 * 30,  # 30 days expiration
+                value=json.dumps(application_data)
+            )
+            
+            # In production, you would send an email notification here
+            # send_application_notification(application_data)
+            
+            logger.info(f"New application received: {application_id}")
+            return jsonify({"success": True, "application_id": application_id})
+            
+        except redis.RedisError as e:
+            logger.error(f"Error saving application to Redis: {str(e)}")
+            return jsonify({"error": "Ошибка при сохранении заявки"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error processing application: {str(e)}")
+        return jsonify({"error": "Ошибка при обработке заявки"}), 500
+
+def send_application_notification(application):
+    """Send email notification about new application"""
+    try:
+        # Configure these in your production environment
+        smtp_server = os.getenv('SMTP_SERVER')
+        smtp_port = int(os.getenv('SMTP_PORT', 587))
+        smtp_user = os.getenv('SMTP_USER')
+        smtp_password = os.getenv('SMTP_PASSWORD')
+        admin_email = os.getenv('ADMIN_EMAIL')
+        
+        if not all([smtp_server, smtp_user, smtp_password, admin_email]):
+            logger.warning("Email configuration incomplete, skipping notification")
+            return
+            
+        msg = MIMEMultipart()
+        msg['From'] = smtp_user
+        msg['To'] = admin_email
+        msg['Subject'] = f"New Application for {application['plan']} Plan"
+        
+        body = f"""
+        New application received:
+        
+        Plan: {application['plan']}
+        Name: {application['name']}
+        Email: {application['email']}
+        Phone: {application['phone']}
+        Company: {application.get('company', 'N/A')}
+        
+        Timestamp: {application['timestamp']}
+        Application ID: {application['id']}
+        """
+        
+        msg.attach(MIMEText(body, 'plain'))
+        
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+            
+        logger.info(f"Notification email sent for application {application['id']}")
+    except Exception as e:
+        logger.error(f"Error sending notification email: {str(e)}")
 
 @app.errorhandler(413)
 def request_entity_too_large(error):
