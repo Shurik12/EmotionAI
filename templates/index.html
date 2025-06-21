@@ -122,7 +122,7 @@
         }
 
         .hero h1 {
-            font-size: 24px;
+            font-size: 34px;
             font-weight: 700;
             margin-bottom: 24px;
             line-height: 1.1;
@@ -677,8 +677,9 @@
 
         /* Responsive Design */
         @media (max-width: 768px) {
+
             .hero h1 {
-                font-size: 24px;
+                font-size: 34px;
             }
 
             .hero p {
@@ -748,11 +749,6 @@
             /* Mobile-specific adjustments */
             .hero {
                 padding: 60px 0;
-            }
-            
-            .hero h1 {
-                font-size: 20px;
-                margin-bottom: 15px;
             }
             
             .hero p {
@@ -1241,7 +1237,9 @@
             const contentDiv = document.getElementById('app-content');
             contentDiv.innerHTML = `
                 <div class="detector-container">
-                    <h1>Распознавание эмоций с помощью ИИ</h1>
+                    <div style="text-align: center;">
+                        <h1>Распознавание эмоций с помощью ИИ</h1>
+                    </div>
                     
                     <div class="upload-section">
                         <div class="upload-container" id="dropArea">
@@ -1264,23 +1262,6 @@
                             </label>
                         </div>
                         <button class="btn" id="uploadBtn" disabled>Анализировать эмоции</button>
-                    </div>
-                    
-                    <div class="model-selection" style="margin: 20px 0; text-align: center;">
-                        <h3>Выбор модели</h3>
-                        <div style="display: flex; justify-content: center; gap: 20px; margin-top: 10px;">
-                            <label style="display: flex; align-items: center; cursor: pointer;">
-                                <input type="radio" name="model" value="default" checked style="margin-right: 8px;">
-                                Модель1
-                            </label>
-                            <label style="display: flex; align-items: center; cursor: pointer;">
-                                <input type="radio" name="model" value="emotieff" style="margin-right: 8px;">
-                                Модель2
-                            </label>
-                        </div>
-                        <p style="font-size: 12px; color: var(--dark-gray); margin-top: 5px;">
-                            Модель1: 5 эмоций | Модель2: 7 эмоций
-                        </p>
                     </div>
 
                     <div class="progress-container" id="progressContainer">
@@ -1795,7 +1776,7 @@
                 
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
             }
-            
+
             function uploadFile() {
                 if (!currentFile) {
                     showError('Сначала выберите файл');
@@ -1809,8 +1790,8 @@
                 document.body.appendChild(loadingDiv);
                 loadingDiv.style.display = 'flex';
                 
-                // Get selected model
-                const selectedModel = document.querySelector('input[name="model"]:checked').value;
+                // Всегда используем emotieff модель
+                const selectedModel = "emotieff";
                 
                 // Reset UI
                 previewContainer.innerHTML = '';
@@ -1826,8 +1807,8 @@
                 
                 const formData = new FormData();
                 formData.append('file', currentFile);
-                formData.append('model', selectedModel);  // Add model selection to form data
-                
+                formData.append('model', selectedModel);
+
                 fetch('/upload', {
                     method: 'POST',
                     body: formData
@@ -1929,7 +1910,6 @@
                 modelInfo.className = 'result-card';
                 modelInfo.innerHTML = `
                     <h3>Анализ завершен</h3>
-                    <p>Используемая модель: <strong>${data.model_name || 'Модель1'}</strong></p>
                 `;
                 resultsContainer.appendChild(modelInfo);
                 
@@ -1980,11 +1960,13 @@
                 // Get color based on emotion - updated for both models
                 const getColorForEmotion = (emotion) => {
                     const emotionLower = emotion.toLowerCase();
-                    if (emotionLower.includes('happy') || emotionLower.includes('happiness')) return '#34a853'; // Green
-                    if (emotionLower.includes('angry') || emotionLower.includes('anger')) return '#ea4335'; // Red
-                    if (emotionLower.includes('sad') || emotionLower.includes('fear') || emotionLower.includes('sadness')) return '#4285f4'; // Blue
-                    if (emotionLower.includes('neutral')) return '#fbbc05'; // Yellow
-                    if (emotionLower.includes('surprise') || emotionLower.includes('disgust')) return '#673ab7'; // Purple
+                    if (emotionLower.includes('счастье') || emotionLower.includes('happiness')) return '#34a853'; // Green
+                    if (emotionLower.includes('злость') || emotionLower.includes('anger')) return '#ea4335'; // Red
+                    if (emotionLower.includes('страх') || emotionLower.includes('fear')) return '#4285f4'; // Blue
+                    if (emotionLower.includes('грусть') || emotionLower.includes('sadness')) return '#2196F3'; // Light Blue
+                    if (emotionLower.includes('нейтральное') || emotionLower.includes('neutral')) return '#fbbc05'; // Yellow
+                    if (emotionLower.includes('удивление') || emotionLower.includes('surprise')) return '#673ab7'; // Purple
+                    if (emotionLower.includes('отвращение') || emotionLower.includes('disgust')) return '#9C27B0'; // Violet
                     return '#4285f4'; // Default blue
                 };
                 
