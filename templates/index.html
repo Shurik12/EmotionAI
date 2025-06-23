@@ -5,886 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Razuma | Распознавание эмоций</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --black: #000000;
-            --white: #FFFFFF;
-            --gray-1: #F5F5F5;
-            --gray-2: #E0E0E0;
-            --gray-3: #9E9E9E;
-            --gray-4: #424242;
-            --primary-color: #4285f4;
-            --secondary-color: #34a853;
-            --error-color: #ea4335;
-            --warning-color: #fbbc05;
-            --text-color: #212121;
-            --light-gray: #f5f5f5;
-            --medium-gray: #e0e0e0;
-            --dark-gray: #757575;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--white);
-            color: var(--black);
-            line-height: 1.6;
-        }
-
-        /* Layout */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        /* Header & Navigation */
-        header {
-            padding: 30px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--gray-2);
-            position: relative;
-        }
-
-        .logo {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--black);
-            text-decoration: none;
-        }
-
-        .main-nav {
-            display: flex;
-            gap: 20px;
-        }
-
-        .nav-link {
-            color: var(--black);
-            text-decoration: none;
-            font-weight: 500;
-            padding: 8px 12px;
-            border-radius: 4px;
-            transition: all 0.3s;
-        }
-
-        .nav-link:hover {
-            background-color: var(--gray-1);
-        }
-
-        .nav-link.active {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        /* Buttons */
-        .btn {
-            display: inline-block;
-            background-color: var(--black);
-            color: var(--white);
-            padding: 16px 32px;
-            border-radius: 0;
-            text-decoration: none;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            border: 1px solid var(--black);
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        .btn:hover {
-            background-color: var(--white);
-            color: var(--black);
-        }
-
-        .btn-outline {
-            background: transparent;
-            color: var(--black);
-            border: 1px solid var(--black);
-            margin-left: 16px;
-        }
-
-        .btn-outline:hover {
-            background-color: var(--black);
-            color: var(--white);
-        }
-
-        /* Hero Section */
-        .hero {
-            padding: 100px 0;
-            text-align: center;
-        }
-
-        .hero h1 {
-            font-size: 34px;
-            font-weight: 700;
-            margin-bottom: 24px;
-            line-height: 1.1;
-        }
-
-        .hero p {
-            font-size: 10px;
-            color: var(--gray-4);
-            max-width: 700px;
-            margin: 0 auto 40px;
-        }
-
-        /* Features Section */
-        .features {
-            padding: 60px 0;
-            background-color: var(--gray-1);
-        }
-
-        .features .container h1 {
-            font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 30px;
-            line-height: 1.3;
-        }
-
-        .section-title {
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .feature-card {
-            background: var(--white);
-            padding: 25px 20px;
-            min-height: 120px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-
-        .feature-card p {
-            font-size: 15px;
-            line-height: 1.4;
-            margin: 0;
-        }
-
-        .feature-icon {
-            font-size: 40px;
-            margin-bottom: 20px;
-        }
-
-        .feature-icon img {
-            width: 60px;
-            height: 60px;
-            object-fit: contain;
-            filter: grayscale(100%) contrast(100%);
-        }
-
-        /* Footer */
-        footer {
-            padding: 60px 0;
-            text-align: center;
-            background-color: var(--black);
-            color: var(--white);
-        }
-
-        .footer-logo {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 20px;
-        }
-
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        .footer-links a {
-            color: var(--white);
-            text-decoration: none;
-        }
-
-        .copyright {
-            color: var(--gray-3);
-        }
-
-        /* Content Sections */
-        .policy-content,
-        .contact-content {
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 30px;
-            background: white;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .policy-content h2,
-        .contact-content h2 {
-            margin: 30px 0 15px;
-        }
-
-        /* Detector Page */
-        .detector-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .upload-section {
-            margin-bottom: 30px;
-        }
-
-        .upload-container {
-            border: 2px dashed var(--medium-gray);
-            border-radius: 8px;
-            padding: 40px 20px;
-            text-align: center;
-            transition: all 0.3s;
-            margin-bottom: 20px;
-            background-color: var(--light-gray);
-        }
-
-        .upload-container.highlight {
-            border-color: var(--primary-color);
-            background-color: rgba(66, 133, 244, 0.05);
-        }
-
-        .upload-container.error {
-            border-color: var(--error-color);
-            background-color: rgba(234, 67, 53, 0.05);
-        }
-
-        .upload-icon {
-            font-size: 48px;
-            color: var(--primary-color);
-            margin-bottom: 15px;
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        .file-info {
-            margin-top: 15px;
-            font-size: 14px;
-            color: var(--dark-gray);
-        }
-
-        .supported-formats {
-            font-size: 12px;
-            color: var(--dark-gray);
-            text-align: center;
-            margin-top: 10px;
-        }
-
-        /* Progress & Results */
-        .progress-container {
-            margin: 20px auto;
-            padding: 15px;
-            background-color: var(--light-gray);
-            border-radius: 8px;
-            display: none;
-            max-width: 300px;
-            text-align: center;
-        }
-
-        .progress-wheel {
-            width: 60px;
-            height: 60px;
-            border: 6px solid var(--medium-gray);
-            border-top: 6px solid var(--primary-color);
-            border-radius: 50%;
-            margin: 10px auto;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .preview-container {
-            margin: 30px 0;
-            text-align: center;
-        }
-
-        .preview-container img,
-        .preview-container video {
-            max-width: 100%;
-            max-height: 400px;
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-
-        .results-container {
-            margin-top: 30px;
-        }
-
-        .result-card {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        /* Emotion Display */
-        .emotion-display {
-            margin-top: 15px;
-        }
-
-        .emotion-item {
-            margin-bottom: 12px;
-        }
-
-        .emotion-label {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 6px;
-            font-size: 14px;
-        }
-
-        .emotion-label span:first-child {
-            font-weight: 500;
-        }
-
-        .emotion-bar {
-            height: 8px;
-            background-color: var(--medium-gray);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .emotion-fill {
-            height: 100%;
-            border-radius: 4px;
-            width: 0%;
-            transition: width 0.5s ease-out;
-        }
-
-        .main-emotion {
-            font-size: 18px;
-            font-weight: 500;
-            color: var(--primary-color);
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--medium-gray);
-        }
-
-        /* Model Selection */
-        .model-selection {
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .model-selection h3 {
-            margin-bottom: 10px;
-            color: var(--primary-color);
-            font-weight: 500;
-        }
-
-        .model-selection div {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 10px;
-            flex-wrap: wrap;
-        }
-
-        .model-selection label {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            padding: 8px 15px;
-            background-color: white;
-            border-radius: 4px;
-            border: 1px solid var(--medium-gray);
-            transition: all 0.3s;
-        }
-
-        .model-selection label:hover {
-            border-color: var(--primary-color);
-        }
-
-        /* Clients Block Styles */
-        .clients-block {
-            background-color: var(--white);
-            padding: 20px;
-            border-radius: 6px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            margin-top: 40px;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .clients-block p {
-            margin-bottom: 10px;
-            color: var(--gray-4);
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        .clients-block p:first-child {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-color);
-            margin-bottom: 10px;
-        }
-
-        .clients-block strong {
-            color: var(--text-color);
-        }
-
-        /* Pricing Section */
-        .pricing {
-            padding: 60px 0;
-            background-color: var(--gray-1);
-        }
-
-        .pricing-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 30px;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-
-        .pricing-card {
-            background: var(--white);
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            position: relative;
-            transition: transform 0.3s ease;
-        }
-
-        .pricing-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .pricing-card.featured {
-            border: 2px solid var(--primary-color);
-        }
-
-        .featured-badge {
-            position: absolute;
-            top: -12px;
-            right: 20px;
-            background-color: var(--primary-color);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .pricing-card h3 {
-            font-size: 22px;
-            margin-bottom: 15px;
-            color: var(--text-color);
-        }
-
-        .price {
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            color: var(--primary-color);
-        }
-
-        .features-list {
-            list-style: none;
-            margin-bottom: 30px;
-        }
-
-        .features-list li {
-            margin-bottom: 10px;
-            padding-left: 25px;
-            position: relative;
-        }
-
-        .features-list li:before {
-            content: "✓";
-            position: absolute;
-            left: 0;
-            color: var(--secondary-color);
-            font-weight: bold;
-        }
-
-        .pricing-card .btn {
-            width: 100%;
-            text-align: center;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1001;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            overflow: auto;
-        }
-
-        .modal-content {
-            background-color: white;
-            margin: 10% auto;
-            padding: 30px;
-            border-radius: 8px;
-            max-width: 500px;
-            position: relative;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-        }
-
-        .close-modal {
-            position: absolute;
-            top: 15px;
-            right: 25px;
-            font-size: 28px;
-            font-weight: bold;
-            color: var(--dark-gray);
-            cursor: pointer;
-        }
-
-        .close-modal:hover {
-            color: var(--black);
-        }
-
-        .modal h2 {
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .modal .form-group {
-            margin-bottom: 20px;
-        }
-
-        .modal label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        .modal input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--medium-gray);
-            border-radius: 4px;
-            font-size: 16px;
-        }
-
-        .modal input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-
-        /* Mobile Menu Button */
-        .mobile-menu-btn {
-            display: none; /* Hidden by default */
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 8px;
-            margin-right: 10px;
-        }
-
-        /* Error Handling */
-        .error-message {
-            color: var(--error-color);
-            text-align: center;
-            margin: 20px 0;
-            padding: 10px;
-            background-color: rgba(234, 67, 53, 0.1);
-            border-radius: 4px;
-        }
-
-        /* Cookie Consent */
-        #cookieConsent {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--black);
-            color: white;
-            padding: 15px;
-            text-align: center;
-            display: none;
-            z-index: 1000;
-        }
-
-        #cookieConsent p {
-            margin: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        #acceptCookies {
-            margin-left: 15px;
-            padding: 5px 15px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        /* Loading State */
-        .loading-state {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255,255,255,0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            display: none;
-        }
-
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid var(--medium-gray);
-            border-top: 5px solid var(--primary-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-
-            .hero h1 {
-                font-size: 34px;
-            }
-
-            .hero p {
-                font-size: 14px;
-            }
-
-            .features {
-                padding: 40px 0;
-            }
-
-            .features .container h1 {
-                font-size: 22px;
-                margin-bottom: 20px;
-            }
-
-            .features-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .section-title {
-                font-size: 20px;
-                margin-bottom: 25px;
-            }
-            
-            .features-grid {
-                gap: 15px;
-            }
-            
-            .feature-card {
-                padding: 20px 15px;
-                min-height: 100px;
-            }
-
-            .btn-container {
-                display: flex;
-                flex-direction: column;
-                gap: 16px;
-            }
-
-            .btn-outline {
-                margin-left: 0;
-            }
-
-            header {
-                padding: 15px 0;
-                flex-direction: row;
-                align-items: center;
-            }
-
-            .main-nav {
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-
-            .nav-link {
-                padding: 6px 10px;
-                font-size: 14px;
-            }
-
-            .clients-block {
-                padding: 15px;
-                margin-top: 30px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            /* Mobile-specific adjustments */
-            .hero {
-                padding: 60px 0;
-            }
-            
-            .hero p {
-                font-size: 12px;
-                margin-bottom: 20px;
-            }
-            
-            .btn {
-                padding: 12px 24px;
-                font-size: 14px;
-            }
-            
-            .feature-card {
-                padding: 15px;
-                min-height: 80px;
-            }
-            
-            .feature-card p {
-                font-size: 13px;
-            }
-            
-            .upload-container {
-                padding: 30px 15px;
-            }
-            
-            .model-selection div {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .pricing-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            /* Make file input more touch-friendly */
-            #selectFileBtn {
-                padding: 12px 20px;
-            }
-            
-            /* Adjust modal for mobile */
-            .modal-content {
-                width: 90%;
-                margin: 20% auto;
-                padding: 20px;
-            }
-            
-            /* Navigation adjustments */
-            .main-nav {
-                flex-direction: column;
-                gap: 10px;
-                width: 100%;
-                display: none;
-                position: absolute;
-                top: 70px;
-                left: 0;
-                background: white;
-                padding: 15px;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-                z-index: 100;
-            }
-            
-            .main-nav.show {
-                display: flex;
-            }
-            
-            .btn-container {
-                margin-top: 15px;
-            }
-            
-            /* Detector page adjustments */
-            .detector-container {
-                padding: 10px;
-            }
-            
-            .emotion-label {
-                font-size: 13px;
-            }
-            
-            /* Footer adjustments */
-            .footer-links {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            /* Hide desktop logo on mobile */
-            .desktop-logo {
-                display: none;
-            }
-
-            .mobile-menu-btn {
-                display: block; /* Show on mobile */
-            }
-            
-            .main-nav {
-                display: none;
-                position: absolute;
-                top: 100%;
-                left: 0;
-                right: 0;
-                background: var(--white);
-                flex-direction: column;
-                padding: 15px;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-                z-index: 1000;
-            }
-            
-            .main-nav.show {
-                display: flex;
-            }
-            
-            .main-nav .nav-link {
-                padding: 12px;
-                border-bottom: 1px solid var(--gray-2);
-            }
-            
-            .main-nav .nav-link:last-child {
-                border-bottom: none;
-            }
-        }
-
-        /* SPA transitions */
-        #app-content {
-            min-height: 60vh;
-            transition: opacity 0.3s ease;
-        }
-
-        #app-content.fade-out {
-            opacity: 0;
-        }
-    </style>
+    <link href="static/styles.css" rel="stylesheet">
 </head>
 <body>
     <div class="container">
         <header>
             <button id="mobileMenuBtn" class="mobile-menu-btn">☰</button>
-            <img style="height: 7%; width: 7%;" src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUxOSIgaGVpZ2h0PSIxODU5IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4bWw6c3BhY2U9InByZXNlcnZlIiBvdmVyZmxvdz0iaGlkZGVuIj48ZGVmcz48Y2xpcFBhdGggaWQ9ImNsaXAwIj48cmVjdCB4PSIxNDEwIiB5PSIyODIiIHdpZHRoPSIxNTE5IiBoZWlnaHQ9IjE4NTkiLz48L2NsaXBQYXRoPjwvZGVmcz48ZyBjbGlwLXBhdGg9InVybCgjY2xpcDApIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMTQxMCAtMjgyKSI+PHBhdGggZD0iTTIzMzguNzMgMTUwMy45MSAyNDEyLjk5IDE0NzEuNTdDMjQyMC40NiAxNDY4LjMyIDI0MjMuODIgMTQ3MC4wNyAyNDI4LjQgMTQ3Ny4xN0wyNTE4LjkxIDE2MTcuNTNDMjUyMy40OSAxNjI0LjY0IDI1MTIuNjQgMTYzNS4zMiAyNTA1LjE4IDE2MzguNTNMMjMzMC45OCAxNzEzLjRDMjMyMy41MiAxNzE2LjYxIDIzMjUuOTQgMTcwNi4yOSAyMzI1Ljg5IDE2OTcuNjhMMjMyNSAxNTI0LjlDMjMyNC45NiAxNTE2LjI3IDIzMzEuMjcgMTUwNy4xNSAyMzM4LjczIDE1MDMuOTFaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjI5Ny41NCAxNDA4Ljg0IDI0MjMuMzQgMTQ3MS4yNkMyNDI1LjcgMTQ3Mi40MyAyNDI1LjkxIDE0NzUuMTggMjQyMS41MyAxNDc2LjgyTDIzNDAuNDMgMTUwNy4xM0MyMzM2LjA1IDE1MDguNzcgMjMzMy41MyAxNTA4LjA2IDIzMjYuODQgMTUwNS4yMkwyMTgyLjczIDE0NDQuMDNDMjE4MC4zMSAxNDQzLjAyIDIxODQuMzEgMTQ0MC41MiAyMTg4Ljc5IDE0MzkuMTNMMjI4NS4wMSAxNDA5LjA5QzIyODkuNSAxNDA3LjY4IDIyOTUuMTggMTQwNy42OCAyMjk3LjU0IDE0MDguODRaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjE4OC43OSAxNDQxLjc1IDIzMjQuMzcgMTQ5OS43M0MyMzMwLjMzIDE1MDIuMjggMjMzNC43OSAxNTEwLjYyIDIzMzQuODcgMTUxOC4yMUwyMzM3IDE3MDAuMDNDMjMzNy4wOSAxNzA3LjU5IDIzMzIuODUgMTcxNi4xMyAyMzI2LjkxIDE3MTMuNTJMMjE5Mi45OSAxNjU0LjQ0QzIxODcuMDYgMTY1MS44MiAyMTgyLjY2IDE2NDMuNTYgMjE4Mi40OSAxNjM1Ljk2TDIxNzguMDEgMTQ1MC45M0MyMTc3LjgyIDE0NDMuMzIgMjE4Mi44NCAxNDM5LjIxIDIxODguNzkgMTQ0MS43NVoiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMjQwLjQ3IDE1MzcuMyAyMzA2Ljk1IDE1MTIuNUMyMzA5LjYzIDE1MTEuNSAyMzA5LjkyIDE1MDkuNDcgMjMxMC43IDE1MTAuMTMgMjMxMi4zNyAxNTExLjUgMjMxMi4wNyAxNTEzLjM0IDIzMTIuMTMgMTUxNS43NEwyMzE2IDE2NzkuODlDMjMxNi4xMSAxNjg1LjA2IDIzMTIuMzMgMTY5Mi4zNyAyMzA3LjYgMTY5MS45OUwyMzAxLjA5IDE2OTEuNDVDMjI5Ni4zNiAxNjkxLjA2IDIyOTkuNjIgMTY4NC40MyAyMjk3LjM3IDE2NzkuNzlMMjIzMS40NSAxNTQzLjMzQzIyMjkuMiAxNTM4LjY4IDIyMzUuOTMgMTUzOC45OSAyMjQwLjQ3IDE1MzcuM1oiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMTc4Ljc3IDE0NDYuOTMgMjMxMCAxNTEwLjA1QzIzMTEuNDcgMTUxMC43NiAyMzExLjUgMTUxMi4zOSAyMzA4Ljg5IDE1MTMuMzNMMjI0MS41OCAxNTM3LjY4QzIyMzguOTggMTUzOC42MSAyMjM0LjUzIDE1NDEuMjUgMjIzMC41MSAxNTM5LjNMMjA5OS4xMyAxNDc1LjcyQzIwOTcuNjggMTQ3NS4wMiAyMTA5LjE2IDE0NzAuOTQgMjExMS43NyAxNDY5LjkxTDIxNzEuMTMgMTQ0Ni41QzIxNzMuNzQgMTQ0NS40OCAyMTc3LjMxIDE0NDYuMjMgMjE3OC43NyAxNDQ2LjkzWiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTIxMDMuMDcgMTQ3NS41NCAyMjI5LjM2IDE1MzguMzdDMjIzMi45MyAxNTQwLjE1IDIyMzMuNzQgMTU0NS45OSAyMjM1Ljc2IDE1NTAuMDFMMjMwNC41MyAxNjg1LjQ3QzIzMDYuNTYgMTY4OS40NyAyMzAxLjU0IDE2OTIuMTUgMjI5Ny45NCAxNjkwLjUxTDIxODAuNTYgMTYzNi4zN0MyMTc3LjYyIDE2MzUuMDIgMjEwNC41MyAxNDk1Ljk5IDIwOTYuNDkgMTQ4MC41OCAyMDk0LjQgMTQ3Ni41NyAyMDk5LjUgMTQ3My43NyAyMTAzLjA3IDE0NzUuNTRaIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjIzMS42NSAxMzI2LjAyIDIzMDUuNTMgMTI5NS41NUMyMzEyLjk2IDEyOTIuNDggMjMxNS41OSAxMjkzLjg3IDIzMjAuMTcgMTMwMC41NUwyNDEwLjkxIDE0MzMuMDlDMjQxNS40OCAxNDM5Ljc5IDI0MDQuNjcgMTQ0OS44NiAyMzk3LjI1IDE0NTIuODlMMjIyMy45NCAxNTIzLjQzQzIyMTYuNTEgMTUyNi40NyAyMjE4LjkyIDE1MTYuNzUgMjIxOC44NyAxNTA4LjYxTDIyMTggMTM0NS44QzIyMTcuOTUgMTMzNy42OCAyMjI0LjIzIDEzMjkuMDggMjIzMS42NSAxMzI2LjAyWiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTIxODkuNTQgMTIzNi43OSAyMzE1LjM0IDEyOTUuNDdDMjMxNy43IDEyOTYuNTcgMjMxNy45MSAxMjk5LjE0IDIzMTMuNTMgMTMwMC42OEwyMjMyLjQzIDEzMjkuMThDMjIyOC4wNiAxMzMwLjcyIDIyMjUuNTMgMTMzMC4wNiAyMjE4Ljg0IDEzMjcuMzlMMjA3NC43MyAxMjY5Ljg4QzIwNzIuMzEgMTI2OC45MSAyMDc2LjMxIDEyNjYuNTggMjA4MC43OSAxMjY1LjI2TDIxNzcuMDEgMTIzNy4wMkMyMTgxLjUgMTIzNS43IDIxODcuMTggMTIzNS43IDIxODkuNTQgMTIzNi43OVoiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMDgxLjc5IDEyNjYuNzEgMjIxNy4zNyAxMzIxLjVDMjIyMy4zMyAxMzIzLjkyIDIyMjcuNzkgMTMzMS44IDIyMjcuODcgMTMzOC45NkwyMjMwIDE1MTAuOEMyMjMwLjA5IDE1MTcuOTUgMjIyNS44NSAxNTI2LjAyIDIyMTkuOTMgMTUyMy41NEwyMDg1Ljk5IDE0NjcuNzFDMjA4MC4wNiAxNDY1LjIzIDIwNzUuNjcgMTQ1Ny40MyAyMDc1LjQ5IDE0NTAuMjRMMjA3MS4wMSAxMjc1LjM5QzIwNzAuODIgMTI2OC4yIDIwNzUuODQgMTI2NC4zMSAyMDgxLjc5IDEyNjYuNzFaIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjEzMy4zNSAxMzU3LjY1IDIxOTkuMDYgMTMzNC4zNUMyMjAxLjcgMTMzMy40MSAyMjAxLjk5IDEzMzEuNSAyMjAyLjc2IDEzMzIuMTIgMjIwNC40MSAxMzMzLjQxIDIyMDQuMTIgMTMzNS4xNCAyMjA0LjE4IDEzMzcuNEwyMjA4IDE0OTEuNjNDMjIwOC4xMSAxNDk2LjQ5IDIyMDQuMzcgMTUwMy4zNSAyMTk5LjcgMTUwMi45OUwyMTkzLjI2IDE1MDIuNDlDMjE4OC41OSAxNTAyLjEyIDIxOTEuODIgMTQ5NS44OSAyMTg5LjU5IDE0OTEuNTNMMjEyNC40NCAxMzYzLjMxQzIxMjIuMjIgMTM1OC45NSAyMTI4Ljg4IDEzNTkuMjUgMjEzMy4zNSAxMzU3LjY1WiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTIxNDUuNCA5NjQuNjA3IDIyNzguMyAxMDM3Ljg1QzIyODMuOTMgMTA0MC45NiAyMjgzLjU4IDEwNTAuMjQgMjI4OC45NCAxMDU0LjQzTDIzOTAuMzYgMTEzMy44QzIzOTUuNzEgMTEzNy45OCAyMzY1Ljc1IDExMzUuNTMgMjM2MC4zOSAxMTMyLjA0TDIxODAuNDQgMTAxNC44M0MyMTc1LjA3IDEwMTEuMzQgMjE3NC42OSAxMDAzLjAxIDIxNjkuOCA5OTguMjQ3TDIxNDYuNjcgOTc1Ljc5N0MyMTQxLjc4IDk3MS4wMzcgMjEzOS43OCA5NjEuNTEgMjE0NS40IDk2NC42MDdaIiBmaWxsPSIjMUIxOTE4IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjIyNC42NiAxMTQwLjM0IDIyODMuMDkgMTA2MS4yNUMyMjg1LjM2IDEwNTguMTcgMjI4NC44NyAxMDYxLjEgMjI5MS4zOCAxMDY2LjQ4TDIzODEuNjQgMTE0MS4xQzIzODguMTQgMTE0Ni40NyAyMzgzLjU5IDExNTAuODMgMjM4MS40IDExNTMuOThMMjMyMS4yNSAxMjQwLjM4QzIzMDQuNjIgMTI2NC42OCAyMjk3LjMzIDEyNjkuOTMgMjI3MC45NiAxMjgxLjI1TDIyMzUuNCAxMjk2LjUxQzIyMzEuODkgMTI5OC4wMiAyMjE3LjQgMTI5Ni4yOSAyMjE4LjAyIDEyODcuNzRMMjIyNy4yMyAxMTU4LjMxQzIyMjcuODUgMTE0OS43NyAyMjIyLjM5IDExNDMuNDIgMjIyNC42NiAxMTQwLjM0WiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTIxNTAuNTQgOTg2LjIxNiAyMjg1LjM2IDEwNjAuMzJDMjI4Ny4zNyAxMDYxLjQzIDIyOTAgMTA2Ni40OCAyMjg4LjYxIDEwNjguMTlMMjIyNy4zNCAxMTQzQzIyMjUuOTQgMTE0NC43MSAyMjI0LjE2IDExNDQuMjYgMjIxOC41NyAxMTQxLjM2TDIwNzEuOTcgMTA2NS41NkMyMDY5Ljk1IDEwNjQuNTEgMjA3MS40NiAxMDYyLjk1IDIwNzMuMDIgMTA2MS4zNUwyMTQyLjA2IDk5MC4wNTNDMjE0My42IDk4OC40NDkgMjE0OC41NCA5ODUuMTIzIDIxNTAuNTQgOTg2LjIxNloiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMDc1LjcgMTA2Mi41OCAyMjE0LjcyIDExMzYuMDdDMjIxOS43MyAxMTM4LjcxIDIyMzAuMjQgMTE0NC4zNSAyMjMwLjAyIDExNTEuODlMMjIyNS45NSAxMjg5LjE2QzIyMjUuODIgMTI5My42NCAyMjM1Ljg2IDEyOTQuMzggMjIzNiAxMjk2LjE0IDIyMzYuMTMgMTI5Ny42NSAyMjI0LjA1IDEyOTYuOTkgMjIyMS43OSAxMjk1LjZMMjA4NC42NCAxMjEzLjNDMjA3OS43NCAxMjEwLjM1IDIwNjkuMzUgMTIwNS4wMSAyMDY5LjM0IDExOTcuNDZMMjA2OSAxMDc0LjM2QzIwNjguOTkgMTA2Ni44MSAyMDcwLjY5IDEwNTkuOTMgMjA3NS43IDEwNjIuNThaIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjI5NS44MiA4ODAuMjMyIDI0NzIuMTkgODE0Ljg1OUMyNDc5Ljc2IDgxMi4wNDIgMjQ4Ni4wNCA4MTYuNDE3IDI0ODYgODI0LjEzMUwyNDg1LjE4IDk2NC44OTVDMjQ4NS4xNCA5NzIuNjIxIDI0ODQuOTIgMTAwNC41MiAyNDgwLjMgMTAxMS4xTDI0MDUuMyAxMTE4LjA2QzIzOTAuNjUgMTEzOC45NCAyMzg4LjY1IDExMzYuMSAyMzcwLjE5IDExMjAuOEwyMjg5LjExIDEwNTMuNTlDMjI4Mi45MiAxMDQ4LjQ2IDIyODQuMTEgMTA0Ny4yMiAyMjgzLjk5IDEwMzkuNDhMMjI4MiA4OTkuMDc5QzIyODEuOSA4OTEuMzQ0IDIyODguMjUgODgzLjA0NiAyMjk1LjgyIDg4MC4yMzJaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjMyOS41NyA3NTYuODIgMjQ4Mi4zMyA4MTUuNjIyQzI0ODQuNzUgODE2LjU1NCAyNDg0Ljg2IDgxOC45MzggMjQ4MC41IDgyMC42MTJMMjI5Ni44NiA4OTAuOTYzQzIyOTIuNSA4OTIuNjI3IDIyODkuNTggODkyLjQ1MSAyMjgzLjE1IDg4OS4yNDJMMjE0My42OCA4MTkuNTU1QzIxNDEuMzYgODE4LjM5MSAyMTQ1LjM3IDgxNi42ODIgMjE0OS44IDgxNS4xNDZMMjMxNi45MiA3NTcuMDMxQzIzMjEuMzYgNzU1LjQ5NSAyMzI3LjE1IDc1NS44OTEgMjMyOS41NyA3NTYuODJaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjE1MC4zNSA4MTYuOTIgMjI4MS4xNSA4ODMuNjM0QzIyODYuODYgODg2LjU1MiAyMjkxLjYgODkzLjQwMyAyMjkxLjc2IDkwMC4xOTRMMjI5NSAxMDQxLjhDMjI5NS4xNiAxMDQ4LjU4IDIyODkuNzIgMTA1My4wOCAyMjg0LjEgMTA1MC4wM0wyMTQ5LjYgOTc3LjA1OEMyMTQzLjk4IDk3NC4wMTIgMjEzOC45OCA5NjcuMzEzIDIxMzkgOTYwLjQ5OEwyMTM5LjQ2IDgyNS4xNTVDMjEzOS40OSA4MTguMzI4IDIxNDQuNjQgODE0LjAxNCAyMTUwLjM1IDgxNi45MloiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMzUwLjEyIDYxOS44OTNDMjM1OC4xMSA2MTUuOTgzIDIzNjcuMDIgNjI1Ljc2NiAyMzcyLjQ1IDYzMi44NUwyNDgxLjY1IDc3NS4wNTNDMjQ4Ny4xIDc4Mi4xMzcgMjQ3NC44NSA3OTMuNzQ5IDI0NjYuNTggNzk2Ljg0M0wyMzU4LjE3IDgzNy40NDNDMjM0OS44OCA4NDAuNTQ2IDIzNTIuNjcgODMwLjA3OCAyMzUyLjU5IDgyMS4xMzJMMjM1MC45OSA2NTQuNzgxQzIzNTAuOCA2MzQuMTk5IDIzMzMuNyA2MjcuOTA3IDIzNTAuMTIgNjE5Ljg5M1oiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMjA2LjU4IDU2Ni42NzMgMjM1MS45NCA2MTcuNzYzQzIzNjIuMSA2MjEuMzQzIDIzNjIuMzEgNjIyLjgzNiAyMzYyLjkyIDY0My4xOTUgMjM2NC40NCA2OTIuNjYzIDIzNjQuNzggODE0LjIzNCAyMzY1IDgyOC4wNTMgMjM2NS4xMyA4MzUuOTE0IDIzNTUuNzkgODM5LjIxMiAyMzUzLjA5IDgzNy42MDNMMjIwNS41OSA3NDguOTNDMjE5OS41MiA3NDUuMjcgMjE5My45NiA3MzcuNjMgMjE5NCA3MjkuNzI1TDIxOTQuNjcgNTc2LjIxNEMyMTk0LjcxIDU2OC4zMDYgMjE5OS44NyA1NjQuMzE3IDIyMDYuNTggNTY2LjY3M1oiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMjYwLjQzIDM3MS4xMDYgMjM4MS41NSAzMzUuNDk3QzIzODcuMzQgMzMzLjc5IDIzOTIgMzM2LjYxOCAyMzkyIDM0MS45MTdMMjM5MS44MyA0NTcuNzcxQzIzOTEuODIgNDYzLjA4MyAyMzg3LjA1IDQ2OC43NjggMjM4MS4zNyA0NzAuNjcxTDIyNTMuMzUgNTEzLjgwMUMyMjUyLjU2IDUxNC4wNyAyMjQ5LjM3IDUxNC4xMjcgMjI1MC4wMiA1MTMuNTg4IDIyNTMuMDkgNTExLjAzMyAyMjQ4Ljk1IDUwOC45MiAyMjQ5IDUwMy42MDlMMjI0OS45OCAzODQuMDA2QzIyNTAuMDIgMzc4LjY4MyAyMjU0LjY0IDM3Mi43OTggMjI2MC40MyAzNzEuMTA2WiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTIyNzkuNDcgMjkzLjU4OSAyMzg4LjczIDMzNi4wOTVDMjM5MC41NCAzMzYuODA0IDIzOTAuNjkgMzM4LjU1IDIzODcuMzQgMzM5LjUwNEwyMjYwLjc3IDM3NS40NThDMjI1Ny40MiAzNzYuNDEyIDIyNTUuNDEgMzc2LjE2OCAyMjUwLjM5IDM3NC4yMzdMMjE0Ny40MyAzMzQuNTgxQzIxNDUuNjMgMzMzLjg4NCAyMTQ5LjgyIDMyOS45MjggMjE1My4xOCAzMjguOTE0TDIyNjkuOSAyOTMuNjkzQzIyNzMuMjYgMjkyLjY4MyAyMjc3LjY2IDI5Mi44OTEgMjI3OS40NyAyOTMuNTg5WiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTIxNTQuMjYgMzMxLjU3NCAyMjQ4Ljk2IDM3MS4wOTVDMjI1My4zOSAzNzIuOTM4IDIyNTcuMDUgMzc3LjgzIDIyNTcgMzgyLjUwOUwyMjU1Ljg1IDUwNy44MDRDMjI1NS44IDUxMi40NTkgMjI1MS44OSA1MTUuMjg2IDIyNDcuNTggNTEzLjQxOEwyMTU2Ljc2IDQ3NC4wMzdDMjE1Mi40NSA0NzIuMTcgMjE0OC44MiA0NjcuMzAyIDIxNDguNzEgNDYyLjYyNEwyMTQ2IDMzNy4yQzIxNDUuOSAzMzIuNTIxIDIxNDkuODMgMzI5LjczIDIxNTQuMjYgMzMxLjU3NFoiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMTEwLjEgNjc0LjgyNSAyMzMxLjk3IDU5Ni44OTFDMjM0MC4yIDU5My45OTEgMjM0Ni45OSA1OTguNDUgMjM0Ny4wNyA2MDYuMTgyTDIzNDkgODI4LjMzMUMyMzQ5LjA3IDgzNi4wNTEgMjM0Mi4xNyA4NDQuNTUxIDIzMzMuOSA4NDcuMTgzTDIyODguMDggODYxLjc2OUMyMjc1LjA4IDg2NS41NjcgMjI3Ni45MSA4NjguNDk5IDIyNTMuMjcgODU1LjUyOEwyMTg5LjkzIDgyMy44MDQgMjEwMi4xOCA4NTEuNzFDMjA5OC4wNyA4NTMuMDE2IDIwOTYuNjIgODM5Ljc1MyAyMDk2LjYgODM3LjU4OUwyMDk1IDY5My42NzZDMjA5NC45MiA2ODUuOTMzIDIxMDEuODcgNjc3LjcxMyAyMTEwLjEgNjc0LjgyNVoiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMTY1LjE1IDUyNy44NTIgMjM0My4xOCA1OTYuOTY3QzIzNDUuNzkgNTk3Ljk3OSAyMzQ1Ljk4IDYwMC4zNjMgMjM0MS4yIDYwMS45NDNMMjExMi4xMyA2NzguMDAyQzIxMDcuMzcgNjc5LjU4MyAyMTA0LjI0IDY3OS40NzggMjA5Ny4xOCA2NzYuMjgyTDE5MzAuNzQgNjAwLjg1MUMxOTI4LjIxIDU5OS42OTkgMTkzMi41OSA1OTcuOTc5IDE5MzcuNCA1OTYuNDQ2TDIxNTEuMzcgNTI4LjA2QzIxNTYuMTkgNTI2LjUxMiAyMTYyLjU3IDUyNi44NTIgMjE2NS4xNSA1MjcuODUyWiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTE5MzcuOTQgNjAwLjg4OSAyMDk0LjQ2IDY3MS41MUMyMTAwLjc2IDY3NC4zNTIgMjEwNS45IDY4MS4yNTcgMjEwNi4wNCA2ODguMDE5TDIxMDkgODM5LjM5MUMyMTA5LjEzIDg0Ni4xNTMgMjEwMy41IDg1NC42OTEgMjA5Ny42OSA4NTEuMTg3TDE5NTAuMTcgNzYyLjE5MkMxOTQ0LjM5IDc1OC43MTEgMTkzOS4yMSA3NTIuNDIxIDE5MzguNiA3NDUuNjgzTDE5MjYuMDQgNjA5LjA5MUMxOTI1LjQzIDYwMi4zNSAxOTMxLjY0IDU5OC4wNDcgMTkzNy45NCA2MDAuODg5WiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTIwNzAuNzcgMTI3MS44NyAyMjAyIDEzMzAuOTZDMjIwMy40NiAxMzMxLjYxIDIyMDMuNSAxMzMzLjE0IDIyMDAuODkgMTMzNC4wMkwyMTMzLjU4IDEzNTYuODJDMjEzMC45OCAxMzU3LjcgMjEyNi41NCAxMzYwLjE3IDIxMjIuNTEgMTM1OC4zNEwxOTkxLjEzIDEyOTguODJDMTk4OS42OCAxMjk4LjE3IDIwMDEuMTYgMTI5NC4zNCAyMDAzLjc3IDEyOTMuMzhMMjA2My4xMyAxMjcxLjQ3QzIwNjUuNzQgMTI3MC41MSAyMDY5LjMxIDEyNzEuMjIgMjA3MC43NyAxMjcxLjg3WiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTE5OTUuMDcgMTI5OC41MSAyMTIxLjM2IDEzNTcuODVDMjEyNC45MyAxMzU5LjUzIDIxMjUuNzQgMTM2NS4wNSAyMTI3Ljc2IDEzNjguODNMMjE5Ni41MyAxNDk2Ljc3QzIxOTguNTYgMTUwMC41NSAyMTkzLjU0IDE1MDMuMDkgMjE4OS45NCAxNTAxLjUzTDIwNzIuNTUgMTQ1MC40QzIwNjkuNjMgMTQ0OS4xMyAxOTk2LjU0IDEzMTcuODMgMTk4OC40OCAxMzAzLjI3IDE5ODYuNCAxMjk5LjQ4IDE5OTEuNSAxMjk2Ljg0IDE5OTUuMDcgMTI5OC41MVoiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xODgzLjgyIDExMjguOSAyMDE0Ljc3IDExOTQuNjJDMjAyMC40MSAxMTk3LjQ1IDIwMjUuMTkgMTIwMy45NCAyMDI1LjMxIDEyMTAuNDJMMjAyOCAxMzU1LjIxQzIwMjguMTIgMTM2MS42OSAyMDIyLjc3IDEzNjUuOTggMjAxNy4xNyAxMzYzLjA3TDE4ODMuNTUgMTI5My40NUMxODc3Ljk3IDEyOTAuNTQgMTg3My4wMSAxMjg0LjE1IDE4NzMuMDEgMTI3Ny42NUwxODczIDExMzYuNzRDMTg3MyAxMTMwLjIzIDE4NzguMTkgMTEyNi4wOCAxODgzLjgyIDExMjguOVoiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMDI4LjcgMTE5OC4yMSAyMTk1LjA1IDExNDMuNzRDMjIwMi42MyAxMTQxLjI2IDIyMDguNzMgMTE0NS4yMyAyMjA4Ljc0IDExNTIuNTlMMjIwOSAxMjg0Ljc0QzIyMDkuMDEgMTI5Mi4wOSAyMjAyLjc1IDEyOTkuOTUgMjE5NS4zIDEzMDIuNjlMMjAyNy42MyAxMzYyLjJDMjAyMC4xNSAxMzY0Ljg2IDIwMTYuNTMgMTM2MC42MyAyMDE2LjQ1IDEzNTMuMjVMMjAxNSAxMjE2LjE3QzIwMTQuOTMgMTIwOC43OSAyMDIxLjEzIDEyMDAuNjkgMjAyOC43IDExOTguMjFaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjA1OS45NiAxMDY5Ljg5IDIyMDUuMzcgMTE0My41NkMyMjA3LjY1IDExNDQuNzIgMjIwNy45NiAxMTQ2Ljk3IDIyMDMuNTUgMTE0OC4zMUwyMDMwLjMzIDEyMDEuMDlDMjAyNS45MiAxMjAyLjQ0IDIwMjMuMDggMTIwMi41OCAyMDE2Ljc0IDExOTkuNDZMMTg3Ny42NyAxMTMwLjk0QzE4NzUuMzggMTEyOS44MSAxODc5LjM3IDExMjguMjQgMTg4My43MyAxMTI2LjczTDIwNDcuNDQgMTA3MC4xQzIwNTEuODEgMTA2OC41OSAyMDU3LjY5IDEwNjguNzQgMjA1OS45NiAxMDY5Ljg5WiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTIxMjAuMjEgNjY4LjIxMSAyMzMyLjc5IDYwMC4yNzRDMjMzNi40OCA1OTkuMDg4IDIzMzkuMTUgNjAxLjk2NyAyMzQxLjk1IDYwNC43NjMgMjM0NC43NiA2MDcuNTYyIDIzNDEuNDMgNjEyLjUyOSAyMzM3Ljc1IDYxMy43TDIxMjUuMTcgNjgxLjYzN0MyMTIxLjQ4IDY4Mi44MjMgMjExNiA2ODEuMDQ2IDIxMTYgNjc3LjE0OCAyMTE2IDY3My4yNDcgMjExNi41MiA2NjkuMzk0IDIxMjAuMjEgNjY4LjIxMVoiIGZpbGw9IiNGRkZGRkYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMzExLjIyIDg3OS40MTIgMjQ3My43NiA4MTkuMDIyQzI0NzcuNDEgODE3LjY3NCAyNDgwLjE5IDgxNy4zMDIgMjQ4Mi45NiA4MjAuMTU4IDI0ODUuNzcgODIyLjk3OSAyNDgyLjM4IDgyNy44MjYgMjQ3OC43NCA4MjkuMTcxTDIzMTYuMiA4ODkuNTc2QzIzMTIuNTYgODkwLjkyMiAyMzA3IDg4OC45NjggMjMwNyA4ODUuMDMzIDIzMDcgODgxLjEgMjMwNy41NyA4ODAuNzcxIDIzMTEuMjIgODc5LjQxMloiIGZpbGw9IiNGRkZGRkYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMDQ3LjE3IDExOTIuNTMgMjE5My44NCAxMTQ2LjkyQzIxOTcuNTMgMTE0NS43OCAyMjAwLjE3IDExNDUuMjUgMjIwMi45NiAxMTQ4LjA2TDIyMDIuOTYgMTE0OC4wN0MyMjA1Ljc1IDExNTAuODcgMjIwMi40NSAxMTU1LjkyIDIxOTguNzggMTE1Ny4wNkwyMDUyLjExIDEyMDIuNjVDMjA0OC40NSAxMjAzLjggMjA0MyAxMjAyLjA2IDIwNDMgMTE5OC4xMyAyMDQzIDExOTQuMjEgMjA0My41IDExOTMuNjggMjA0Ny4xNyAxMTkyLjUzWiIgZmlsbD0iI0ZGRkZGRiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTIyNjEuNzYgMTA5MS4yMyAyMjgwLjg1IDEwNjYuNjNDMjI4My4yNCAxMDYzLjU1IDIyODUuNzUgMTA2NC4wMyAyMjg5LjcyIDEwNjQuMDMgMjI5My42OCAxMDY0LjAzIDIyOTEuNzcgMTA3MC45NiAyMjg5LjM5IDEwNzQuMDNMMjI3MC4zIDEwOTguNjRDMjI2Ny45MiAxMTAxLjcxIDIyNjAuMTEgMTEwMi4wNSAyMjYwLjExIDEwOTguMSAyMjYwLjExIDEwOTQuMTQgMjI1OS4zNyAxMDk0LjMyIDIyNjEuNzYgMTA5MS4yM1oiIGZpbGw9IiNGRkZGRkYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMTU1LjYgMTM0NC4yNCAyMTkxLjc3IDEzMzEuNjJDMjE5NS40MiAxMzMwLjM1IDIxOTguNzkgMTMzMC45MiAyMjAwLjU2IDEzMzQuMzYgMjIwMi4zNCAxMzM3LjgxIDIxOTguMzkgMTM0MC44OCAyMTk0Ljc2IDEzNDIuMTVMMjE1OC41OSAxMzU0Ljc2QzIxNTQuOTYgMTM1Ni4wMyAyMTQ4LjI1IDEzNTEuOTUgMjE1MC40MyAxMzQ4LjgxIDIxNTIuNjIgMTM0NS42NSAyMTUxLjk2IDEzNDUuNTEgMjE1NS42IDEzNDQuMjRaIiBmaWxsPSIjRkZGRkZGIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjI1MC41NiAxMzE0Ljk0IDIzMDUuODQgMTI5NS42MkMyMzA5LjQ3IDEyOTQuMzUgMjMxMi44IDEyOTQuOSAyMzE0LjU3IDEyOTguNDUgMjMxNi4zMiAxMzAxLjk5IDIzMTIuNDEgMTMwNS4yIDIzMDguODEgMTMwNi40N0wyMjUzLjUyIDEzMjUuNzdDMjI0OS45IDEzMjcuMDQgMjI0My4yNSAxMzIyLjg3IDIyNDUuNDMgMTMxOS42NCAyMjQ3LjYgMTMxNi4zOSAyMjQ2LjkzIDEzMTYuMiAyMjUwLjU2IDEzMTQuOTRaIiBmaWxsPSIjRkZGRkZGIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjI2MS42MSAxNTIzLjc5IDIyOTcuNzcgMTUxMC42NUMyMzAxLjQyIDE1MDkuMzIgMjMwNC43OCAxNTA5LjkyIDIzMDYuNTYgMTUxMy41IDIzMDguMzMgMTUxNy4wOSAyMzA0LjM5IDE1MjAuMjkgMjMwMC43NSAxNTIxLjYxTDIyNjQuNTkgMTUzNC43NUMyMjYwLjk2IDE1MzYuMDcgMjI1NC4yNSAxNTMxLjgyIDIyNTYuNDMgMTUyOC41NSAyMjU4LjYyIDE1MjUuMjYgMjI1Ny45NiAxNTI1LjExIDIyNjEuNjEgMTUyMy43OVoiIGZpbGw9IiNGRkZGRkYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMzYwLjYzIDE0OTEuOTMgMjQxNi43MSAxNDcyLjYyQzI0MjAuNCAxNDcxLjM2IDI0MjMuNzggMTQ3MS44OSAyNDI1LjU2IDE0NzUuNDQgMjQyNy4zNCAxNDc4Ljk5IDI0MjMuMzkgMTQ4Mi4yIDI0MTkuNzIgMTQ4My40NkwyMzYzLjYzIDE1MDIuNzdDMjM1OS45OCAxNTA0LjA0IDIzNTMuMjQgMTQ5OS44OCAyMzU1LjQzIDE0OTYuNjMgMjM1Ny42MyAxNDkzLjQgMjM1Ni45NSAxNDkzLjIgMjM2MC42MyAxNDkxLjkzWiIgZmlsbD0iI0ZGRkZGRiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTIyNTQuODIgMTk2OS44NSAyMzU5Ljc1IDE5MjcuNThDMjM2NS4xNSAxOTI1LjQxIDIzNjkuODcgMTkyOS42IDIzNjkuODcgMTkzNS43OUwyMzcwIDIwODIuNDVDMjM3MCAyMDg4LjY0IDIzNjUuMzIgMjA5NC43OSAyMzU5Ljg4IDIwOTYuODFMMjI0My4wNSAyMTQwLjQ4IDIyMzkuOCAyMTQwLjk3QzIyMzcuMjYgMjE0MS4zNCAyMjQxLjU3IDIxMzguNjYgMjI0MS42OCAyMTMyLjQ1TDIyNDQuNyAxOTg0LjIxQzIyNDQuODEgMTk3OCAyMjQ5LjQgMTk3Mi4wMiAyMjU0LjgyIDE5NjkuODVaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjI1NS44MiAxODc5LjAxIDIzNjcuNzcgMTkyNy45OUMyMzY5LjU4IDE5MjguNzggMjM2OS42IDE5MzAuNzUgMjM2Ni40MyAxOTMxLjlMMjI1NS42OCAxOTcyLjQ5QzIyNTIuNTEgMTk3My42NiAyMjUwLjQ4IDE5NzIuNzcgMjI0NS41OSAxOTcwLjM1TDIxMzQuOTEgMTkxNS42MUMyMTMzLjE0IDE5MTQuNzUgMjEzMy45OSAxOTEzLjEyIDIxMzcuMjQgMTkxMi4xMkwyMjQ2LjUxIDE4NzguNDhDMjI0OS43NiAxODc3LjQ5IDIyNTQuMDEgMTg3OC4yMiAyMjU1LjgyIDE4NzkuMDFaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjEzOS4zMiAxOTEzLjc0IDIyNDQuMTUgMTk2NS41NkMyMjQ4LjUyIDE5NjcuNzMgMjI1Mi4yMSAxOTc0IDIyNTEuOTkgMTk3OS40OEwyMjQ1LjY4IDIxMzcuMTdDMjI0NS40NiAyMTQyLjYyIDIyMzUuODggMjE0MS4zNiAyMjMxLjY4IDIxMzguODlMMjEzNi44NCAyMDgzLjA3QzIxMzIuNjUgMjA4MC41OSAyMTI4LjkyIDIwNzQuNjQgMjEyOSAyMDY5LjE2TDIxMzEuMjcgMTkxOS43N0MyMTMxLjM1IDE5MTQuMjkgMjEzNC45NSAxOTExLjU4IDIxMzkuMzIgMTkxMy43NFoiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yMjc4LjIyIDE5NTkuMjIgMjM1Ni43OSAxOTMyLjNDMjM2MC40NiAxOTMxLjA0IDIzNjMuMiAxOTMzLjk1IDIzNjUuOTcgMTkzNi43OCAyMzY4Ljc1IDE5MzkuNjEgMjM2NS40MyAxOTQ0LjQzIDIzNjEuNzYgMTk0NS42OUwyMjgzLjE5IDE5NzIuNjFDMjI3OS41MiAxOTczLjg3IDIyNzQgMTk3Mi4wMiAyMjc0IDE5NjguMTMgMjI3NCAxOTY0LjI0IDIyNzQuNTUgMTk2MC40OCAyMjc4LjIyIDE5NTkuMjJaIiBmaWxsPSIjRkZGRkZGIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTg0NC44OSAxNzQ5Ljk5IDE5OTIuNzggMTY5Mi4zNkMxOTk2LjQ1IDE2OTAuOTMgMTk5Ni44NyAxNjg4LjI5IDE5OTcuOTkgMTY4OS4xOCAyMDAwLjMzIDE2OTEuMDQgMTk5OS45OSAxNjkzLjQ1IDE5OTkuOTggMTY5Ni43TDE5OTkuMzUgMTg2Ny4wNEMxOTk5LjMxIDE4NzQuMDEgMTk5My44NSAxODgwLjcyIDE5ODcuNjggMTg4My4yM0wxODQxLjM4IDE5NDIuNzhDMTgzNS4yMSAxOTQ1LjI5IDE4MzQuOTYgMTkyNS43NiAxODM1IDE5MTguNzdMMTgzNiAxNzYyLjE5QzE4MzYuMDUgMTc1NS4yIDE4MzguNjYgMTc1Mi40MiAxODQ0Ljg5IDE3NDkuOTlaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTgxMC4zIDE1ODMuMDkgMTk5Ni42NSAxNjg4LjYyQzE5OTguNjIgMTY4OS43MyAxOTk4LjcgMTY5MS42IDE5OTUuMTEgMTY5My4wM0wxODQ3IDE3NTEuOTZDMTg0My40MiAxNzUzLjQgMTg0MC40IDE3NTMuNzIgMTgzNS4wOCAxNzUwLjQ2TDE2MzUuMTQgMTYyOC4wOUMxNjMzLjIzIDE2MjYuOTIgMTY1MS4zMyAxNjE3Ljk0IDE2NTUuMSAxNjE3LjA0TDE3OTkuNjMgMTU4Mi41MUMxODAzLjQxIDE1ODEuNiAxODA4LjM0IDE1ODEuOTggMTgxMC4zIDE1ODMuMDlaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTg1Ni4wMiAxNzQxLjggMTk5MS4yNCAxNjg4LjM2QzE5OTQuNzMgMTY4Ni45OSAxOTk3LjM3IDE2ODkuNzggMjAwMC4wMiAxNjkyLjQxIDIwMDIuNjcgMTY5NS4wNiAxOTk5LjQ3IDE2OTkuNzMgMTk5NS45OSAxNzAxLjFMMTg2MC43OCAxNzU0LjUyQzE4NTcuMjkgMTc1NS45IDE4NTIgMTc1NC4yMiAxODUyIDE3NTAuNDkgMTg1MiAxNzQ2Ljc1IDE4NTIuNTMgMTc0My4xNyAxODU2LjAyIDE3NDEuOFoiIGZpbGw9IiNGRkZGRkYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xODMzLjE0IDE1MTQuNDEgMTk5MC41OSAxNDUwLjM0QzE5OTQuMjUgMTQ0OC44NiAxOTk0LjcgMTQ0Ni4zMSAxOTk1LjggMTQ0Ny4xOCAxOTk4LjEzIDE0NDkuMDIgMTk5Ny43OSAxNDUxLjQ1IDE5OTcuNzkgMTQ1NC42OEwxOTk4IDE2NDYuMjNDMTk5OCAxNjUzLjE1IDE5OTIuNTEgMTY2MC4wMSAxOTg2LjM0IDE2NjIuMzhMMTgzOS43NiAxNzE4LjUzQzE4MjIuNTEgMTcyNS4xNCAxODIzLjkyIDE3MDcuNzEgMTgyMy44OCAxNzAwLjczTDE4MjMgMTUyNC4wN0MxODIyLjk3IDE1MTcuMDkgMTgyNi45NCAxNTE2LjkyIDE4MzMuMTQgMTUxNC40MVoiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xODAzLjQ3IDEzNTEuMTMgMTk5NC42NCAxNDQ2LjIxQzE5OTYuNjUgMTQ0Ny4yMSAxOTk2LjY2IDE0NDkuMTEgMTk5My4wOSAxNDUwLjU4TDE4MzIuOTEgMTUxNi43QzE4MjkuMzUgMTUxOC4xNyAxODI3LjgyIDE1MTMuODggMTgyMi40NyAxNTEwLjY5TDE2MzcuMTQgMTQwMC4xNEMxNjM1LjIyIDEzOTkgMTY1My4zNyAxMzkwLjI1IDE2NTcuMTEgMTM4OS4xOEwxNzkyLjggMTM1MC41NEMxNzk2LjUzIDEzNDkuNDkgMTgwMS40NiAxMzUwLjEzIDE4MDMuNDcgMTM1MS4xM1oiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xNjQ0LjI0IDEzOTguMDEgMTgyOS4zMyAxNTA4LjE0QzE4MzQuMTEgMTUxMC45OCAxODMyLjUyIDE1MTcuMzcgMTgzMi43MiAxNTIzLjVMMTgzOSAxNzEzLjI0QzE4MzkuMTkgMTcxOS4zNSAxODMzLjE5IDE3MjQuOTggMTgyMS4zNiAxNzE3LjIxTDE2NDcuMiAxNjAyLjdDMTY0Mi41OCAxNTk5LjY3IDE2MzguMzIgMTU5My4yMiAxNjM4LjIxIDE1ODcuMDZMMTYzNSAxNDA0Ljc4QzE2MzQuODkgMTM5OC42MSAxNjM5LjQ2IDEzOTUuMTcgMTY0NC4yNCAxMzk4LjAxWiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTE4NTYuMTkgMTQ5OS4xIDE5ODQuMzggMTQ1MS4wNEMxOTg3Ljk5IDE0NDkuNjcgMTk5MS4yNyAxNDQ5LjMxIDE5OTQuMDUgMTQ1Mi4xMSAxOTk2Ljg0IDE0NTQuOTEgMTk5Mi45MyAxNDYzLjEzIDE5ODkuMzEgMTQ2NC40OUwxODYxLjEzIDE1MTIuNTZDMTg1Ny41IDE1MTMuOTIgMTg1MiAxNTEyLjA0IDE4NTIgMTUwOC4xMiAxODUyIDE1MDQuMiAxODUyLjU3IDE1MDAuNDcgMTg1Ni4xOSAxNDk5LjFaIiBmaWxsPSIjRkZGRkZGIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTY0MC40NiAxNjI5LjAzIDE4MzUuMjcgMTc0OS4zN0MxODQzLjcxIDE3NTQuNTggMTg0Mi4zNiAxNzQ4Ljc4IDE4NDIuNDkgMTc2NC4xOEwxODQ0IDE5MzUuODlDMTg0NC4wMiAxOTM4LjcxIDE4NDMuMTUgMTk0Mi4wMyAxODQxLjA5IDE5NDIuOCAxODM4LjY5IDE5NDMuNjggMTgzNC45OSAxOTQxLjQ4IDE4MzIuNDkgMTkzOS44NkwxNjM4Ljk2IDE4MTQuMjRDMTYzNC4zNCAxODExLjIyIDE2MjkuOTUgMTgwNC43OCAxNjMwIDE3OTguNjJMMTYzMS4yNSAxNjM1Ljc5QzE2MzEuMyAxNjI5LjY0IDE2MzUuNzUgMTYyNi4xMyAxNjQwLjQ2IDE2MjkuMDNaIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTY4My43IDE3ODUuMzQgMTc5NS42OSAxNzQ0LjQ3QzE3OTkuNTQgMTc0My4wNiAxNzk5LjkyIDE3NDAuMjcgMTgwMS4wOSAxNzQxLjE4IDE4MDMuNTUgMTc0My4xMSAxODAzLjI1IDE3NDUuNjIgMTgwMy4yNyAxNzQ4Ljk4TDE4MDUgMTk0MC4wNUMxODA1LjA2IDE5NDcuMjMgMTc5OS4zOSAxOTU0LjE5IDE3OTMuMDMgMTk1Ni44MkwxNjY3LjcgMjAwOC40N0MxNjYxLjM0IDIwMTEuMDkgMTY2OC4zMiAyMDAzLjU2IDE2NjguMjEgMTk5Ni4zTDE2NjUgMTc5NS4yM0MxNjY0Ljg4IDE3ODcuOTcgMTY3Ny4xNiAxNzg3LjcyIDE2ODMuNyAxNzg1LjM0WiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTE2MTYuMjggMTYzNy4yMyAxNzk5LjU5IDE3NDAuNjFDMTgwMS42MyAxNzQxLjc2IDE4MDEuNzMgMTc0My43OSAxNzk4LjA0IDE3NDUuMTlMMTY3MS44MiAxNzkzLjIxQzE2NjguMDkgMTc5NC42MyAxNjY1LjE2IDE3OTQuMzMgMTY1OS43NSAxNzkwLjcxTDE0ODYuNTUgMTY3NS4wNEMxNDg0LjYzIDE2NzMuNjcgMTQ4OC4wMyAxNjcyLjQ1IDE0OTEuODcgMTY3MS4yN0wxNjA1LjE4IDE2MzYuNjFDMTYwOS4wMyAxNjM1LjQ1IDE2MTQuMjcgMTYzNi4xIDE2MTYuMjggMTYzNy4yM1oiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xNDkyLjUxIDE2NzQuMTkgMTY1OS42NCAxNzg5LjA3QzE2NjQuNDMgMTc5Mi4zNiAxNjY2Ljk5IDE3OTIuMzcgMTY2Ny4wNCAxNzk0LjM1TDE2NzEuOTkgMTk5NC4yMkMxNjcyLjE1IDIwMDAuNTUgMTY3MS4wNyAyMDE1LjcgMTY1Ny40NSAyMDA1LjY1TDE0OTUuMTIgMTg4NS45MkMxNDkwLjQ4IDE4ODIuNDkgMTQ4NS42NSAxODc2LjEgMTQ4NS41NyAxODY5LjdMMTQ4MyAxNjgxLjIxQzE0ODIuOTIgMTY3NC44MiAxNDg3LjczIDE2NzAuOSAxNDkyLjUxIDE2NzQuMTlaIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTY5OS4wOCAxNzc3LjIzIDE3OTAuNzMgMTc0Mi4zNkMxNzk0LjM4IDE3NDAuOTggMTc5Ny4xNSAxNzQzLjgzIDE3OTkuOTUgMTc0Ni41OCAxODAyLjc0IDE3NDkuMzQgMTc5OS40OCAxNzU0LjI5IDE3OTUuODYgMTc1NS42NkwxNzA0LjIxIDE3OTAuNTNDMTcwMC41OSAxNzkxLjkxIDE2OTUuMDUgMTc5MC4yMSAxNjk1IDE3ODYuMzEgMTY5NC45NSAxNzgyLjQgMTY5NS40NSAxNzc4LjYxIDE2OTkuMDggMTc3Ny4yM1oiIGZpbGw9IiNGRkZGRkYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xODMzLjY3IDEyMzkuMTUgMTk4MS40MSAxMTg0LjM1QzE5ODUuMTEgMTE4Mi45NyAxOTg1LjUzIDExODAuMyAxOTg2LjY0IDExODEuMTcgMTk4OC45NiAxMTgzLjAxIDE5ODguNTUgMTE4NS40OCAxOTg4LjYzIDExODguN0wxOTk0IDE0MDguNjVDMTk5NC4xNiAxNDE1LjU5IDE5ODguNSAxNDIyLjQ4IDE5ODIuMzIgMTQyNC44NUwxODI5LjAxIDE0ODMuNjdDMTgyMi44MiAxNDg2LjA0IDE4MjMuODcgMTQ3NS4wNSAxODIzLjg1IDE0NjguMDVMMTgyMyAxMjUyLjM5QzE4MjIuOTggMTI0NS4zOSAxODI3LjQgMTI0MS40OCAxODMzLjY3IDEyMzkuMTVaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTgwMi4wMyAxMDk2LjA3IDE5ODUuNjEgMTE4MC4zN0MxOTg3LjY2IDExODEuMzEgMTk4Ny42NyAxMTgzLjM4IDE5ODQuMDggMTE4NC43NEwxODM0LjMgMTI0MS4zOEMxODMwLjcgMTI0Mi43NCAxODI4LjI0IDEyNDEuODMgMTgyMi43MyAxMjM4Ljk5TDE2MzAuMTcgMTEzOS45NkMxNjI4LjE4IDExMzguOTQgMTY0NC4wOCAxMTMzLjE2IDE2NDcuODUgMTEzMi4yTDE3OTEuMzUgMTA5NS40OEMxNzk1LjEyIDEwOTQuNTIgMTc5OS45OCAxMDk1LjE0IDE4MDIuMDMgMTA5Ni4wN1oiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xNjM1LjIzIDExMzkuODggMTgyMS44IDEyMzUuMzJDMTgyNi43NSAxMjM3Ljg2IDE4MzIuNDUgMTI0MC4zNiAxODMyLjQ4IDEyNDYuNDhMMTgzNCAxNDc1LjcxQzE4MzQuMDIgMTQ3OC43NCAxODMwLjggMTQ4Mi45NiAxODI2LjI1IDE0ODMgMTgyMS42NCAxNDgzLjA0IDE4MTUuNjYgMTQ3OC44NyAxODEzLjI3IDE0NzcuNDVMMTYzNy41NyAxMzczLjA0QzE2MzIuODIgMTM3MC4yMyAxNjI4LjY0IDEzNjMuNTggMTYyOC41NiAxMzU3LjQyTDE2MjYgMTE0Ni42NEMxNjI1LjkyIDExNDAuNDggMTYzMC4yOSAxMTM3LjM1IDE2MzUuMjMgMTEzOS44OFoiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xODU1LjIgMTIyNy4zNCAxOTc2Ljg0IDExODUuMzJDMTk4MC41MiAxMTg0LjA1IDE5ODMuMjIgMTE4Ni43OCAxOTg1Ljk4IDExODkuNTIgMTk4OC43MyAxMTkyLjI2IDE5ODUuNDMgMTE5Ny4yOSAxOTgxLjc4IDExOTguNTVMMTg2MC4xNSAxMjQwLjU3QzE4NTYuNSAxMjQxLjgzIDE4NTEgMTI0MC4yNiAxODUxIDEyMzYuMzggMTg1MSAxMjMyLjQ5IDE4NTEuNTEgMTIyOC42MiAxODU1LjIgMTIyNy4zNFoiIGZpbGw9IiNGRkZGRkYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xODA0LjE4IDgzMi4xMTggMTk4Ny42MyA5MTYuNzU4QzE5ODkuNjcgOTE3LjcgMTk4OS42NCA5MTkuNjU4IDE5ODYuMDkgOTIxLjE0OEwxODQwLjA2IDk4Mi43NjFDMTgzNi41MSA5ODQuMjYzIDE4MzAuNDYgOTc4LjI5MSAxODI0Ljg2IDk3NS42MTVMMTYzMC4xNiA4ODIuNzc5QzE2MjguMTMgODgxLjgxMSAxNjQ2LjM4IDg3Mi44MTQgMTY1MC4xMyA4NzEuNzY1TDE3OTMuNTEgODMxLjUyMkMxNzk3LjI2IDgzMC40NzUgMTgwMi4xNCA4MzEuMTczIDE4MDQuMTggODMyLjExOFoiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xODMzLjQzIDk3NS4zNDkgMTk4My43MyA5MjAuMzM0QzE5ODcuNDQgOTE4Ljk3MyAxOTg3Ljg2IDkxNi4yOTkgMTk4OC45NyA5MTcuMTcyIDE5OTEuMjkgOTE5LjAyMSAxOTkxLjAxIDkyMS40NjIgMTk5MC45NiA5MjQuNjg0TDE5ODcuODkgMTEzNC43OUMxOTg3Ljc4IDExNDEuNzEgMTk4Mi4zMyAxMTQ4LjQ1IDE5NzYuMTkgMTE1MC45NEwxODMxLjM1IDEyMDkuNjRDMTgyNS4yIDEyMTIuMTQgMTgyNi4yMSAxMjAxLjA0IDE4MjYuMTcgMTE5NC4wNkwxODI1IDk4OC4yQzE4MjQuOTUgOTgxLjIyMSAxODI3LjE0IDk3Ny42NTEgMTgzMy40MyA5NzUuMzQ5WiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTE2MzguMTkgODgwLjgzMyAxODI0Ljk4IDk3MS40NTdDMTgyOS45NiA5NzMuODc1IDE4MzUuNjIgOTcyLjQ4MSAxODM1LjYzIDk3OC42MjJMMTgzNiAxMjAxLjM0QzE4MzYuMDEgMTIwNy40NiAxODMxLjY4IDEyMTAuNjkgMTgyNi44IDEyMDguMUwxNjQwLjUxIDExMDguODNDMTYzNS42MyAxMTA2LjI0IDE2MzEuNjMgMTA5OS4zNyAxNjMxLjU0IDEwOTMuMjJMMTYyOSA4ODcuNTk0QzE2MjguOTIgODgxLjQzOCAxNjMzLjIxIDg3OC40MTUgMTYzOC4xOSA4ODAuODMzWiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTE4NTUuMjIgOTY0LjE2NCAxOTc3Ljc3IDkyMC4zMzlDMTk4MS40NiA5MTkuMDE0IDE5ODQuMTkgOTIxLjgxMiAxOTg2Ljk4IDkyNC41ODYgMTk4OS43NSA5MjcuMzU4IDE5ODYuNCA5MzIuMzIyIDE5ODIuNzUgOTMzLjcyN0wxODYwLjIgOTc3LjU0OUMxODU2LjUyIDk3OC44NzMgMTg1MSA5NzcuMjM0IDE4NTEgOTczLjMwMSAxODUxIDk2OS4zNyAxODUxLjUyIDk2NS40ODUgMTg1NS4yMiA5NjQuMTY0WiIgZmlsbD0iI0ZGRkZGRiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTE4MjEuNzkgMzk3Ljg0OSAxOTYyLjExIDM0OS43NDFDMTk2OS4wNyAzNDcuMzUzIDE5NzQuODUgMzUwLjk3NSAxOTc0LjkxIDM1Ny4xNzFMMTk3NiA0ODYuMzAxQzE5NzYuMDYgNDkyLjQ4NCAxOTcwLjEgNDk4Ljk3MSAxOTYzLjIxIDUwMS4zOTVMMTgxMC44MiA1NTUuMDAxQzE4MTMuMDUgNTU0LjIxOSAxODA5LjA4IDU0OC44ODUgMTgwOS4wOCA1NDIuNjlMMTgwOSA0MTIuOTQ0QzE4MDguOTkgNDA2Ljc0OCAxODE0LjgzIDQwMC4yMzcgMTgyMS43OSAzOTcuODQ5WiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTE4NTAuMzYgMjk5LjcyIDE5NzEuNDcgMzQ5LjgwMkMxOTczLjY0IDM1MC43MDYgMTk3My44NSAzNTIuNDg5IDE5NjkuNzcgMzUzLjc3NkwxODIyLjM4IDQwMC4yMzFDMTgxOC4zMSA0MDEuNTA2IDE4MTUuNjYgNDAxLjI5NiAxODA5LjY1IDM5OC44NTJMMTY4Ny45MyAzNDkuNTdDMTY4NS43NSAzNDguNjkgMTY4Ny41NyAzNDYuNDg5IDE2OTEuNjYgMzQ1LjIyNkwxODM4LjYyIDI5OS44OTVDMTg0Mi43MSAyOTguNjMyIDE4NDguMTggMjk4LjgzIDE4NTAuMzYgMjk5LjcyWiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTE4NDYuMTggMzkwLjEzNCAxOTU5LjgyIDM1MS4zMTNDMTk2My41MSAzNTAuMDU1IDE5NjYuMTUgMzUyLjgxNyAxOTY4Ljk1IDM1NS41NTggMTk3MS43NSAzNTguMjk2IDE5NjguNDUgMzYzLjQ4OSAxOTY0Ljc2IDM2NC43NDdMMTg1MS4xNCA0MDMuNTY4QzE4NDcuNDQgNDA0LjgzOCAxODQyIDQwMy4yNzMgMTg0MiAzOTkuMzI2IDE4NDIgMzk1LjM4OCAxODQyLjQ5IDM5MS40MDQgMTg0Ni4xOCAzOTAuMTM0WiIgZmlsbD0iI0ZGRkZGRiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTIyODUuMTcgMzY4LjI0OSAyMzc3LjkxIDMzNy4zMDVDMjM4MS41OCAzMzYuMDc5IDIzODQuMjQgMzM4Ljc2MyAyMzg2Ljk4IDM0MS41MTggMjM4OS43MiAzNDQuMjg1IDIzODYuNDcgMzQ5LjQzMSAyMzgyLjgxIDM1MC42NDhMMjI5MC4wOCAzODEuNTkyQzIyODYuNDMgMzgyLjgwNSAyMjgxIDM4MS4yOSAyMjgxIDM3Ny4zNzggMjI4MSAzNzMuNDU4IDIyODEuNDggMzY5LjQ3NyAyMjg1LjE3IDM2OC4yNDlaIiBmaWxsPSIjRkZGRkZGIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTg3Ni4wNiA3NTMuMzAzIDIwNjMuODkgNjgxLjk2NkMyMDcyLjAzIDY3OC44NzYgMjA3OC44IDY4My41MjcgMjA3OC45NSA2OTEuMjU4TDIwODIgODQxLjU2NEMyMDgyLjE2IDg0OS4zMDcgMjA3NS4xMiA4NTcuNTYxIDIwNjYuOTQgODYwLjQ1M0wxODY4LjE2IDkzMC40NjNDMTg1OS45OCA5MzMuMzQzIDE4NjIuNjcgOTI0LjA3MiAxODYyLjU5IDkxNi4zMTlMMTg2MSA3NzIuMTg0QzE4NjAuOTIgNzY0LjQyOSAxODY3LjkyIDc1Ni4zOTYgMTg3Ni4wNiA3NTMuMzAzWiIgZmlsbD0iIzI2MjYyNiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTE5MTUuNzEgNjExLjg5MiAyMDc1LjIxIDY4Mi42MDZDMjA3Ny43OCA2ODMuNyAyMDc3Ljk3IDY4NS44OTQgMjA3My4yIDY4Ny41NzZMMTg3Ny4wOCA3NTYuODUxQzE4NzIuMzEgNzU4LjUzNCAxODY4LjkzIDc1OC42ODUgMTg2Mi4wOSA3NTUuMTMzTDE3MDguNzIgNjc1LjU4MkMxNzA2LjI1IDY3NC4zMDQgMTcxMC41NyA2NzIuNzE0IDE3MTUuNCA2NzEuMTgyTDE5MDEuODkgNjEyLjEwM0MxOTA2LjcyIDYxMC41NjkgMTkxMy4xNyA2MTAuNzY1IDE5MTUuNzEgNjExLjg5MloiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xNzE2LjA1IDY3My4wNTEgMTg2MC40MSA3NDkuNjY5QzE4NjYuNDggNzUyLjg4NyAxODcxLjg5IDc1OS40MTggMTg3Mi4wMyA3NjYuMjAyTDE4NzUgOTE3LjgwNkMxODc1LjEzIDkyNC41NzggMTg2OS4yMiA5MjkuMDc1IDE4NjMuMDYgOTI2LjAzTDE3MTUuNjEgODUzLjEzOEMxNzA5LjQ2IDg1MC4wOTYgMTcwMy45OSA4NDMuNDAzIDE3MDQgODM2LjU5NkwxNzA0LjEyIDY4MS4yNjJDMTcwNC4xMiA2NzQuNDU1IDE3MDkuOTggNjY5LjgyMSAxNzE2LjA1IDY3My4wNTFaIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTUwMi41OSAxMDk0LjAyIDE2MDIuNTcgMTA1NS40N0MxNjA3LjE3IDEwNTMuNyAxNjExLjI5IDEwNTcuMTQgMTYxMS4xNSAxMDYyLjI4TDE2MTIgMTE3OS44NUMxNjExLjg3IDExODQuOTggMTYwNy45MyAxMTg5LjkzIDE2MDMuNDEgMTE5MS43NUwxNDk5Ljg5IDEyMzMuNkMxNDk1LjM3IDEyMzUuNDIgMTQ5NS4zOSAxMjMwLjc1IDE0OTUuMzQgMTIyNS42MUwxNDk0IDExMDUuOTJDMTQ5My45NCAxMTAwLjc4IDE0OTcuOTkgMTA5NS44IDE1MDIuNTkgMTA5NC4wMloiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xNTI0LjQ4IDEwMTkuODIgMTYwOC45NiAxMDU1LjU1QzE2MTAuNDkgMTA1Ni4xOSAxNjEwLjUxIDEwNTcuODIgMTYwNy44MiAxMDU4Ljc2TDE1MDMuMDggMTA5NS41NkMxNTAwLjM5IDEwOTYuNTIgMTQ5OC42MiAxMDk1LjkxIDE0OTQuNTMgMTA5My44MUwxNDEyLjM2IDEwNTEuNzlDMTQxMC44OSAxMDUxLjAzIDE0MTQuMjUgMTA0OS4yNiAxNDE3LjAxIDEwNDguNDVMMTUxNi42IDEwMTkuMzlDMTUxOS4zNiAxMDE4LjU4IDE1MjIuOTYgMTAxOS4xOCAxNTI0LjQ4IDEwMTkuODJaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTQxOS43NyAxMDUwLjgxIDE0OTMuMjIgMTA5MC44QzE0OTYuODMgMTA5Mi43OCAxNDk5Ljc5IDEwOTcuOCAxNDk5Ljg2IDExMDIuMzNMMTUwMiAxMjMxLjE1QzE1MDIuMDcgMTIzNS42NyAxNDkxLjYgMTIzMy45NiAxNDg4LjEgMTIzMS44M0wxNDE5LjI4IDExODkuODJDMTQxNS43OCAxMTg3LjY4IDE0MTIuNzMgMTE4Mi44NCAxNDEyLjYzIDExNzguMjlMMTQxMCAxMDU1LjFDMTQwOS45MSAxMDUwLjU1IDE0MTYuMTUgMTA0OC44MyAxNDE5Ljc3IDEwNTAuODFaIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTUxNS4yMyAxMDg0LjA3IDE2MDAuMDQgMTA1NS42OUMxNjAzLjc2IDEwNTQuNDQgMTYwNy4zMSAxMDU0Ljc4IDE2MTAuMDkgMTA1Ny41NyAxNjEyLjg3IDEwNjAuMzcgMTYwOC43NCAxMDY3Ljk2IDE2MDUuMDMgMTA2OS4yTDE1MjAuMjIgMTA5Ny41OEMxNTE2LjUxIDEwOTguODMgMTUxMSAxMDk3LjI2IDE1MTEgMTA5My4yOSAxNTExIDEwODkuMzIgMTUxMS40OSAxMDg1LjMyIDE1MTUuMjMgMTA4NC4wN1oiIGZpbGw9IiNGRkZGRkYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xNjQzLjU5IDczOS4yMTkgMTc2OS4zMiA2OTUuNTgyQzE3NzUuOSA2OTMuMzA0IDE3ODEuNDQgNjk3Ljk2NiAxNzgxLjQ3IDcwNS4yMjVMMTc4MiA4NjcuNjgyQzE3ODIuMDIgODc0LjkzOCAxNzc2LjMyIDg4Mi4wNjkgMTc2OS44NSA4ODQuNTU4TDE2MzcuOTUgOTM1LjMzNUMxNjMxLjQ4IDkzNy44MjQgMTYyOC45IDkzMy4wNDIgMTYyOSA5MjUuNzUxTDE2MzEuNDUgNzU2LjA5MkMxNjMxLjU1IDc0OC44IDE2MzcgNzQxLjUwOSAxNjQzLjU5IDczOS4yMTlaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTY0My4xOSA2MzMuMjUxIDE3NzguNTIgNjk2LjQzNkMxNzgwLjY2IDY5Ny40MzUgMTc4MC43NyA2OTkuODA0IDE3NzYuOTEgNzAxLjAxMUwxNjQ0LjQ5IDc0Mi40NThDMTY0MC42NCA3NDMuNjY2IDE2MzguMjIgNzQyLjg2NiAxNjMyLjQgNzM5Ljk0OUwxNTA3LjMxIDY3Ny40MTZDMTUwNS4yIDY3Ni4zNTcgMTUwNS40NyA2NzQuOTMgMTUwOS4zMiA2NzMuNjUyTDE2MzIuMDQgNjMyLjYzNkMxNjM1Ljg5IDYzMS4zNDkgMTY0MS4wNSA2MzIuMjU1IDE2NDMuMTkgNjMzLjI1MVoiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xNTEyLjc2IDY3NC45MDMgMTYzMC42MiA3MzQuMjU4QzE2MzUuODEgNzM2Ljg2NiAxNjQwLjA0IDc0NC4xNjkgMTY0MCA3NTAuNTcxTDE2MzguNjYgOTI3LjA5OUMxNjM4LjYxIDkzMy40OTIgMTYzNC4yNyA5MzYuNiAxNjI5LjAzIDkzNC4xOEwxNTEwLjM5IDg3OS4zNzdDMTUwNS4xMyA4NzYuOTUzIDE1MDAuOTMgODY5LjQ5IDE1MDEgODYzLjA1MkwxNTAzLjEzIDY4MS45N0MxNTAzLjIgNjc1LjU0NCAxNTA3LjU3IDY3Mi4yOTUgMTUxMi43NiA2NzQuOTAzWiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTE2ODQuMzIgNzI3LjQxMiAxNzY4LjczIDcwMC43OTNDMTc3Mi4zOCA2OTkuNjM3IDE3NzIuMTUgNjk5LjQ0OSAxNzc0Ljk1IDcwMi4yNzRMMTc3NC45NiA3MDIuMjc0QzE3NzcuNzYgNzA1LjA5NiAxNzc0LjQgNzA5Ljk0OSAxNzcwLjc5IDcxMS4xOTdMMTY4OS4wOSA3MzkuNjIzQzE2ODUuNDggNzQwLjg4MyAxNjgwIDczOC45IDE2ODAgNzM0Ljk5NCAxNjgwIDczMS4wNzMgMTY4MC42OCA3MjguNTUzIDE2ODQuMzIgNzI3LjQxMloiIGZpbGw9IiNGRkZGRkYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xOTA1LjIgNzM3Ljk2MiAyMDYzLjgxIDY4Mi4zMDVDMjA2Ny40NyA2ODEuMDIyIDIwNzAuMTUgNjg0LjAyOCAyMDcyLjk2IDY4Ni44NjggMjA3NS43NiA2ODkuNzExIDIwNzIuNDIgNjk0LjY3MiAyMDY4Ljc3IDY5NS45NDZMMTkxMC4xNSA3NTEuNkMxOTA2LjUgNzUyLjg4NSAxOTAxIDc1MC45OTkgMTkwMSA3NDcuMDQgMTkwMSA3NDMuMDc3IDE5MDEuNTQgNzM5LjI0NyAxOTA1LjIgNzM3Ljk2MloiIGZpbGw9IiNGRkZGRkYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xNjk0LjEzIDM0Ny42OSAxODA4LjEyIDM5NC44MjdDMTgxMy40NyAzOTcuMDM4IDE4MTguMDUgNDAyLjYzNiAxODE4IDQwOC4wODNMMTgxNi43MSA1NDcuNTRDMTgxNi42NiA1NTIuOTYzIDE4MTEuNjUgNTU2LjgwMyAxODA2LjU3IDU1NC4xMjhMMTY5NS45NyA0OTUuOTExQzE2OTAuODkgNDkzLjIzMiAxNjg2LjE5IDQ4OC4xMDEgMTY4Ni4xIDQ4Mi42NDJMMTY4NCAzNTQuMjlDMTY4My45MSAzNDguODI4IDE2ODguNzggMzQ1LjQ3NyAxNjk0LjEzIDM0Ny42OVoiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xNjM1LjM2IDQ3Mi4yMzMgMTc4My4yMSA0MTguNzU5QzE3OTAuMjYgNDE2LjIwOCAxNzk2LjE4IDQyMC4yOTMgMTc5NiA0MjcuOTc4TDE3OTEuNTQgNjEyLjQ3N0MxNzkxLjM2IDYyMC4xNDcgMTc4NS43NyA2MjguNjQzIDE3NzguNzYgNjMxLjIwNkwxNjI3LjI2IDY4Ni40NzRDMTYyMC4yNiA2ODkuMDM0IDE2MTkuOSA2ODEuODI4IDE2MjAuMDIgNjc0LjEzNEwxNjIyLjU5IDQ5MC45NjJDMTYyMi42OSA0ODMuMjY4IDE2MjguMzIgNDc0Ljc4NCAxNjM1LjM2IDQ3Mi4yMzNaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTY3MS44OCAzNjYuNzU3IDE3OTMuNDUgNDE4LjgxM0MxNzk1LjY4IDQxOS43NjMgMTc5NS44MiA0MjIuMjI1IDE3OTEuNzUgNDIzLjcyNkwxNjQ2LjI0IDQ3Ny42MDdDMTY0Mi4xOCA0NzkuMTIzIDE2MjkuNDcgNDc1Ljk0NCAxNjIzLjMxIDQ3My4zOTlMMTUwMS42NyA0MjMuMDQ1QzE0OTkuNDMgNDIyLjExOSAxNTAzLjIxIDQxOC4zNzUgMTUwNy4zNiA0MTcuMDIzTDE2NjAuMSAzNjYuOTY4QzE2NjQuMjUgMzY1LjYxNSAxNjY5LjY1IDM2NS44MSAxNjcxLjg4IDM2Ni43NTdaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMTUwOC4zMSA0MjAuNjg1IDE2MjEuMTcgNDY4LjQ3NkMxNjI2LjY0IDQ3MC43ODIgMTYzMS4wNCA0NzguMTg0IDE2MzEgNDg0Ljk2NUwxNjI5LjU5IDY3OC4xNzlDMTYyOS41NCA2ODQuOTM2IDE2MjQuOTkgNjg4LjUzOSAxNjE5LjUxIDY4Ni4zNzFMMTUwNS44MiA2NDEuNTI5QzE1MDAuMzMgNjM5LjM2MSAxNDk1LjkzIDYzMS44MzQgMTQ5NiA2MjUuMDM4TDE0OTguMjIgNDI4Ljg3N0MxNDk4LjMxIDQyMi4wOTYgMTUwMi44NSA0MTguMzc4IDE1MDguMzEgNDIwLjY4NVoiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0xNjY3LjIyIDQ2Mi4xMzggMTc4MS43MyA0MjMuMzE3QzE3ODUuNDYgNDIyLjA0NyAxNzg4LjEyIDQyNC44MjIgMTc5MC45NCA0MjcuNTQ4IDE3OTMuNzcgNDMwLjI4OSAxNzkwLjQ0IDQzNS40ODIgMTc4Ni43MiA0MzYuNzUyTDE2NzIuMjEgNDc1LjU3M0MxNjY4LjQ4IDQ3Ni44MzEgMTY2MyA0NzUuMjgxIDE2NjMgNDcxLjMzIDE2NjMgNDY3LjM4MyAxNjYzLjQ5IDQ2My4zOTYgMTY2Ny4yMiA0NjIuMTM4WiIgZmlsbD0iI0ZGRkZGRiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTI2MjAuMDkgNTcwLjM2MSAyNzE4LjkxIDUzNi4zNzFDMjcyMy4zNiA1MzQuODQyIDI3MjcuMTMgNTM4LjE3OCAyNzI3IDU0My43NzdMMjcyMy43MyA2NzcuNzk4QzI3MjMuNTkgNjgzLjM4NSAyNzIwLjEgNjg5LjI3NiAyNzE1LjY0IDY5MC43NjlMMjYxNyA3MjMuNzc5QzI2MTIuNTQgNzI1LjI3MiAyNjE0LjA4IDcxOC45MDMgMjYxNCA3MTMuMjkyTDI2MTIgNTgzLjMyOUMyNjExLjkyIDU3Ny43MTggMjYxNS42NCA1NzEuODg3IDI2MjAuMDkgNTcwLjM2MVoiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yNjQ1LjI5IDUwMC43ODQgMjcyNC45OSA1MzcuMDAzQzI3MjYuNDYgNTM3LjY2NCAyNzI2LjUxIDUzOS42OTQgMjcyMy45MiA1NDAuNTA1TDI2MjAuNzMgNTcyLjY1NEMyNjE4LjEzIDU3My40NjQgMjYxNi42MiA1NzIuODYyIDI2MTIuNyA1NzAuNzQzTDI1MzQuNDMgNTI4LjQ4MUMyNTMzLjAxIDUyNy43MTYgMjUzNS4zOCA1MjYuMjY3IDI1MzguMDEgNTI1LjU5NkwyNjM3Ljg5IDUwMC4zMjFDMjY0MC41MiA0OTkuNjU5IDI2NDMuODMgNTAwLjEyNSAyNjQ1LjI5IDUwMC43ODRaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjUzOC4yMiA1MjYuNjE4IDI2MTUuNzcgNTY2LjU5M0MyNjE5LjI4IDU2OC40OTYgMjYyMi4wOCA1NzQuMTkxIDI2MjIgNTc5LjEyN0wyNjE5LjY1IDcxNy44OThDMjYxOS41NiA3MjIuODEzIDI2MTYuNzUgNzI1LjI4NyAyNjEzLjI2IDcyMy4zMjdMMjUzNi4yMyA2ODAuMjM2QzI1MzIuNzIgNjc4LjI4OCAyNTI5LjkzIDY3Mi42MzggMjUzMCA2NjcuNzAyTDI1MzEuODMgNTMyLjA0NEMyNTMxLjkgNTI3LjEwOSAyNTM0LjY5IDUyNC43OTkgMjUzOC4yMiA1MjYuNjE4WiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTI2NDQuMiA1NjAuMTUzIDI3MTguMjEgNTM3LjI2MUMyNzIxLjkxIDUzNi4xMTggMjcyMS4yMiA1MzguOTI2IDI3MjMuOTcgNTQxLjc3IDI3MjYuNzMgNTQ0LjYyNSAyNzIzLjQ1IDU0OS41NyAyNzE5Ljc4IDU1MC43NDVMMjY0OS4xNSA1NzMuNjM3QzI2NDUuNDkgNTc0LjgyNSAyNjQwIDU3My4wNDMgMjY0MCA1NjkuMTI2IDI2NDAgNTY1LjIxMSAyNjQwLjUgNTYxLjI5MyAyNjQ0LjIgNTYwLjE1M1oiIGZpbGw9IiNGRkZGRkYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yODI3LjY4IDM0OC4xNzYgMjkxOS44MiAzMTcuNjU3QzI5MjQuMjEgMzE2LjE5OCAyOTI5LjE5IDMxNi41NjIgMjkyOC45OSAzMjUuMTQ4TDI5MjYuMTggNDQzLjkzNEMyOTI2LjA4IDQ0OC43NDcgMjkyMi41MSA0NTMuNzk0IDI5MTguMTMgNDU1LjE1OEwyODIyLjY3IDQ4NC44MTVDMjgxOC4yNyA0ODYuMTc4IDI4MTcuOTQgNDc5Ljc0NiAyODE4LjAxIDQ3NC44OThMMjgxOS42MyAzNTkuNEMyODE5LjY5IDM1NC41NTIgMjgyMy4yOSAzNDkuNjMyIDI4MjcuNjggMzQ4LjE3NloiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yODUwLjQzIDI4Mi43NTMgMjkyNi4wMiAzMTcuMDQ2QzI5MjcuNDQgMzE3LjY5NyAyOTI3LjUxIDMxOS4zMDYgMjkyNC45NSAzMjAuMDg0TDI4MjcuOTMgMzQ5LjY1NkMyODI1LjM3IDM1MC40MzQgMjgyMy43NiAzNDkuODk5IDI4MTkuODkgMzQ3Ljk5OUwyNzQzLjQyIDMxMC41NzJDMjc0Mi4wMSAzMDkuODg5IDI3NDQuNCAzMDguNzc1IDI3NDcgMzA4LjA3N0wyODQzLjAyIDI4Mi4zNDZDMjg0NS42MyAyODEuNjUxIDI4NDkuMDEgMjgyLjExNCAyODUwLjQzIDI4Mi43NTNaIiBmaWxsPSIjMjYyNjI2IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjc0Ny43NSAzMDkuNTg2IDI4MTguODEgMzQ0Ljk1MkMyODIyLjI1IDM0Ni42NjUgMjgyNS4wNCAzNTEuNTI0IDI4MjUgMzU1Ljc5OUwyODI0LjExIDQ3OS42NjZDMjgyNC4wOSA0ODMuOTMyIDI4MjEuMTMgNDg2LjE5IDI4MTcuNzYgNDg0LjM2MUwyNzQ2LjE5IDQ0NS40ODlDMjc0Mi44MiA0NDMuNjcgMjczOS45NiA0MzguOTE4IDI3NDAgNDM0LjY0TDI3NDEuNCAzMTQuMjkzQzI3NDEuNDYgMzEwLjAxOCAyNzQ0LjMxIDMwNy44ODUgMjc0Ny43NSAzMDkuNTg2WiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PHBhdGggZD0iTTI4NDcuMiAzNDAuMTUzIDI5MjEuMjEgMzE3LjI2MUMyOTI0LjkxIDMxNi4xMTggMjkyNC4yMSAzMTguOTI5IDI5MjYuOTggMzIxLjc3MyAyOTI5LjczIDMyNC42MjggMjkyNi40NCAzMjkuNTcgMjkyMi43OCAzMzAuNzQ1TDI4NTIuMTYgMzUzLjYzN0MyODQ4LjQ4IDM1NC44MjggMjg0MyAzNTMuMDMxIDI4NDMgMzQ5LjEyOCAyODQzIDM0NS4yMTEgMjg0My41IDM0MS4yOTYgMjg0Ny4yIDM0MC4xNTNaIiBmaWxsPSIjRkZGRkZGIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjcwMS4xOCAxNzkyLjIyIDI4MzMuMzQgMTc0MC42NUMyODM5LjU3IDE3MzguMjIgMjg0NS4wNCAxNzQyLjkyIDI4NDUgMTc0OS44OUwyODQzLjczIDE5MTQuOTdDMjg0My42NyAxOTIxLjk0IDI4MzguMjUgMTkyOC42NCAyODMyLjA3IDE5MzEuMTVMMjY5MS43IDE5ODkuNTlDMjY4NS41NSAxOTkyLjE2IDI2ODUuOTEgMTk4Mi4xOCAyNjg2LjA2IDE5NzUuMkwyNjg5LjUzIDE4MDguMzlDMjY4OS42NyAxODAxLjQgMjY5NC45NSAxNzk0LjY2IDI3MDEuMTggMTc5Mi4yMloiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yNzExLjU1IDE2ODQuMTkgMjg0MS42IDE3NDEuMDdDMjg0My42NiAxNzQxLjk3IDI4NDMuNjggMTc0NC4xOSAyODQwLjA1IDE3NDUuNDlMMjcwMi4wMiAxNzk1LjQyQzI2OTguMzkgMTc5Ni43NSAyNjk2LjA2IDE3OTUuNzQgMjY5MC40NyAxNzkzTDI1NjMuNyAxNzMxLjE0QzI1NjEuNjkgMTczMC4xNSAyNTY0LjMxIDE3MjYuOTcgMjU2OC4wMSAxNzI1LjhMMjcwMC44OSAxNjgzLjZDMjcwNC42IDE2ODIuNDMgMjcwOS41MyAxNjgzLjE3IDI3MTEuNTUgMTY4NC4xOVoiIGZpbGw9IiMyNjI2MjYiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjxwYXRoIGQ9Ik0yNTY4Ljg0IDE3MjkuODMgMjY4OS4wMSAxNzg3Ljk1QzI2OTQuMDIgMTc5MC4zNyAyNjk4LjA4IDE3OTcuNCAyNjk4IDE4MDMuNTVMMjY5NS42IDE5ODIuMjdDMjY5NS41IDE5ODguMzkgMjY5MS4xNiAxOTkxLjc5IDI2ODYuMzYgMTk4OS4wM0wyNTY2IDE5MTkuNzNDMjU2MS4xOSAxOTE2Ljk2IDI1NTYuOTEgMTkxMC4yNyAyNTU3IDE5MDQuMTJMMjU1OS42IDE3MzYuNTlDMjU1OS42OSAxNzMwLjQ0IDI1NjMuODIgMTcyNy40MiAyNTY4Ljg0IDE3MjkuODNaIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48cGF0aCBkPSJNMjcyNS4xNyAxNzc5LjI5IDI4MjkuODUgMTc0My4zQzI4MzMuNSAxNzQyLjA0IDI4MzYuMTggMTc0NC45OCAyODM4Ljk3IDE3NDcuNzUgMjg0MS43NiAxNzUwLjUzIDI4MzguMzkgMTc1NS4zNyAyODM0Ljc4IDE3NTYuNjJMMjczMC4xMSAxNzkyLjYxQzI3MjYuNTEgMTc5My44NiAyNzIxIDE3OTIuMDIgMjcyMSAxNzg4LjE2IDI3MjEgMTc4NC4yOSAyNzIxLjUzIDE3ODAuNTUgMjcyNS4xNyAxNzc5LjI5WiIgZmlsbD0iI0ZGRkZGRiIgZmlsbC1ydWxlPSJldmVub2RkIi8+PC9nPjwvc3ZnPg=='/>
+            <img style="height: 7%; width: 7%;" src="/static/Razuma_Black.svg">
             <a href="/" class="logo" id="home-link">Razuma</a>
             <nav class="main-nav" id="mainNav">
                 <a href="#features" class="nav-link">Возможности</a>
@@ -960,7 +87,7 @@
             document.getElementById('applicationModal').style.display = 'none';
         }
 
-        // SPA Router
+        // SPA Router with History API
         document.addEventListener('DOMContentLoaded', function() {
             // Check cookies consent
             if (!localStorage.getItem('cookiesAccepted')) {
@@ -999,15 +126,6 @@
                 }
             });
 
-            // Close mobile menu when clicking a nav link
-            document.querySelectorAll('.main-nav a').forEach(link => {
-                link.addEventListener('click', function() {
-                    if (window.innerWidth <= 768) {
-                        mainNav.classList.remove('show');
-                    }
-                });
-            });
-
             // Form submission handler
             document.getElementById('planApplicationForm').addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -1043,58 +161,111 @@
                 });
             });
 
-            // Handle navigation
-            function loadContent(hash) {
+            // Handle navigation with History API
+            function navigateTo(path) {
+                // Remove leading slash if present
+                path = path.replace(/^\//, '');
+                
+                // Update content
+                loadContent(path);
+                
+                // Update browser history
+                if (path === 'home') {
+                    history.pushState(null, '', '/');
+                } else {
+                    history.pushState(null, '', '/' + path);
+                }
+                
+                // Update document title
+                document.title = getPageTitle(path);
+            }
+
+            function getPageTitle(path) {
+                const titles = {
+                    'home': 'Razuma | Распознавание эмоций',
+                    'features': 'Razuma | Возможности',
+                    'detector': 'Razuma | Демо',
+                    'privacy': 'Razuma | Конфиденциальность',
+                    'contact': 'Razuma | Контакты'
+                };
+                return titles[path] || 'Razuma';
+            }
+
+            function loadContent(path) {
                 const contentDiv = document.getElementById('app-content');
                 
-                if (!hash) hash = '#home';
+                // Add fade-out effect
+                contentDiv.classList.add('fade-out');
                 
-                contentDiv.innerHTML = '';
-                
-                switch(hash) {
-                    case '#home':
-                        loadHomeContent();
-                        break;
-                    case '#features':
-                        loadFeaturesContent();
-                        break;
-                    case '#detector':
-                        loadDetectorContent();
-                        break;
-                    case '#privacy':
-                        loadPrivacyContent();
-                        break;
-                    case '#contact':
-                        loadContactContent();
-                        break;
-                    default:
-                        loadHomeContent();
-                }
+                // Wait for fade-out to complete before loading new content
+                setTimeout(() => {
+                    contentDiv.innerHTML = '';
+                    contentDiv.classList.remove('fade-out');
+                    
+                    switch(path) {
+                        case 'home':
+                            loadHomeContent();
+                            break;
+                        case 'features':
+                            loadFeaturesContent();
+                            break;
+                        case 'detector':
+                            loadDetectorContent();
+                            break;
+                        case 'privacy':
+                            loadPrivacyContent();
+                            break;
+                        case 'contact':
+                            loadContactContent();
+                            break;
+                        default:
+                            loadHomeContent();
+                    }
+                }, 300); // Match this with your CSS transition duration
             }
 
             // Navigation event listeners
             document.querySelectorAll('.nav-link, .footer-links a').forEach(link => {
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const hash = this.getAttribute('href');
-                    window.location.hash = hash;
-                    loadContent(hash);
+                    const path = this.getAttribute('href').replace('#', '');
+                    navigateTo(path);
                 });
             });
 
             document.getElementById('home-link').addEventListener('click', function(e) {
                 e.preventDefault();
-                window.location.hash = '#home';
-                loadContent('#home');
+                navigateTo('home');
             });
 
-            // Handle initial load
-            window.addEventListener('hashchange', function() {
-                loadContent(window.location.hash);
+            // Handle initial load and popstate events
+            function handleInitialLoad() {
+                // Get the path from the URL
+                let path = window.location.pathname.replace(/^\//, '');
+                if (path === '') path = 'home';
+                
+                loadContent(path);
+                document.title = getPageTitle(path);
+            }
+
+            // Handle browser back/forward
+            window.addEventListener('popstate', function() {
+                let path = window.location.pathname.replace(/^\//, '');
+                if (path === '') path = 'home';
+                loadContent(path);
             });
 
-            // Load initial content
-            loadContent(window.location.hash || '#home');
+            // Initialize the app
+            handleInitialLoad();
+
+            // Update all links to use the new navigation system
+            document.querySelectorAll('a[href^="#"]').forEach(link => {
+                const href = link.getAttribute('href').replace('#', '');
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    navigateTo(href);
+                });
+            });
         });
 
         // Content loading functions
@@ -1300,306 +471,24 @@
         function loadPrivacyContent() {
             const contentDiv = document.getElementById('app-content');
             contentDiv.innerHTML = `
-                <div class="policy-content">
-                    <h1>Политика в отношении обработки персональных данных</h1>
-                    <h3>1. Общие положения</h3>
-                    <p>Настоящая политика обработки персональных данных составлена в соответствии с требованиями
-                    Федерального закона от 27.07.2006. № 152-ФЗ «О персональных данных» (далее — Закон
-                    о персональных данных) и определяет порядок обработки персональных данных и меры
-                    по обеспечению безопасности персональных данных, предпринимаемые ИП Тесаков Роман
-                    Валентинович (далее — Оператор).</p>
-                    <p><strong>1.1.</strong> Оператор ставит своей важнейшей целью и условием осуществления своей деятельности
-                    соблюдение прав и свобод человека и гражданина при обработке его персональных данных,
-                    в том числе защиты прав на неприкосновенность частной жизни, личную и семейную тайну.</p>
-                    <p><strong>1.2.</strong> Настоящая политика Оператора в отношении обработки персональных данных (далее —
-                    Политика) применяется ко всей информации, которую Оператор может получить о посетителях
-                    веб-сайта https://razuma.pro.</p>
-                    
-                    <h3>2. Основные понятия, используемые в Политике</h3>
-                    <p><strong>2.1.</strong> Автоматизированная обработка персональных данных — обработка персональных данных
-                    с помощью средств вычислительной техники.</p>
-                    <p><strong>2.2.</strong> Блокирование персональных данных — временное прекращение обработки персональных
-                    данных (за исключением случаев, если обработка необходима для уточнения персональных
-                    данных).</p>
-                    <p><strong>2.3.</strong> Веб-сайт — совокупность графических и информационных материалов, а также программ
-                    для ЭВМ и баз данных, обеспечивающих их доступность в сети интернет по сетевому
-                    адресу https://razuma.pro.</p>
-                    <p><strong>2.4.</strong> Информационная система персональных данных — совокупность содержащихся в базах
-                    данных персональных данных и обеспечивающих их обработку информационных технологий
-                    и технических средств.</p>
-                    <p><strong>2.5.</strong> Обезличивание персональных данных — действия, в результате которых невозможно
-                    определить без использования дополнительной информации принадлежность персональных
-                    данных конкретному Пользователю или иному субъекту персональных данных.</p>
-                    <p><strong>2.6.</strong> Обработка персональных данных — любое действие (операция) или совокупность действий
-                    (операций), совершаемых с использованием средств автоматизации или без использования таких
-                    средств с персональными данными, включая сбор, запись, систематизацию, накопление,
-                    хранение, уточнение (обновление, изменение), извлечение, использование, передачу
-                    (распространение, предоставление, доступ), обезличивание, блокирование, удаление,
-                    уничтожение персональных данных.</p>
-                    <p><strong>2.7.</strong> Оператор — государственный орган, муниципальный орган, юридическое или физическое
-                    лицо, самостоятельно или совместно с другими лицами организующие и/или осуществляющие
-                    обработку персональных данных, а также определяющие цели обработки персональных данных,
-                    состав персональных данных, подлежащих обработке, действия (операции), совершаемые
-                    с персональными данными.</p>
-                    <p><strong>2.8.</strong> Персональные данные — любая информация, относящаяся прямо или косвенно
-                    к определенному или определяемому Пользователю веб-сайта https://razuma.pro.</p>
-                    <p><strong>2.9.</strong> Персональные данные, разрешенные субъектом персональных данных для
-                    распространения, — персональные данные, доступ неограниченного круга лиц к которым
-                    предоставлен субъектом персональных данных путем дачи согласия на обработку персональных
-                    ИП Тесаков Роман Валентинович ИНН 500402730770 ОГРНИП 324774600219962
-                    1 razuma.pro 6/18
-                    данных, разрешенных субъектом персональных данных для распространения в порядке,
-                    предусмотренном Законом о персональных данных (далее — персональные данные,
-                    разрешенные для распространения).</p>
-                    <p><strong>2.10.</strong> Пользователь — любой посетитель веб-сайта https://razuma.pro.</p>
-                    <p><strong>2.11.</strong> Предоставление персональных данных — действия, направленные на раскрытие
-                    персональных данных определенному лицу или определенному кругу лиц.</p>
-                    <p><strong>2.12.</strong> Распространение персональных данных — любые действия, направленные на раскрытие
-                    персональных данных неопределенному кругу лиц (передача персональных данных) или
-                    на ознакомление с персональными данными неограниченного круга лиц, в том числе
-                    обнародование персональных данных в средствах массовой информации, размещение
-                    в информационно-телекоммуникационных сетях или предоставление доступа к персональным
-                    данным каким-либо иным способом.</p>
-                    <p><strong>2.13.</strong> Трансграничная передача персональных данных — передача персональных данных
-                    на территорию иностранного государства органу власти иностранного государства, иностранному
-                    физическому или иностранному юридическому лицу.</p>
-                    <p><strong>2.14.</strong> Уничтожение персональных данных — любые действия, в результате которых
-                    персональные данные уничтожаются безвозвратно с невозможностью дальнейшего
-                    восстановления содержания персональных данных в информационной системе персональных
-                    данных и/или уничтожаются материальные носители персональных данных.</p>
-                    
-                    <h3>3. Основные права и обязанности Оператора</h3>
-                    <p><strong>3.1.</strong> Оператор имеет право:</p>
-                    <p>— получать от субъекта персональных данных достоверные информацию и/или документы,
-                    содержащие персональные данные;</p>
-                    <p>— в случае отзыва субъектом персональных данных согласия на обработку персональных
-                    данных, а также, направления обращения с требованием о прекращении обработки
-                    персональных данных, Оператор вправе продолжить обработку персональных данных без
-                    согласия субъекта персональных данных при наличии оснований, указанных в Законе
-                    о персональных данных;</p>
-                    <p>— самостоятельно определять состав и перечень мер, необходимых и достаточных для
-                    обеспечения выполнения обязанностей, предусмотренных Законом о персональных данных
-                    и принятыми в соответствии с ним нормативными правовыми актами, если иное
-                    не предусмотрено Законом о персональных данных или другими федеральными законами.</p>
-                    <p><strong>3.2.</strong> Оператор обязан:</p>
-                    <p>— предоставлять субъекту персональных данных по его просьбе информацию, касающуюся
-                    обработки его персональных данных;</p>
-                    <p>— организовывать обработку персональных данных в порядке, установленном действующим
-                    законодательством РФ;</p>
-                    <p>— отвечать на обращения и запросы субъектов персональных данных и их законных
-                    представителей в соответствии с требованиями Закона о персональных данных;</p>
-                    <p>— сообщать в уполномоченный орган по защите прав субъектов персональных данных
-                    по запросу этого органа необходимую информацию в течение 10 дней с даты получения такого
-                    запроса;</p>
-                    <p>— публиковать или иным образом обеспечивать неограниченный доступ к настоящей Политике
-                    в отношении обработки персональных данных;</p>
-                    <p>— принимать правовые, организационные и технические меры для защиты персональных данных
-                    от неправомерного или случайного доступа к ним, уничтожения, изменения, блокирования,
-                    копирования, предоставления, распространения персональных данных, а также от иных
-                    неправомерных действий в отношении персональных данных;</p>
-                    <p>— прекратить передачу (распространение, предоставление, доступ) персональных данных,
-                    ИП Тесаков Роман Валентинович ИНН 500402730770 ОГРНИП 324774600219962
-                    2 razuma.pro 6/18
-                    прекратить обработку и уничтожить персональные данные в порядке и случаях, предусмотренных
-                    Законом о персональных данных;</p>
-                    <p>— исполнять иные обязанности, предусмотренные Законом о персональных данных.</p>
-                    
-                    <h3>4. Основные права и обязанности субъектов персональных данных</h3>
-                    <p><strong>4.1.</strong> Субъекты персональных данных имеют право:</p>
-                    <p>— получать информацию, касающуюся обработки его персональных данных, за исключением
-                    случаев, предусмотренных федеральными законами. Сведения предоставляются субъекту
-                    персональных данных Оператором в доступной форме, и в них не должны содержаться
-                    персональные данные, относящиеся к другим субъектам персональных данных, за исключением
-                    случаев, когда имеются законные основания для раскрытия таких персональных данных.
-                    Перечень информации и порядок ее получения установлен Законом о персональных данных;</p>
-                    <p>— требовать от оператора уточнения его персональных данных, их блокирования или
-                    уничтожения в случае, если персональные данные являются неполными, устаревшими,
-                    неточными, незаконно полученными или не являются необходимыми для заявленной цели
-                    обработки, а также принимать предусмотренные законом меры по защите своих прав;</p>
-                    <p>— выдвигать условие предварительного согласия при обработке персональных данных в целях
-                    продвижения на рынке товаров, работ и услуг;</p>
-                    <p>— на отзыв согласия на обработку персональных данных, а также, на направление требования
-                    о прекращении обработки персональных данных;</p>
-                    <p>— обжаловать в уполномоченный орган по защите прав субъектов персональных данных или
-                    в судебном порядке неправомерные действия или бездействие Оператора при обработке его
-                    персональных данных;</p>
-                    <p>— на осуществление иных прав, предусмотренных законодательством РФ.</p>
-                    <p><strong>4.2.</strong> Субъекты персональных данных обязаны:</p>
-                    <p>— предоставлять Оператору достоверные данные о себе;</p>
-                    <p>— сообщать Оператору об уточнении (обновлении, изменении) своих персональных данных.</p>
-                    <p><strong>4.3.</strong> Лица, передавшие Оператору недостоверные сведения о себе, либо сведения о другом
-                    субъекте персональных данных без согласия последнего, несут ответственность в соответствии
-                    с законодательством РФ.</p>
-                    
-                    <h3>5. Принципы обработки персональных данных</h3>
-                    <p><strong>5.1.</strong> Обработка персональных данных осуществляется на законной и справедливой основе.</p>
-                    <p><strong>5.2.</strong> Обработка персональных данных ограничивается достижением конкретных, заранее
-                    определенных и законных целей. Не допускается обработка персональных данных,
-                    несовместимая с целями сбора персональных данных.</p>
-                    <p><strong>5.3.</strong> Не допускается объединение баз данных, содержащих персональные данные, обработка
-                    которых осуществляется в целях, несовместимых между собой.</p>
-                    <p><strong>5.4.</strong> Обработке подлежат только персональные данные, которые отвечают целям их обработки.</p>
-                    <p><strong>5.5.</strong> Содержание и объем обрабатываемых персональных данных соответствуют заявленным
-                    целям обработки. Не допускается избыточность обрабатываемых персональных данных
-                    по отношению к заявленным целям их обработки.</p>
-                    <p><strong>5.6.</strong> При обработке персональных данных обеспечивается точность персональных данных,
-                    их достаточность, а в необходимых случаях и актуальность по отношению к целям обработки
-                    персональных данных. Оператор принимает необходимые меры и/или обеспечивает их принятие
-                    по удалению или уточнению неполных или неточных данных.</p>
-                    <p><strong>5.7.</strong> Хранение персональных данных осуществляется в форме, позволяющей определить
-                    субъекта персональных данных, не дольше, чем этого требуют цели обработки персональных
-                    ИП Тесаков Роман Валентинович ИНН 500402730770 ОГРНИП 324774600219962
-                    3 razuma.pro 6/18
-                    данных, если срок хранения персональных данных не установлен федеральным законом,
-                    договором, стороной которого, выгодоприобретателем или поручителем по которому является
-                    субъект персональных данных. Обрабатываемые персональные данные уничтожаются либо
-                    обезличиваются по достижении целей обработки или в случае утраты необходимости
-                    в достижении этих целей, если иное не предусмотрено федеральным законом.</p>
-                    
-                    <h3>6. Цели обработки персональных данных</h3>
-                    <p>Цель обработки предоставление доступа Пользователю к сервисам,
-                    информации и/или материалам, содержащимся на веб-сайте</p>
-                    <p>Персональные данные фамилия, имя, отчество</p>
-                    <p>электронный адрес</p>
-                    <p>номера телефонов</p>
-                    <p>фотографии</p>
-                    <p>видеозаписи</p>
-                    <p>Правовые основания договоры, заключаемые между оператором и субъектом
-                    персональных данных</p>
-                    <p>Виды обработки
-                    персональных данных</p>
-                    <p>Сбор, запись, систематизацию, накопление, хранение,
-                    уничтожение и обезличивание персональных данных</p>
-                    <p>Отправка информационных писем на адрес электронной почты</p>
-                    
-                    <h3>7. Условия обработки персональных данных</h3>
-                    <p><strong>7.1.</strong> Обработка персональных данных осуществляется с согласия субъекта персональных данных
-                    на обработку его персональных данных.</p>
-                    <p><strong>7.2.</strong> Обработка персональных данных необходима для достижения целей, предусмотренных
-                    международным договором Российской Федерации или законом, для осуществления
-                    возложенных законодательством Российской Федерации на оператора функций, полномочий
-                    и обязанностей.</p>
-                    <p><strong>7.3.</strong> Обработка персональных данных необходима для осуществления правосудия, исполнения
-                    судебного акта, акта другого органа или должностного лица, подлежащих исполнению
-                    в соответствии с законодательством Российской Федерации об исполнительном производстве.</p>
-                    <p><strong>7.4.</strong> Обработка персональных данных необходима для исполнения договора, стороной которого
-                    либо выгодоприобретателем или поручителем по которому является субъект персональных
-                    данных, а также для заключения договора по инициативе субъекта персональных данных или
-                    договора, по которому субъект персональных данных будет являться выгодоприобретателем или
-                    поручителем.</p>
-                    <p><strong>7.5.</strong> Обработка персональных данных необходима для осуществления прав и законных интересов
-                    оператора или третьих лиц либо для достижения общественно значимых целей при условии, что
-                    при этом не нарушаются права и свободы субъекта персональных данных.</p>
-                    <p><strong>7.6.</strong> Осуществляется обработка персональных данных, доступ неограниченного круга лиц
-                    к которым предоставлен субъектом персональных данных либо по его просьбе (далее —
-                    общедоступные персональные данные).</p>
-                    <p>ИП Тесаков Роман Валентинович ИНН 500402730770 ОГРНИП 324774600219962
-                    4 razuma.pro 6/18</p>
-                    <p><strong>7.7.</strong> Осуществляется обработка персональных данных, подлежащих опубликованию или
-                    обязательному раскрытию в соответствии с федеральным законом.</p>
-                    
-                    <h3>8. Порядок сбора, хранения, передачи и других видов обработки персональных данных</h3>
-                    <p>Безопасность персональных данных, которые обрабатываются Оператором, обеспечивается путем
-                    реализации правовых, организационных и технических мер, необходимых для выполнения в полном
-                    объеме требования действующего законодательства в области защиты персональных данных.</p>
-                    <p><strong>8.1.</strong> Оператор обеспечивает сохранность персональных данных и принимает все возможные
-                    меры, исключающие доступ к персональным данным неуполномоченных лиц.</p>
-                    <p><strong>8.2.</strong> Персональные данные Пользователя никогда, ни при каких условиях не будут переданы
-                    третьим лицам, за исключением случаев, связанных с исполнением действующего
-                    законодательства либо в случае, если субъектом персональных данных дано согласие Оператору
-                    на передачу данных третьему лицу для исполнения обязательств по гражданско-правовому
-                    договору.</p>
-                    <p><strong>8.3.</strong> В случае выявления неточностей в персональных данных, Пользователь может
-                    актуализировать их самостоятельно, путем направления Оператору уведомление на адрес
-                    электронной почты Оператора inbox@razuma.pro с пометкой «Актуализация персональных
-                    данных».</p>
-                    <p><strong>8.4.</strong> Срок обработки персональных данных определяется достижением целей, для которых были
-                    собраны персональные данные, если иной срок не предусмотрен договором или действующим
-                    законодательством.</p>
-                    <p>Пользователь может в любой момент отозвать свое согласие на обработку персональных
-                    данных, направив Оператору уведомление посредством электронной почты на электронный
-                    адрес Оператора inbox@razuma.pro с пометкой «Отзыв согласия на обработку персональных
-                    данных».</p>
-                    <p><strong>8.5.</strong> Вся информация, которая собирается сторонними сервисами, в том числе платежными
-                    системами, средствами связи и другими поставщиками услуг, хранится и обрабатывается
-                    указанными лицами (Операторами) в соответствии с их Пользовательским соглашением
-                    и Политикой конфиденциальности. Субъект персональных данных и/или с указанными
-                    документами. Оператор не несет ответственность за действия третьих лиц, в том числе
-                    указанных в настоящем пункте поставщиков услуг.</p>
-                    <p><strong>8.6.</strong> Установленные субъектом персональных данных запреты на передачу (кроме
-                    предоставления доступа), а также на обработку или условия обработки (кроме получения
-                    доступа) персональных данных, разрешенных для распространения, не действуют в случаях
-                    обработки персональных данных в государственных, общественных и иных публичных интересах,
-                    определенных законодательством РФ.</p>
-                    <p><strong>8.7.</strong> Оператор при обработке персональных данных обеспечивает конфиденциальность
-                    персональных данных.</p>
-                    <p><strong>8.8.</strong> Оператор осуществляет хранение персональных данных в форме, позволяющей определить
-                    субъекта персональных данных, не дольше, чем этого требуют цели обработки персональных
-                    данных, если срок хранения персональных данных не установлен федеральным законом,
-                    договором, стороной которого, выгодоприобретателем или поручителем по которому является
-                    субъект персональных данных.</p>
-                    <p><strong>8.9.</strong> Условием прекращения обработки персональных данных может являться достижение целей
-                    обработки персональных данных, истечение срока действия согласия субъекта персональных
-                    данных, отзыв согласия субъектом персональных данных или требование о прекращении
-                    обработки персональных данных, а также выявление неправомерной обработки персональных
-                    данных.</p>
-                    <p>ИП Тесаков Роман Валентинович ИНН 500402730770 ОГРНИП 324774600219962
-                    5 razuma.pro 6/18</p>
-                    
-                    <h3>9. Перечень действий, производимых Оператором с полученными персональными данными</h3>
-                    <p><strong>9.1.</strong> Оператор осуществляет сбор, запись, систематизацию, накопление, хранение, уточнение
-                    (обновление, изменение), извлечение, использование, передачу (распространение,
-                    предоставление, доступ), обезличивание, блокирование, удаление и уничтожение персональных
-                    данных.</p>
-                    <p><strong>9.2.</strong> Оператор осуществляет автоматизированную обработку персональных данных с получением
-                    и/или передачей полученной информации по информационно-телекоммуникационным сетям или
-                    без таковой.</p>
-                    
-                    <h3>10. Трансграничная передача персональных данных</h3>
-                    <p><strong>10.1.</strong> Оператор до начала осуществления деятельности по трансграничной передаче
-                    персональных данных обязан уведомить уполномоченный орган по защите прав субъектов
-                    персональных данных о своем намерении осуществлять трансграничную передачу персональных
-                    данных (такое уведомление направляется отдельно от уведомления о намерении осуществлять
-                    обработку персональных данных).</p>
-                    <p><strong>10.2.</strong> Оператор до подачи вышеуказанного уведомления, обязан получить от органов власти
-                    иностранного государства, иностранных физических лиц, иностранных юридических лиц, которым
-                    планируется трансграничная передача персональных данных, соответствующие сведения.</p>
-                    
-                    <h3>11. Конфиденциальность персональных данных</h3>
-                    <p>Оператор и иные лица, получившие доступ к персональным данным, обязаны не раскрывать третьим
-                    лицам и не распространять персональные данные без согласия субъекта персональных данных, если
-                    иное не предусмотрено федеральным законом.</p>
-                    
-                    <h3>12. Заключительные положения</h3>
-                    <p><strong>12.1.</strong> Пользователь может получить любые разъяснения по интересующим вопросам,
-                    касающимся обработки его персональных данных, обратившись к Оператору с помощью
-                    электронной почты inbox@razuma.pro.</p>
-                    <p><strong>12.2.</strong> В данном документе будут отражены любые изменения политики обработки персональных
-                    данных Оператором. Политика действует бессрочно до замены ее новой версией.</p>
-                    <p><strong>12.3.</strong> Актуальная версия Политики в свободном доступе расположена в сети Интернет
-                    по адресу https://razuma.pro/privacy.</p>
-                    <p>ИП Тесаков Роман Валентинович ИНН 500402730770 ОГРНИП 324774600219962</p>
-
-                    <h1>Использование файлов cookies</h1>
-                    <p>Дата последнего обновления: 19.06.2025</p>
-                    
-                    <p>Продолжая использовать данный Сайт или предпринимая любые другие действия в рамках действующего законодательства (например, переход по ссылке с веб-баннера), вы соглашаетесь с тем, что владелец данного Сайта ИП Тесаков Роман Валентинович, может размещать на вашем компьютере или мобильном устройстве cookie-файлы. Пожалуйста, прочитайте приведенную ниже политику использования cookie-файлов, чтобы понимать, для чего владелец Сайта использует данную технологию и какой именно информации это касается. Если вы не принимаете настоящие условия в отношении cookie-файлов, связанные с использованием данного Сайта, вам следует немедленно прекратить его использование или отключить технологию cookie-файлов в своем Интернет-браузере в соответствующих настройках (см. ниже). Пожалуйста, учтите, что отключение обмена cookie-файлами повлияет на доступный вам функционал данного Сайта – в том числе, может помешать получить его некоторые возможности в полной мере.</p>
-                    
-                    <h3>1. Использование cookie-файлов</h3>
-                    <p>Для упрощения работы с Сайтом используются cookie-файлы. Это небольшие элементы данных, сохраняемые на жестком диске вашего компьютера или памяти мобильного устройства (телефона, планшета) вашим браузером, и которые необходимы для использования данного Сайта. Используемые сookie-файлы не сохраняют персональные данные и никаким другим образом не собирают персональную информацию о вас.</p>
-                    <p>Cookie-файлы на данном Сайте используются в следующих целях:</p>
-                    <p>Оптимизация работы данного Сайта. Использование cookies-файлов позволяет владельцу Сайта определить особенности использования данного Сайта, для того чтобы затем повысить его привлекательность, улучшить содержание и функциональность. Например, благодаря cookies-файлам можно узнать, посещаются ли страницы Сайта, и если посещаются, то какие из них пользуются наибольшей популярностью, и какая информация представляет наибольший интерес для пользователей Сайта. В частности, отслеживается число посещений веб-страницы Сайта, количество просмотренных страниц Сайта, время, проведенное на веб-странице Сайта, а также последовательность посещения веб-страниц Сайта. Также можно установить, какие поисковые системы привели вас на данный Сайт, страну, регион и, при необходимости, город, из которого был осуществлен доступ, используемый вами браузер и выбранный для него язык, а также количество мобильных устройств, посредством которых осуществлялся доступ на Cайт. IP-адреса вашего компьютера передаются автоматически и сохраняется исключительно в анонимизированной форме. По IP-адресу невозможно отследить вас как физическое лицо.</p>
-                    <p>Показ целенаправленной интернет-рекламы. Владелец Сайта оставляет за собой право использовать информацию, полученную из cookies-файлов, для анонимного анализа использования Сайта с целью размещения на нем рекламной информации. Это может быть удобным для вас, потому что позволяет показывать вам рекламу, которая представляет для вас интерес, исходя из особенностей использования вами данного Сайта. Одновременно на вашем экране появляется меньше рекламы услуг и товаров, которые не представляют для вас интереса.</p>
-                    <p>Некоторые файлы cookie, сохраняемые при посещении вами данного Сайта, могут сохраняться и использоваться другими компаниями, в частности наличие кнопки "Мне нравится" какой-либо социальной сети или другой аналогичной кнопки на Сайте указывает на то, что социальная сеть может сохранять и использовать свои собственные файлы cookie, необходимые для функционирования кнопки и других задач (дополнительную информацию см. в соответствующем разделе «Политика конфиденциальности/Политика в отношении файлов cookie» соответствующей социальной сети).</p>
-                    
-                    <h3>2. Контроль и удаление cookies-файлов</h3>
-                    <p>Большинство интернет-браузеров изначально настроены автоматически принимать cookies-файлы. Вы можете изменить настройки таким образом, чтобы блокировать cookies-файлы на жестком диске вашего компьютера (памяти мобильного устройства) или получать предупреждение, когда cookies-файлы будут отправлены на жесткий диск (память мобильного устройства). Вы можете в любой момент удалить установленные данным Сайтом cookie-файлы. Более подробную информацию о таких возможностях можно получить, обратившись к инструкции по использованию вашего интернет-браузера. Как правило, нужный раздел регулировки можно найти в меню «Настройки», «Опции» или «Предпочтения» вашего браузера. Вы можете также воспользоваться функцией «Помощь» своего браузера.</p>
-                    
-                    <h3>3. Использование Яндекс.Метрики</h3>
-                    <p>Данный сайт использует средства Яндекс.Метрики для анализа статистики использования данного веб-сайта. Яндекс.Метрика генерирует статистическую и прочую информацию об использовании веб-сайта посредством файлов «cookie», хранящихся на компьютерах пользователей. Информация, сгенерированная в отношении нашего веб-сайта, используется при создании отчетов об использовании веб-сайта. Яндекс хранит и использует такую информацию на протяжении промежутка времени, установленным внутренними регламентами сервисов, а также законодательством Российской Федерации в зависимости от типа файла «cookie».</p>
-                    <p>Политика конфиденциальности Яндекс доступна по адресу: <a href="https://yandex.ru/legal/confidential/" class="nav-link">Политика конфиденциальности</a></p>
+                <div class="privacy-policy-container">
+                    <iframe 
+                        src="/static/privacy-policy.html" 
+                        width="100%" 
+                        height="500px" 
+                        frameborder="0"
+                        title="Privacy Policy"
+                        loading="lazy"
+                    ></iframe>
+                    <p class="fallback-text" style="display: none;">Privacy policy could not be loaded.</p>
                 </div>
             `;
+
+            const iframe = contentDiv.querySelector('iframe');
+            iframe.onerror = function() {
+                contentDiv.querySelector('.fallback-text').style.display = 'block';
+                iframe.style.display = 'none';
+            };
         }
 
         function loadContactContent() {
