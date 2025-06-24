@@ -203,12 +203,27 @@ function initializeDetector() {
             body: formData
         })
         .then(response => {
+            // First check for rate limiting
+            if (response.status === 429) {
+                return response.json().then(errorData => {
+                    window.rateLimitHandler.showRateLimitError(errorData);
+                    throw new Error('rate_limit_exceeded');
+                }).catch(() => {
+                    window.rateLimitHandler.showRateLimitError();
+                    throw new Error('rate_limit_exceeded');
+                });
+            }
+            
             if (!response.ok) {
                 throw new Error('Ошибка отклика сети');
             }
             return response.json();
         })
         .then(data => {
+            if (!data) {
+                throw new Error('Пустой ответ от сервера');
+            }
+            
             if (data.error) {
                 throw new Error(data.error);
             }
@@ -219,7 +234,12 @@ function initializeDetector() {
         })
         .catch(error => {
             console.error('Error:', error);
-            showError(error.message || 'Во время загрузки произошла ошибка');
+            
+            // Don't show default error for rate limits (already handled)
+            if (error.message !== 'rate_limit_exceeded') {
+                showError(error.message || 'Во время загрузки произошла ошибка');
+            }
+            
             hideProgress();
             
             // Re-enable buttons
