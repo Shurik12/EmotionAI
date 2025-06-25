@@ -8,14 +8,6 @@ function closeApplicationModal() {
     document.getElementById('applicationModal').style.display = 'none';
 }
 
-// Add global error handler for rate limits
-window.addEventListener('unhandledrejection', (event) => {
-    if (event.reason && event.reason.message === 'rate_limit_exceeded') {
-        // Already handled by rateLimitHandler
-        event.preventDefault();
-    }
-});
-
 // SPA Router with History API
 document.addEventListener('DOMContentLoaded', function() {
     // Check cookies consent
@@ -67,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
             company: document.getElementById('company').value || ''
         };
         
-        fetch('/submit_application', {
+        fetch('/api/submit_application', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

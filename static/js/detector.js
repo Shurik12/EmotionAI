@@ -198,32 +198,17 @@ function initializeDetector() {
         formData.append('file', currentFile);
         formData.append('model', selectedModel);
 
-        fetch('/upload', {
+        fetch('/api/upload', {
             method: 'POST',
             body: formData
         })
         .then(response => {
-            // First check for rate limiting
-            if (response.status === 429) {
-                return response.json().then(errorData => {
-                    window.rateLimitHandler.showRateLimitError(errorData);
-                    throw new Error('rate_limit_exceeded');
-                }).catch(() => {
-                    window.rateLimitHandler.showRateLimitError();
-                    throw new Error('rate_limit_exceeded');
-                });
-            }
-            
             if (!response.ok) {
                 throw new Error('Ошибка отклика сети');
             }
             return response.json();
         })
         .then(data => {
-            if (!data) {
-                throw new Error('Пустой ответ от сервера');
-            }
-            
             if (data.error) {
                 throw new Error(data.error);
             }
@@ -234,11 +219,6 @@ function initializeDetector() {
         })
         .catch(error => {
             console.error('Error:', error);
-            
-            // Don't show default error for rate limits (already handled)
-            if (error.message !== 'rate_limit_exceeded') {
-                showError(error.message || 'Во время загрузки произошла ошибка');
-            }
             
             hideProgress();
             
@@ -256,7 +236,7 @@ function initializeDetector() {
         if (!currentTaskId) return;
         
         progressInterval = setInterval(() => {
-            fetch(`/progress/${currentTaskId}`)
+            fetch(`/api/progress/${currentTaskId}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Не удалось проверить прогресс');
