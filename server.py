@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 import torch
 import redis
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -334,7 +334,7 @@ class FileProcessor:
 
 def create_app():
     """Application factory pattern"""
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder='static', template_folder='templates')
     CORS(app)
     
     # Configuration
@@ -379,19 +379,35 @@ def create_app():
     limiter = Limiter(
         app=app,
         key_func=get_remote_address,
-        default_limits=["10 per day", "5 per hour"],
+        default_limits=[],
         storage_uri=f"redis://:{Config.REDIS_PASSWORD}@{Config.REDIS_HOST}:{Config.REDIS_PORT}/{Config.REDIS_DB}",
         strategy="fixed-window",
         on_breach=limiter_breach_handler
     )
 
-    @app.route('/')
-    def index():
-        """Render the single page application"""
-        return render_template('index.html')
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve(path):
+        # Handle API routes first
+        if path.startswith('api/') or path in ['upload', 'progress', 'submit_application', 'health']:
+            # Let Flask handle these routes normally
+            return
+        
+        # Serve static files if they exist
+        if path.startswith('static/'):
+            try:
+                return send_from_directory(app.static_folder, path[len('static/'):])
+            except:
+                pass
+        
+        # For all other routes, serve the index.html
+        try:
+            return send_from_directory(app.template_folder, 'index.html')
+        except:
+            return "Page not found", 404
 
-    @app.route('/upload', methods=['POST'])
-    @limiter.limit("10 per minute")
+    @app.route('/api/upload', methods=['POST'])
+    @limiter.limit("5 per hour")
     def upload_file():
         if 'file' not in request.files:
             logger.warning("No file provided in upload request")
@@ -435,7 +451,7 @@ def create_app():
             file_processor.cleanup_file(filepath)
             return jsonify({"error": f"Upload failed: {str(e)}"}), 500
 
-    @app.route('/progress/<task_id>')
+    @app.route('/api/progress/<task_id>')
     def get_progress(task_id: str):
         """Check processing progress for a task"""
         status = redis_manager.get_task_status(task_id)
@@ -443,8 +459,8 @@ def create_app():
             return jsonify({"error": "Task not found"}), 404
         return jsonify(status)
 
-    @app.route('/submit_application', methods=['POST'])
-    @limiter.limit("5 per minute")
+    @app.route('/api/submit_application', methods=['POST'])
+    @limiter.limit("10 per minute")
     def submit_application():
         try:
             data = request.get_json()
@@ -470,7 +486,7 @@ def create_app():
             logger.error(f"Error processing application: {str(e)}")
             return jsonify({"error": "Ошибка при обработке заявки"}), 500
 
-    @app.route('/health')
+    @app.route('/api/health')
     def health_check():
         try:
             redis_manager.connection.ping()
