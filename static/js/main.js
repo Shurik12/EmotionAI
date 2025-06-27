@@ -54,7 +54,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = {
             plan: document.getElementById('selectedPlan').value,
             name: document.getElementById('name').value,
-            email: document.getElementById('email').value,
             phone: document.getElementById('phone').value,
             company: document.getElementById('company').value || ''
         };
