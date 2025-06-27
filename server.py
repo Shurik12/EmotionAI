@@ -88,7 +88,7 @@ class RedisManager:
             return None
 
     def save_application(self, application_data: Dict[str, Any]) -> str:
-        """Save application data to Redis"""
+        """Save application data to a text file"""
         application_id = str(uuid.uuid4())
         application_data.update({
             "id": application_id,
@@ -97,15 +97,16 @@ class RedisManager:
         })
         
         try:
-            self.connection.setex(
-                f"application:{application_id}",
-                time=APPLICATION_EXPIRATION,
-                value=json.dumps(application_data)
-            )
+            # Save to text file
+            applications_file = os.path.join(Config.UPLOAD_FOLDER, "applications.txt")
+            with open(applications_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(application_data, ensure_ascii=False) + "\n")
+            
             return application_id
-        except redis.RedisError as e:
+        except Exception as e:
             logger.error(f"Error saving application: {str(e)}")
             raise
+
 
 class FileProcessor:
     """Handles file processing operations"""
@@ -464,14 +465,13 @@ def create_app():
     def submit_application():
         try:
             data = request.get_json()
-            if not data or 'plan' not in data or 'email' not in data:
+            if not data or 'plan' not in data or 'phone' not in data:
                 return jsonify({"error": "Недостаточно данных"}), 400
             
             application_data = {
                 "plan": data.get('plan'),
                 "name": data.get('name', ''),
-                "email": data.get('email'),
-                "phone": data.get('phone', ''),
+                "phone": data.get('phone'),
                 "company": data.get('company', ''),
             }
             
@@ -479,13 +479,13 @@ def create_app():
                 application_id = redis_manager.save_application(application_data)
                 logger.info(f"New application received: {application_id}")
                 return jsonify({"success": True, "application_id": application_id})
-            except redis.RedisError:
+            except Exception:
                 return jsonify({"error": "Ошибка при сохранении заявки"}), 500
                 
         except Exception as e:
             logger.error(f"Error processing application: {str(e)}")
             return jsonify({"error": "Ошибка при обработке заявки"}), 500
-
+        
     @app.route('/api/health')
     def health_check():
         try:
