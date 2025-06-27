@@ -22,6 +22,8 @@ function initializeDetector() {
     fileInput.addEventListener('change', handleFileSelect);
     
     uploadBtn.addEventListener('click', function() {
+        clearErrors();
+        
         if (!document.getElementById('dataConsent').checked) {
             showError('Необходимо дать согласие на обработку персональных данных');
             return;
@@ -133,8 +135,16 @@ function initializeDetector() {
         
         return true;
     }
+
+    function clearErrors() {
+        const errorMessages = document.querySelectorAll('.error-message');
+        errorMessages.forEach(msg => msg.remove());
+        dropArea.classList.remove('error');
+    }
     
     function showError(message) {
+        clearErrors();
+        
         dropArea.classList.add('error');
         
         const errorDiv = document.createElement('div');
