@@ -1,4 +1,5 @@
 import os
+import yaml
 import json
 import uuid
 import logging
@@ -29,22 +30,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Constants
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'mp4', 'avi', 'webm'}
-MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
-EMOTION_CATEGORIES = ["Злость", "Отвращение", "Страх", "Счастье", "Нейтральное", "Грусть", "Удивление"]
-TASK_EXPIRATION = 3600  # 1 hour in seconds
-APPLICATION_EXPIRATION = 86400 * 30  # 30 days in seconds
+def load_config() -> Dict[str, Any]:
+    config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
+    with open(config_path, 'r', encoding='utf-8') as f:
+        return yaml.safe_load(f)
+
+CONFIG = load_config()
 
 class Config:
     """Centralized configuration management"""
-    UPLOAD_FOLDER = 'static/uploads'
-    RESULTS_FOLDER = 'static/results'
-    REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-    REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-    REDIS_DB = int(os.getenv('REDIS_DB', 0))
-    REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'redis_password')
-
+    UPLOAD_FOLDER = CONFIG['app']['upload_folder']
+    RESULTS_FOLDER = CONFIG['app']['results_folder']
+    REDIS_HOST = os.getenv('REDIS_HOST', CONFIG['redis']['host'])
+    REDIS_PORT = int(os.getenv('REDIS_PORT', CONFIG['redis']['port']))
+    REDIS_DB = int(os.getenv('REDIS_DB', CONFIG['redis']['db']))
+    REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', CONFIG['redis']['password'])
+    MAX_CONTENT_LENGTH = CONFIG['app']['max_content_length']
+    ALLOWED_EXTENSIONS = set(CONFIG['app']['allowed_extensions'])
+    TASK_EXPIRATION = CONFIG['app']['task_expiration']
+    APPLICATION_EXPIRATION = CONFIG['app']['application_expiration']
+    EMOTION_CATEGORIES = CONFIG['app']['emotion_categories']
+    MTCNN_CONFIG = CONFIG['mtcnn']
+    
 class RedisManager:
     """Handles Redis connection and operations"""
     def __init__(self):
@@ -72,7 +79,7 @@ class RedisManager:
         try:
             self.connection.setex(
                 f"task:{task_id}",
-                time=TASK_EXPIRATION,
+                time=Config.TASK_EXPIRATION,
                 value=json.dumps(status_data)
             )
         except redis.RedisError as e:
@@ -112,11 +119,16 @@ class FileProcessor:
     """Handles file processing operations"""
     def __init__(self, redis_manager: RedisManager):
         self.redis = redis_manager
-        self.mtcnn = MTCNN(keep_all=False, post_process=False, min_face_size=40, device="cpu")
+        self.mtcnn = MTCNN(
+            keep_all=Config.MTCNN_CONFIG['keep_all'],
+            post_process=Config.MTCNN_CONFIG['post_process'],
+            min_face_size=Config.MTCNN_CONFIG['min_face_size'],
+            device=Config.MTCNN_CONFIG['device']
+        )
         
     def allowed_file(self, filename: str) -> bool:
         """Check if file extension is allowed"""
-        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS
 
     def cleanup_file(self, filepath: str) -> None:
         """Safely remove a file if it exists"""
@@ -172,12 +184,12 @@ class FileProcessor:
             result = {
                 "main_prediction": {
                     "index": int(main_emotion_idx),
-                    "label": EMOTION_CATEGORIES[main_emotion_idx],
+                    "label": Config.EMOTION_CATEGORIES[main_emotion_idx],
                     "probability": float(scores_list[0][main_emotion_idx])
                 },
                 "additional_probs": {
                     category: f"{score:.2f}"
-                    for category, score in zip(EMOTION_CATEGORIES, scores_list[0])
+                    for category, score in zip(Config.EMOTION_CATEGORIES, scores_list[0])
                 }
             }
             
@@ -339,7 +351,7 @@ def create_app():
     CORS(app)
     
     # Configuration
-    app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+    app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
     app.config['RATELIMIT_HEADERS_ENABLED'] = True
     
     # Create folders if they don't exist
