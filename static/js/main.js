@@ -180,10 +180,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update all links to use the new navigation system
     document.querySelectorAll('a[href^="#"]').forEach(link => {
-        const href = link.getAttribute('href').replace('#', '');
         link.addEventListener('click', function(e) {
             e.preventDefault();
+            const href = link.getAttribute('href').replace('#', '');
             navigateTo(href);
         });
+    });
+
+    window.addEventListener('navigate', function(e) {
+        navigateTo(e.detail);
     });
 });

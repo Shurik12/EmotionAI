@@ -1,172 +1,147 @@
 import os
-
-import source.audio_analysis_utils.model as audio_model
-import source.audio_analysis_utils.predict as audio_predict
-
-import source.face_emotion_utils.model as face_model
-import source.face_emotion_utils.predict as face_predict
-import source.face_emotion_utils.utils as face_utils
-import source.config as config
-import source.face_emotion_utils.preprocess_main as face_preprocess_main
-
-import source.audio_face_combined.model as combined_model
-import source.audio_face_combined.preprocess_main as combined_data
-import source.audio_face_combined.combined_config as combined_config
-import source.audio_face_combined.predict as combined_predict
-import source.audio_face_combined.download_video as download_youtube
-import source.audio_face_combined.utils as combined_utils
-
+import numpy as np
 import cv2
-import sys
+from typing import List
+import torch
+import json  # Added for JSON support
 
-def main_circle ():
-    if len(sys.argv) <= 1:
-        print("1) Audio analysis")
-        print("2) Face analysis")
-        print("3) AV combined analysis")
-        ch = int(input("Which model: "))
-    else:
-        ch = int(sys.argv[1])
+from facenet_pytorch import MTCNN
+from emotiefflib.facial_analysis import EmotiEffLibRecognizer, get_model_list
 
-    if ch == 1:
-        if len(sys.argv) <= 2:
-            ch = int(input("1) Tune hyperparameters\n"
-                           "2) Train model\n"
-                           "3) Preprocess data\n"
-                           "4) Predict emotion\n"
-                           "5) Test on test set\n"
-                           "\n\nEnter your choice: "))
-        else:
-            ch = int(sys.argv[2])
+# Definitions
+EMOTION_CATEGORIES = ["Злость", "Отвращение", "Страх", "Счастье", "Нейтральное", "Грусть", "Удивление"]
 
-        if ch == 1:
-            if len(sys.argv) > 2:
-                ch = int(sys.argv[3])
-            else:
-                ch = int(input("Continue tuning hyperparameters? (1/0): "))
-            audio_model.hyper_parameter_optimise(load_if_exists=ch)
-        elif ch == 2:
-            audio_model.train_using_best_values()
-        elif ch == 3:
-            audio_model.train_using_best_values(preprocess_again=True)
-        elif ch == 4:
-            file_name = str(input("Enter file name: "))
-            audio_predict.predict(file_name)
-        elif ch == 5:
-            audio_model.train_model(preprocess_again=False, test_on_test_set=True)
+def detect_faces(frame: np.ndarray) -> List[np.ndarray]:
+    """Detect faces in a frame using MTCNN"""
+    mtcnn = MTCNN(keep_all=False, post_process=False, min_face_size=40, device="cpu")
+    bounding_boxes, probs = mtcnn.detect(frame, landmarks=False)
+    if probs[0] is None:
+        return []
+    return bounding_boxes[probs > 0.9]
 
-    elif ch == 2:
-        if len(sys.argv) <= 2:
-            ch = int(input("1) Tune hyperparameters\n"
-                           "2) Train model\n"
-                           "3) Preprocess data\n"
-                           "4) Predict emotion\n"
-                           "5) Predict from video\n"
-                           "6) Predict from webcam\n"
-                           "7) Predict from test set\n"
-                           "\n\nEnter your choice: "))
-        else:
-            ch = int(sys.argv[2])
+def recognize_faces(frame: np.ndarray) -> List[np.ndarray]:
+    """Extract facial regions from frame"""
+    bounding_boxes = detect_faces(frame)
+    facial_images = []
+    for bbox in bounding_boxes:
+        box = bbox.astype(int)
+        x1, y1, x2, y2 = box[0:4]
+        facial_images.append(frame[y1:y2, x1:x2, :])
+    return facial_images
 
-        if ch == 1:
-            if len(sys.argv) > 2:
-                ch = int(sys.argv[3])
-            else:
-                ch = int(input("Continue tuning hyperparameters? (1/0): "))
-            face_model.hyper_parameter_optimise(load_if_exists=ch)
-        elif ch == 2:
-            face_model.train_using_best_values()
-        elif ch == 3:
-            face_preprocess_main.preprocess_images(
-                original_images_folders=config.ALL_EXTRACTED_FACES_FOLDERS,
-                output_path=config.PREPROCESSED_IMAGES_FOLDER_PATH,
-                print_flag=True,
-            )
-        elif ch == 4:
-            file_name = str(input("Enter file name: "))
-            file_name = face_utils.find_filename_match(known_filename=file_name, directory=config.INPUT_FOLDER_PATH)
-            print("file_name", file_name)
-            image = cv2.imread(file_name)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            face_predict.predict(image)
-        elif ch == 5:
-            file_name = str(input("Enter file name: "))
-            file_name = face_utils.find_filename_match(known_filename=file_name, directory=config.INPUT_FOLDER_PATH)
-            print("file_name", file_name)
-            face_predict.predict(file_name, video_mode=True)
-        elif ch == 6:
-            face_predict.predict(webcam_mode=True)
-        elif ch == 7:
-            face_model.train_model(test_on_testset=True)
-
-
-    elif ch == 3:
-        if len(sys.argv) <= 2:
-            ch = int(input("1) Tune hyperparameters\n"
-                           "2) Train model\n"
-                           "3) Preprocess data\n"
-                           "4) Predict emotion\n"
-                           "5) Predict from test set\n"
-                           "6) Predict from YouTube video\n"
-                           "7) Visualise video predictions\n"
+def predictImages():
+    directory = "input_files/test/image/"
+    output_directory = "output_results/test/"
+    os.makedirs(output_directory, exist_ok=True)
     
-                           "\n\nEnter your choice: "))
-        else:
-            ch = int(sys.argv[2])
-
-        if ch == 1:
-            if len(sys.argv) > 2:
-                ch = int(sys.argv[3])
-            else:
-                ch = int(input("Continue tuning hyperparameters? (1/0): "))
-            combined_model.hyper_parameter_optimise(load_if_exists=ch)
-        elif ch == 2:
-            combined_model.train_using_best_values()
-        elif ch == 3:
-            best_hyperparameters = face_utils.load_dict_from_json(config.AUDIO_BEST_HP_JSON_SAVE_PATH)
-            print(f"Best hyperparameters, {best_hyperparameters}")
-
-            N_FFT = best_hyperparameters["N_FFT"]
-            HOP_LENGTH = best_hyperparameters["HOP_LENGTH"]
-            NUM_MFCC = best_hyperparameters["NUM_MFCC"]
-            combined_data.preprocess_videos(
-                N_FFT=combined_config.tune_hp_ranges["N_FFT"][0][0],
-                NUM_MFCC=combined_config.tune_hp_ranges["NUM_MFCC"][0][0],
-                HOP_LENGTH=combined_config.tune_hp_ranges["HOP_LENGTH"][0][0],
-                original_videos_folder=config.ALL_EXTRACTED_AV_FOLDERS,
-                output_path=config.PREPROCESSED_AV_FOLDER_PATH,
-            )
-        elif ch == 4:
-            video_name = str(input("Enter video name in input path: "))
-            video_name = face_utils.find_filename_match(video_name, config.INPUT_FOLDER_PATH)
-            print("video_path", video_name)
-            combined_predict.predict_video(video_name)
-        elif ch == 5:
-            combined_model.train_model(test_on_test_set=True)
-        elif ch == 6:
-            video_link = str(input("Enter YouTube video link: "))
-            download_youtube.download(video_link)
-
-            video_name = download_youtube.find_mp4_and_copy_to_folder(video_link)
-            combined_predict.predict_video(config.INPUT_FOLDER_PATH + video_name)
-        elif ch == 7:
-            video_name = str(input("Enter video name in input path: "))
-            video_name = face_utils.find_filename_match(video_name, config.INPUT_FOLDER_PATH)
-            print("video_path", video_name)
-            combined_utils.visualise_emotions(video_name, config.OUTPUT_FOLDER_PATH + f"video_output_{video_name.split(os.sep)[-1].split('.')[0]}.csv")
-
-
-def predictImages ():
-    directory=config.INPUT_FOLDER_PATH
     files = os.listdir(directory)
-    for file_name in files:
-        file_name = os.path.join(directory, file_name)
-        print("file_name:", file_name)
-        face_predict.predict(file_name, video_mode=True)
+    all_results = {}  # Dictionary to store all results
+    
+    for file in files:
+        file_path = os.path.join(directory, file)
+        print("Processing file:", file_path)
+        image = cv2.imread(file_path)
+        if image is None:
+            print(f"Warning: Could not read image {file_path}, skipping...")
+            continue
+
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        facial_images = recognize_faces(image_rgb)
+        
+        if not facial_images:
+            print(f"Warning: No faces detected in {file_path}, skipping...")
+            continue
+            
+        model_name = get_model_list()[4]  # Using the 5th model from the list
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        fer = EmotiEffLibRecognizer(engine="onnx", model_name=model_name, device=device)
+        
+        emotions = []
+        scores_list = []
+        
+        for face_img in facial_images:
+            emotion, scores = fer.predict_emotions(face_img, logits=False)
+            emotions.append(emotion[0])
+            scores_list.append(scores[0])
+        
+        # Get the first face's results (assuming one face per image)
+        main_emotion_idx = np.argmax(scores_list[0])
+        
+        result = {
+            "image_file": file,
+            "main_prediction": {
+                "index": int(main_emotion_idx),
+                "label": EMOTION_CATEGORIES[main_emotion_idx],
+                "probability": f"{100*scores_list[0][main_emotion_idx]:.0f}%"
+            },
+            "additional_probs": {
+                category: f"{100*score:.0f}%"
+                for category, score in zip(EMOTION_CATEGORIES, scores_list[0])
+            },
+            "faces_detected": len(facial_images)
+        }
+        
+        # Save results for this image
+        all_results[file] = result
+        
+        # Save individual JSON file for this image
+        output_filename = os.path.splitext(file)[0] + ".json"
+        output_path = os.path.join(output_directory, output_filename)
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=4)
+        print(f"Results saved to {output_path}")
+    
+    # Save combined results for all images
+    combined_output_path = os.path.join(output_directory, "all_results.json")
+    with open(combined_output_path, 'w', encoding='utf-8') as f:
+        json.dump(all_results, f, ensure_ascii=False, indent=4)
+    print(f"All results combined and saved to {combined_output_path}")
+    
+    return all_results
+
+def split_video_to_images() -> None:
+    directory = "input_files/test/video/"
+    output_directory = "input_files/test/image/"
+    os.makedirs(output_directory, exist_ok=True)
+    
+    files = os.listdir(directory)
+    for file in files:
+        file_path = os.path.join(directory, file)
+        print("Processing file:", file_path)
+        cap = cv2.VideoCapture(file_path)    
+        if not cap.isOpened():
+            raise ValueError("Could not open video")
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        duration = total_frames / fps if fps > 0 else 0
+        print (f"Processing video: {file}, Frames: {total_frames}, FPS: {fps}, Duration: {duration:.2f}s")
+    
+        frame_count = 0
+        processed_count = 0
+        frame_interval = max(1, total_frames // 5) if total_frames > 5 else 1
+        
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            if frame_count % frame_interval == 0 or frame_count == total_frames - 1:
+                try:
+                    frame_filename = f"frame_{processed_count}_{file.split('.')[0]}.jpg"
+                    frame_path = os.path.join(output_directory, frame_filename)
+                    image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    cv2.imwrite(frame_path, cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR))
+                    processed_count += 1
+                    if processed_count >= 5:
+                        break
+                except Exception as e:
+                    print(f"Error processing frame {frame_count}: {str(e)}")
+                    continue        
+            frame_count += 1
+        cap.release()
 
 def main() -> int:
-    main_circle()
-    # predictImages()
+    predictImages()
+    # split_video_to_images()
     return 0
 
 if __name__ == "__main__":

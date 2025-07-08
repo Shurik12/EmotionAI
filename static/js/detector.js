@@ -121,7 +121,7 @@ function initializeDetector() {
     
     function validateFile(file) {
         const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'video/mp4', 'video/avi', 'video/webm'];
-        const maxSize = 16 * 1024 * 1024; // 16MB
+        const maxSize = 50 * 1024 * 1024;
         
         if (!validTypes.includes(file.type)) {
             showError('Неподдерживаемый формат файла. Загрузите изображение (JPG, PNG) или видео (MP4, AVI, WEBM).');
@@ -129,7 +129,7 @@ function initializeDetector() {
         }
         
         if (file.size > maxSize) {
-            showError('Файл слишком большой. Максимальный размер 16MB.');
+            showError('Файл слишком большой. Максимальный размер 50MB.');
             return false;
         }
         
