@@ -420,7 +420,7 @@ def create_app():
             return "Page not found", 404
 
     @app.route('/api/upload', methods=['POST'])
-    @limiter.limit("5 per hour")
+    @limiter.limit("1000 per hour")
     def upload_file():
         if 'file' not in request.files:
             logger.warning("No file provided in upload request")
@@ -473,7 +473,7 @@ def create_app():
         return jsonify(status)
 
     @app.route('/api/submit_application', methods=['POST'])
-    @limiter.limit("10 per minute")
+    @limiter.limit("120 per minute")
     def submit_application():
         try:
             data = request.get_json()

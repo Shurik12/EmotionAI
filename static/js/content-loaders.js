@@ -174,7 +174,7 @@ function loadDetectorContent() {
                     <label style="display: flex; align-items: center; justify-content: center;">
                         <input type="checkbox" id="dataConsent" required style="margin-right: 8px;">
                         <span>Я даю согласие на обработку моих персональных данных в соответствии с 
-                        <a href="#privacy" target="_blank" style="color: var(--primary-color);">Политикой обработки персональных данных</a></span>
+                        <a href="#privacy" class="nav-link" style="color: var(--primary-color);" onclick="event.preventDefault(); window.dispatchEvent(new CustomEvent('navigate', {detail: 'privacy'}));">Политикой обработки персональных данных</a></span>
                     </label>
                 </div>
                 <button class="btn" id="uploadBtn" disabled>Анализировать эмоции</button>
@@ -194,7 +194,6 @@ function loadDetectorContent() {
         </div>
     `;
 
-    // Initialize detector functionality
     initializeDetector();
 }
 
