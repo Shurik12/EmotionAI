@@ -153,6 +153,10 @@ class FileProcessor:
         for bbox in bounding_boxes:
             box = bbox.astype(int)
             x1, y1, x2, y2 = box[0:4]
+            if x1 < 0:
+                x1 = 0
+            if y1 < 0:
+                y1 = 0
             facial_images.append(frame[y1:y2, x1:x2, :])
         return facial_images
 
