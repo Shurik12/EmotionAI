@@ -168,7 +168,7 @@ class FileProcessor:
             facial_images = self.recognize_faces(image_rgb)
             
             if not facial_images:
-                raise ValueError("На изображении не обнаружено лиц")
+                raise ValueError("no_faces_detected")
                 
             model_name = get_model_list()[4]  # Using the 5th model from the list
             device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -428,17 +428,17 @@ def create_app():
     def upload_file():
         if 'file' not in request.files:
             logger.warning("No file provided in upload request")
-            return jsonify({"error": "Файл не предоставлен"}), 400
+            return jsonify({"error": "error_file_not_selected"}), 400
         
         file = request.files['file']
         
         if file.filename == '':
             logger.warning("Empty filename in upload request")
-            return jsonify({"error": "Файл не выбран"}), 400
+            return jsonify({"error": "error_file_not_selected"}), 400
         
         if not file or not file_processor.allowed_file(file.filename):
             logger.warning(f"Invalid file type attempted: {file.filename}")
-            return jsonify({"error": "Неподдерживаемый формат файла. Поддерживаются: JPG, PNG, MP4, AVI, WEBM"}), 400
+            return jsonify({"error": "error_unsupported_format"}), 400
         
         try:
             task_id = str(uuid.uuid4())
