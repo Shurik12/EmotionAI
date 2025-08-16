@@ -14,12 +14,18 @@
             <img style="height: 7%; width: 7%;" src="/static/Razuma_Black.svg">
             <a href="/" class="logo" id="home-link">Razuma</a>
             <nav class="main-nav" id="mainNav">
-                <a href="#features" class="nav-link">Возможности</a>
-                <a href="#detector" class="nav-link">Демо</a>
-                <a href="#privacy" class="nav-link">Конфиденциальность</a>
-                <a href="#contact" class="nav-link">Контакты</a>
+                <a href="#features" class="nav-link" data-i18n="nav_features">Возможности</a>
+                <a href="#detector" class="nav-link" data-i18n="nav_demo">Демо</a>
+                <a href="#privacy" class="nav-link" data-i18n="nav_privacy">Конфиденциальность</a>
+                <a href="#contact" class="nav-link" data-i18n="nav_contacts">Контакты</a>
             </nav>
-            <a href="#detector" class="btn">Попробовать демо</a>
+            <div class="language-selector">
+                <select id="languageSelect">
+                    <option value="ru">Русский</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+            <a href="#detector" class="btn" data-i18n="try_demo">Попробовать демо</a>
         </header>
 
         <main id="app-content">
@@ -29,48 +35,49 @@
         <footer>
             <div class="footer-logo">Razuma</div>
             <div class="footer-links">
-                <a href="#detector">Демо</a>
-                <a href="#privacy">Политика конфиденциальности и обработки персональных данных</a>
-                <a href="#contact">Контакты</a>
+                <a href="#detector" data-i18n="footer_demo">Демо</a>
+                <a href="#privacy" data-i18n="footer_privacy">Политика конфиденциальности и обработки персональных данных</a>
+                <a href="#contact" data-i18n="footer_contacts">Контакты</a>
             </div>
-            <p class="copyright">© 2025 Razuma Technologies. Все права защищены.</p>
+            <p class="copyright" data-i18n="copyright">© 2025 Razuma Technologies. Все права защищены.</p>
         </footer>
     </div>
 
     <div id="cookieConsent">
-        <p>Мы используем файлы cookie для улучшения работы сайта. 
-        <a href="#privacy" style="color: var(--primary-color);">Подробнее</a>
-        <button id="acceptCookies">Принять</button></p>
+        <p data-i18n="cookie_text">Мы используем файлы cookie для улучшения работы сайта. 
+        <a href="#privacy" style="color: var(--primary-color);" data-i18n="cookie_more">Подробнее</a>
+        <button id="acceptCookies" data-i18n="cookie_accept">Принять</button></p>
     </div>
 
     <!-- Application Form Modal -->
     <div id="applicationModal" class="modal">
         <div class="modal-content">
             <span class="close-modal">&times;</span>
-            <h2>Отправить заявку</h2>
+            <h2 data-i18n="application_title">Отправить заявку</h2>
             <form id="planApplicationForm">
                 <input type="hidden" id="selectedPlan" name="plan" value="">
                 
                 <div class="form-group">
-                    <label for="name">Имя*</label>
+                    <label for="name" data-i18n="form_name">Имя*</label>
                     <input type="text" id="name" name="name" required>
                 </div>
                 
                 <div class="form-group">
-                    <label for="phone">Телефон*</label>
+                    <label for="phone" data-i18n="form_phone">Телефон*</label>
                     <input type="tel" id="phone" name="phone" required>
                 </div>
                 
                 <div class="form-group">
-                    <label for="company">Название компании (если есть)</label>
+                    <label for="company" data-i18n="form_company">Название компании (если есть)</label>
                     <input type="text" id="company" name="company">
                 </div>
                 
-                <button type="submit" class="btn">Отправить заявку</button>
+                <button type="submit" class="btn" data-i18n="form_submit">Отправить заявку</button>
             </form>
         </div>
     </div>
 
+    <script src="static/js/translations.js"></script>
     <script src="static/js/main.js"></script>
     <script src="static/js/content-loaders.js"></script>
     <script src="static/js/detector.js"></script>
