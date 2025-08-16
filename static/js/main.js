@@ -1,85 +1,109 @@
 // Modal handling functions
 function openApplicationModal(plan) {
-    document.getElementById('selectedPlan').value = plan;
-    document.getElementById('applicationModal').style.display = 'block';
+    const modal = document.getElementById('applicationModal');
+    if (modal) {
+        document.getElementById('selectedPlan').value = plan;
+        modal.style.display = 'block';
+    }
 }
 
 function closeApplicationModal() {
-    document.getElementById('applicationModal').style.display = 'none';
+    const modal = document.getElementById('applicationModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 // SPA Router with History API
 document.addEventListener('DOMContentLoaded', function() {
     // Check cookies consent
-    if (!localStorage.getItem('cookiesAccepted')) {
-        document.getElementById('cookieConsent').style.display = 'block';
+    const cookieConsent = document.getElementById('cookieConsent');
+    const acceptCookiesBtn = document.getElementById('acceptCookies');
+    
+    if (cookieConsent && !localStorage.getItem('cookiesAccepted')) {
+        cookieConsent.style.display = 'block';
     }
 
-    document.getElementById('acceptCookies').addEventListener('click', function() {
-        localStorage.setItem('cookiesAccepted', 'true');
-        document.getElementById('cookieConsent').style.display = 'none';
-    });
+    if (acceptCookiesBtn) {
+        acceptCookiesBtn.addEventListener('click', function() {
+            localStorage.setItem('cookiesAccepted', 'true');
+            if (cookieConsent) {
+                cookieConsent.style.display = 'none';
+            }
+        });
+    }
 
     // Modal functionality
-    document.querySelector('.close-modal').addEventListener('click', closeApplicationModal);
+    const closeModalBtn = document.querySelector('.close-modal');
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeApplicationModal);
+    }
     
-    window.addEventListener('click', function(event) {
-        if (event.target === document.getElementById('applicationModal')) {
-            closeApplicationModal();
-        }
-    });
+    const applicationModal = document.getElementById('applicationModal');
+    if (applicationModal) {
+        window.addEventListener('click', function(event) {
+            if (event.target === applicationModal) {
+                closeApplicationModal();
+            }
+        });
+    }
 
     // Mobile menu functionality
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const mainNav = document.getElementById('mainNav');
 
-    mobileMenuBtn.addEventListener('click', function() {
-        mainNav.classList.toggle('show');
-    });
+    if (mobileMenuBtn && mainNav) {
+        mobileMenuBtn.addEventListener('click', function() {
+            mainNav.classList.toggle('show');
+        });
 
-    // Close mobile menu when clicking a link or outside
-    document.addEventListener('click', function(event) {
-        const isClickInsideNav = mainNav.contains(event.target) || 
-                                mobileMenuBtn.contains(event.target);
-        
-        if (!isClickInsideNav && mainNav.classList.contains('show')) {
-            mainNav.classList.remove('show');
-        }
-    });
+        // Close mobile menu when clicking a link or outside
+        document.addEventListener('click', function(event) {
+            const isClickInsideNav = mainNav.contains(event.target) || 
+                                    mobileMenuBtn.contains(event.target);
+            
+            if (!isClickInsideNav && mainNav.classList.contains('show')) {
+                mainNav.classList.remove('show');
+            }
+        });
+    }
 
     // Form submission handler
-    document.getElementById('planApplicationForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const formData = {
-            plan: document.getElementById('selectedPlan').value,
-            name: document.getElementById('name').value,
-            phone: document.getElementById('phone').value,
-            company: document.getElementById('company').value || ''
-        };
-        
-        fetch('/api/submit_application', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Спасибо за вашу заявку! Мы свяжемся с вами в ближайшее время.');
-                closeApplicationModal();
-                document.getElementById('planApplicationForm').reset();
-            } else {
+    const planApplicationForm = document.getElementById('planApplicationForm');
+    if (planApplicationForm) {
+        planApplicationForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                plan: document.getElementById('selectedPlan').value,
+                name: document.getElementById('name').value,
+                phone: document.getElementById('phone').value,
+                company: document.getElementById('company').value || ''
+            };
+            
+            fetch('/api/submit_application', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Спасибо за вашу заявку! Мы свяжемся с вами в ближайшее время.');
+                    closeApplicationModal();
+                    document.getElementById('planApplicationForm').reset();
+                } else {
+                    alert('Произошла ошибка при отправке заявки. Пожалуйста, попробуйте позже.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
                 alert('Произошла ошибка при отправке заявки. Пожалуйста, попробуйте позже.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Произошла ошибка при отправке заявки. Пожалуйста, попробуйте позже.');
+            });
         });
-    });
+    }
 
     // Handle navigation with History API
     function navigateTo(path) {
@@ -113,6 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadContent(path) {
         const contentDiv = document.getElementById('app-content');
+        if (!contentDiv) return;
         
         // Add fade-out effect
         contentDiv.classList.add('fade-out');
@@ -153,10 +178,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    document.getElementById('home-link').addEventListener('click', function(e) {
-        e.preventDefault();
-        navigateTo('home');
-    });
+    const homeLink = document.getElementById('home-link');
+    if (homeLink) {
+        homeLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            navigateTo('home');
+        });
+    }
 
     // Handle initial load and popstate events
     function handleInitialLoad() {
@@ -190,4 +218,36 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('navigate', function(e) {
         navigateTo(e.detail);
     });
+
+    // Language selector initialization
+    const languageSelect = document.getElementById('languageSelect');
+    if (languageSelect) {
+        languageSelect.value = getCurrentLanguage();
+        languageSelect.addEventListener('change', function(e) {
+            setLanguage(e.target.value);
+        });
+    }
 });
+
+// Language functions
+function setLanguage(lang) {
+    localStorage.setItem('language', lang);
+    document.documentElement.lang = lang;
+    updateTexts();
+}
+
+function getCurrentLanguage() {
+    return localStorage.getItem('language') || 'ru';
+}
+
+function updateTexts() {
+    const lang = getCurrentLanguage();
+    const elements = document.querySelectorAll('[data-i18n]');
+    
+    elements.forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang] && translations[lang][key]) {
+            el.textContent = translations[lang][key];
+        }
+    });
+}
