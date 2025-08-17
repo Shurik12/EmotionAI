@@ -203,48 +203,34 @@ function loadDetectorContent() {
 function loadPrivacyContent() {
     const lang = getCurrentLanguage();
     const contentDiv = document.getElementById('app-content');
-    
-    // Get translation first before creating HTML
     const privacyPolicyTitle = translations[lang]?.['privacy_policy'] || 'Privacy Policy';
     
+    // Create a container with a unique ID
     contentDiv.innerHTML = `
         <div class="privacy-policy-container">
-            <h1 data-i18n="privacy_policy"></h1>
-            <iframe 
-                id="privacyIframe"
-                src="/static/privacy-policy-${lang}.html?t=${Date.now()}" 
-                width="100%" 
-                height="500px" 
-                frameborder="0"
-                title="${privacyPolicyTitle}"
-                loading="lazy"
-            ></iframe>
+            <h1 data-i18n="privacy_policy">${privacyPolicyTitle}</h1>
+            <div class="iframe-container">
+                <iframe 
+                    id="privacyIframe"
+                    src="/static/privacy-policy.html?lang=${lang}&t=${Date.now()}" 
+                    width="100%" 
+                    height="500px" 
+                    frameborder="0"
+                    title="${privacyPolicyTitle}"
+                    loading="lazy"
+                ></iframe>
+            </div>
             <p class="fallback-text" style="display: none;" data-i18n="privacy_error"></p>
         </div>
     `;
-    
-    // Initialize iframe event handlers
-    const iframe = document.getElementById('privacyIframe');
-    if (iframe) {
-        // First hide the iframe to ensure reload
-        iframe.style.display = 'none';
-        
-        // Force reload by setting src again after a small delay
-        setTimeout(() => {
-            iframe.src = `/static/privacy-policy-${lang}.html?t=${Date.now()}`;
-            iframe.style.display = 'block';
-        }, 50);
-        
-        iframe.onload = function() {
-            this.style.display = 'block';
-            document.querySelector('.fallback-text').style.display = 'none';
-        };
-        iframe.onerror = function() {
-            this.style.display = 'none';
-            document.querySelector('.fallback-text').style.display = 'block';
-        };
-    }
-    
+
+    // Listen for language change messages from iframe
+    window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'languageChange') {
+            setLanguage(e.data.language);
+        }
+    });
+
     updateTexts();
 }
 
