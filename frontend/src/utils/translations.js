@@ -93,6 +93,10 @@ export const translations = {
 		error_unsupported_format: "Неподдерживаемый формат файла",
 		error_file_too_large: "Файл слишком большой",
 		error_network_response: "Ошибка сетевого ответа",
+		error_upload_failed: "File upload failed",
+		error_progress_check_failed: "Failed to check processing progress",
+		error_processing_timeout: "Processing took too long. Please try again.",
+		error_processing_failed: "Processing failed. Please try again.",
 
 		// Emotion labels
 		happiness: "Радость",
@@ -232,6 +236,10 @@ export const translations = {
 		error_unsupported_format: "Unsupported file format",
 		error_file_too_large: "File too large",
 		error_network_response: "Network response error",
+		error_upload_failed: "File upload failed",
+		error_progress_check_failed: "Failed to check processing progress",
+		error_processing_timeout: "Processing took too long. Please try again.",
+		error_processing_failed: "Processing failed. Please try again.",
 
 		// Emotion labels
 		happiness: "Happiness",

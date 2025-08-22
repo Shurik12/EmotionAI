@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { getColorForEmotion } from '../utils/emotionColors';
 import { useLanguage } from '../hooks/useLanguage';
-import { t as translate } from '../utils/translations'; // Import the translation function
+import { t as translate } from '../utils/translations';
+import './Detector.css';
 
 const Detector = () => {
 	const [currentFile, setCurrentFile] = useState(null);
@@ -12,16 +13,32 @@ const Detector = () => {
 	const [results, setResults] = useState(null);
 	const [consentGiven, setConsentGiven] = useState(false);
 	const [error, setError] = useState('');
+	const [isProcessing, setIsProcessing] = useState(false);
+	const [progressComplete, setProgressComplete] = useState(false);
+	const [currentTaskId, setCurrentTaskId] = useState(null);
+
 	const fileInputRef = useRef(null);
+	const progressIntervalRef = useRef(null);
 	const { language, updateTexts } = useLanguage();
 
 	useEffect(() => {
-		updateTexts();
-	}, [language, updateTexts]);
+		return () => {
+			// Clean up interval on component unmount
+			if (progressIntervalRef.current) {
+				clearInterval(progressIntervalRef.current);
+			}
+		};
+	}, []);
 
-	// Use the centralized translation function
 	const t = (key, replacements = {}) => {
 		return translate(key, language, replacements);
+	};
+
+	const showError = (message) => {
+		setError(message);
+		setTimeout(() => {
+			setError('');
+		}, 3000);
 	};
 
 	const handleFileSelect = (e) => {
@@ -43,8 +60,6 @@ const Detector = () => {
         ${t('clear_button')}
       </button>
     `);
-
-		// Clear previous results
 		setPreview(null);
 		setResults(null);
 	};
@@ -54,12 +69,12 @@ const Detector = () => {
 		const maxSize = 50 * 1024 * 1024;
 
 		if (!validTypes.includes(file.type)) {
-			setError(t('error_unsupported_format'));
+			showError(t('error_unsupported_format'));
 			return false;
 		}
 
 		if (file.size > maxSize) {
-			setError(t('error_file_too_large'));
+			showError(t('error_file_too_large'));
 			return false;
 		}
 
@@ -80,79 +95,163 @@ const Detector = () => {
 	const clearFile = () => {
 		setCurrentFile(null);
 		setFileInfo('');
+		setPreview(null);
 		if (fileInputRef.current) {
 			fileInputRef.current.value = '';
 		}
 	};
 
-	const uploadFile = () => {
+	useEffect(() => {
+		// Add event listener for clear button after fileInfo is rendered
+		if (fileInfo) {
+			const clearBtn = document.getElementById('clearFileBtn');
+			if (clearBtn) {
+				clearBtn.addEventListener('click', clearFile);
+				return () => {
+					clearBtn.removeEventListener('click', clearFile);
+				};
+			}
+		}
+	}, [fileInfo]);
+
+	const uploadFile = async () => {
 		if (!currentFile) {
-			setError(t('error_file_not_selected'));
+			showError(t('error_file_not_selected'));
 			return;
 		}
 
 		if (!consentGiven) {
-			setError(t('error_consent_required'));
+			showError(t('error_consent_required'));
 			return;
 		}
 
+		console.log('Starting upload process...');
+
+		// Reset UI state
+		setResults(null);
 		setShowProgress(true);
 		setProgressText(t('starting_processing'));
+		setIsProcessing(true);
+		setError(null);
+		setProgressComplete(false);
 
-		// Simulate file upload and processing
-		// In a real app, you would use fetch API here
-		setTimeout(() => {
-			setShowProgress(false);
+		console.log('Progress state set to visible');
 
-			// Mock results for demonstration
-			if (currentFile.type.includes('image')) {
-				setPreview(URL.createObjectURL(currentFile));
-				setResults({
-					type: 'image',
-					result: {
-						main_prediction: { label: 'happiness', probability: 0.85 },
-						additional_probs: {
-							happiness: 0.85,
-							neutral: 0.10,
-							sadness: 0.03,
-							surprise: 0.02
-						}
-					}
-				});
-			} else {
-				// Mock video results
-				setResults({
-					type: 'video',
-					frames_processed: 24,
-					results: [
-						{
-							frame: 0,
-							image_url: URL.createObjectURL(currentFile),
-							result: {
-								main_prediction: { label: 'neutral', probability: 0.75 },
-								additional_probs: {
-									neutral: 0.75,
-									happiness: 0.15,
-									sadness: 0.07,
-									surprise: 0.03
-								}
-							}
-						}
-					]
-				});
+		const formData = new FormData();
+		formData.append('file', currentFile);
+		formData.append('model', "emotieff");
+
+		try {
+			const response = await fetch('/api/upload', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (!response.ok) {
+				const err = await response.json();
+				throw new Error(t(err.error) || t('error_network_response'));
 			}
-		}, 3000);
+
+			const data = await response.json();
+
+			if (data.error) {
+				throw new Error(t(data.error));
+			}
+
+			// Store for language switching
+			window.lastAnalysisResult = data.result;
+
+			setCurrentTaskId(data.task_id);
+			setProgressText(t('file_processing'));
+
+			checkProgress(data.task_id);
+		} catch (error) {
+			console.error(t('error_checking_progress'), error);
+			showError(error.message);
+			hideProgress();
+		}
+	};
+
+	const checkProgress = (taskId) => {
+		// Clear any existing interval
+		if (progressIntervalRef.current) {
+			clearInterval(progressIntervalRef.current);
+		}
+
+		progressIntervalRef.current = setInterval(async () => {
+			try {
+				const response = await fetch(`/api/progress/${taskId}`);
+
+				if (!response.ok) {
+					throw new Error(t('error_checking_progress'));
+				}
+
+				const data = await response.json();
+
+				if (data.error) {
+					throw new Error(t(data.error));
+				}
+
+				if (data.message) {
+					// Handle frame processing messages
+					let newProgressText = '';
+					if (data.message.includes("frame")) {
+						const frameMatch = data.message.match(/frame (\d+) of (\d+)/);
+						if (frameMatch) {
+							newProgressText = t('processing_frame')
+								.replace('{current}', frameMatch[1])
+								.replace('{total}', frameMatch[2]);
+						}
+					} else {
+						newProgressText = t(data.message) || data.message;
+					}
+
+					setProgressText(newProgressText);
+				}
+
+				if (data.complete) {
+					clearInterval(progressIntervalRef.current);
+					setProgressText(t('processing_complete'));
+					setProgressComplete(true);
+
+					setTimeout(() => {
+						hideProgress();
+						displayResults(data);
+					}, 1000);
+				}
+			} catch (error) {
+				console.error(t('error_checking_progress'), error);
+				clearInterval(progressIntervalRef.current);
+				showError(error.message);
+				hideProgress();
+			}
+		}, 1000);
+	};
+
+	const hideProgress = () => {
+		setShowProgress(false);
+		setCurrentTaskId(null);
+		setIsProcessing(false);
+		setProgressComplete(false);
+	};
+
+	const displayResults = (data) => {
+		console.log('API Response:', data);
+		setResults(data);
+		setPreview(null);
 	};
 
 	const displayEmotionResult = (result) => {
-		const mainPred = result.main_prediction;
-		const additional = result.additional_probs;
+		if (!result) return null;
+
+		const mainPred = result.main_prediction || {};
+		const additional = result.additional_probs || {};
 
 		return (
 			<div className="result-card">
 				<div className="main-emotion">
 					{t('detected_emotion')}:
-					<span data-i18n={mainPred.label}>{mainPred.label}</span>
+					<span>{mainPred.label || 'Unknown'}</span>
 					({(mainPred.probability * 100).toFixed(1)}%)
 				</div>
 				<div className="emotion-display">
@@ -161,7 +260,7 @@ const Detector = () => {
 						return (
 							<div key={emotionKey} className="emotion-item">
 								<div className="emotion-label">
-									<span data-i18n={emotionKey}>{emotionKey}</span>
+									<span>{emotionKey}</span>
 									<span>{percentage}%</span>
 								</div>
 								<div className="emotion-bar">
@@ -212,7 +311,7 @@ const Detector = () => {
 	return (
 		<div className="detector-container">
 			<div style={{ textAlign: 'center' }}>
-				<h1 data-i18n="detector_title">{t('detector_title')}</h1>
+				<h1>{t('detector_title')}</h1>
 			</div>
 
 			<div className="upload-section">
@@ -225,8 +324,8 @@ const Detector = () => {
 				>
 					<div className="upload-icon">📁</div>
 					<div className="upload-text">
-						<h3 data-i18n="drag_file">{t('drag_file')}</h3>
-						<p data-i18n="or">{t('or')}</p>
+						<h3>{t('drag_file')}</h3>
+						<p>{t('or')}</p>
 					</div>
 					<input
 						type="file"
@@ -235,16 +334,17 @@ const Detector = () => {
 						className="file-input"
 						accept="image/*,video/*"
 						onChange={handleFileSelect}
+						disabled={isProcessing}
 					/>
 					<button
-						className="btn"
+						className="btn primary" // Added 'primary' class
 						id="selectFileBtn"
 						onClick={() => fileInputRef.current?.click()}
-						data-i18n="choose_file"
+						disabled={isProcessing}
 					>
 						{t('choose_file')}
 					</button>
-					<p className="supported-formats" data-i18n="supported_formats">
+					<p className="supported-formats">
 						{t('supported_formats')}
 					</p>
 				</div>
@@ -272,18 +372,15 @@ const Detector = () => {
 							style={{ marginRight: '8px' }}
 							checked={consentGiven}
 							onChange={(e) => setConsentGiven(e.target.checked)}
+							disabled={isProcessing}
 						/>
-						<span data-i18n="consent_text">
+						<span>
 							{t('consent_text')}{' '}
 							<a
 								href="#privacy"
 								className="nav-link"
 								style={{ color: 'var(--primary-color)' }}
-								onClick={(e) => {
-									e.preventDefault();
-									// You would navigate to privacy page here
-								}}
-								data-i18n="privacy_policy"
+								onClick={(e) => e.preventDefault()}
 							>
 								{t('privacy_policy')}
 							</a>
@@ -292,11 +389,10 @@ const Detector = () => {
 				</div>
 
 				<button
-					className="btn"
+					className="btn primary" // Added 'primary' class
 					id="uploadBtn"
 					onClick={uploadFile}
-					disabled={!currentFile || !consentGiven}
-					data-i18n="analyze_emotions"
+					disabled={!currentFile || !consentGiven || isProcessing}
 				>
 					{t('analyze_emotions')}
 				</button>
@@ -305,39 +401,58 @@ const Detector = () => {
 			{showProgress && (
 				<div className="progress-container" id="progressContainer">
 					<div className="progress-header">
-						<h3 data-i18n="processing">{t('processing')}</h3>
+						<h3>{t('processing')}</h3>
 					</div>
-					<div className="progress-wheel" id="progressWheel"></div>
+					<div className={`progress-wheel ${progressComplete ? 'complete' : ''}`} id="progressWheel"></div>
 					<div className="progress-text" id="progressText">
 						{progressText}
 					</div>
 				</div>
 			)}
 
-			{preview && (
-				<div className="preview-container" id="previewContainer">
-					<img src={preview} alt={t('processed_image_alt')} loading="lazy" />
-				</div>
-			)}
-
 			{results && (
 				<div className="results-container" id="resultsContainer">
 					{results.type === 'image' ? (
-						displayEmotionResult(results.result)
-					) : (
+						<>
+							{results.image_url && (
+								<div className="preview-container processed-image">
+									<img 
+										src={results.image_url} 
+										alt={t('processed_image_alt')} 
+										loading="lazy"
+										className="processed-image"
+									/>
+								</div>
+							)}
+							{displayEmotionResult(results.result)}
+						</>
+					) : results.type === 'video' ? (
 						<>
 							<div className="result-card">
 								<h3>{t('video_analysis_complete')}</h3>
 								<p>{t('processed_frames').replace('{count}', results.frames_processed)}</p>
 							</div>
-							{results.results.map((frame, index) => (
+							{results.results && results.results.map((frame, index) => (
 								<div key={index} className="frame-result">
 									<h4>{t('frame')} {frame.frame + 1}</h4>
-									<img src={frame.image_url} alt={`${t('video_frame')} ${frame.frame + 1}`} loading="lazy" />
+									{frame.image_url && (
+										<img 
+											src={frame.image_url} 
+											alt={`${t('video_frame')} ${frame.frame + 1}`} 
+											loading="lazy"
+											className="processed-image"
+										/>
+									)}
 									{displayEmotionResult(frame.result)}
 								</div>
 							))}
 						</>
+					) : (
+						// Fallback for unknown response format
+						<div className="result-card">
+							<h3>Analysis Results</h3>
+							<pre>{JSON.stringify(results, null, 2)}</pre>
+						</div>
 					)}
 				</div>
 			)}

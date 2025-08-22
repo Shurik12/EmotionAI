@@ -329,7 +329,6 @@ class FileProcessor:
                 "model_name": "EmotiEffLib"
             }
             self.redis.set_task_status(task_id, initial_status)
-            
             file_ext = filename.rsplit('.', 1)[1].lower()
             
             if file_ext in {'png', 'jpg', 'jpeg'}:
@@ -374,7 +373,7 @@ def create_app():
             return jsonify({"error": "No file selected"}), 400
         
         if file and file_processor.allowed_file(file.filename):
-            filename = secure_filename(file.filename)
+            filename = file.filename
             task_id = str(uuid.uuid4())
             filepath = os.path.join(Config.UPLOAD_FOLDER, f"{task_id}_{filename}")
             file.save(filepath)
