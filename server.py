@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 import torch
 import redis
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -51,6 +51,7 @@ class Config:
     APPLICATION_EXPIRATION = CONFIG['app']['application_expiration']
     EMOTION_CATEGORIES = CONFIG['app']['emotion_categories']
     MTCNN_CONFIG = CONFIG['mtcnn']
+    FRONTEND_BUILD_PATH = os.path.join(os.path.dirname(__file__), 'frontend', 'build')
     
 class RedisManager:
     """Handles Redis connection and operations"""
@@ -234,7 +235,7 @@ class FileProcessor:
             self.redis.set_task_status(task_id, {
                 "complete": True,
                 "type": "image",
-                "image_url": f"/{result_path}",
+                "image_url": f"/api/results/{result_filename}",
                 "result": result,
                 "progress": 100
             })
@@ -288,7 +289,7 @@ class FileProcessor:
                         
                         results.append({
                             "frame": frame_count,
-                            "image_url": f"/{frame_path}",
+                            "image_url": f"/api/results/{frame_filename}",
                             "result": result
                         })
                         processed_count += 1
@@ -349,188 +350,117 @@ class FileProcessor:
         finally:
             self.cleanup_file(filepath)
 
+# Initialize services
+redis_manager = RedisManager()
+file_processor = FileProcessor(redis_manager)
+
 def create_app():
-    """Application factory pattern"""
-    app = Flask(__name__, static_folder='static', template_folder='templates')
+    app = Flask(__name__, static_folder=Config.FRONTEND_BUILD_PATH)
     CORS(app)
     
-    # Configuration
-    app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
-    app.config['RATELIMIT_HEADERS_ENABLED'] = True
-    
-    # Create folders if they don't exist
+    # Ensure directories exist
     os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
     os.makedirs(Config.RESULTS_FOLDER, exist_ok=True)
-    
-    # Initialize services
-    redis_manager = RedisManager()
-    file_processor = FileProcessor(redis_manager)
-    
-    # Rate limiting
-    def limiter_breach_handler(request_limit):
-        """Custom handler for rate limit breaches"""
-        logger.warning(f"Rate limit breached for {request_limit.key}")
-        remaining = request_limit.remaining
-        limit = request_limit.limit
-        
-        reset_time = request_limit.reset_at
-        if isinstance(reset_time, int):
-            reset_time = datetime.fromtimestamp(reset_time)
-        
-        message = (
-            f"Превышен лимит запросов ({limit}). "
-            f"Попробуйте снова через {remaining} секунд. "
-            f"Лимит полностью восстановится в {reset_time.strftime('%H:%M:%S')}"
-        )
-        
-        response = jsonify({
-            "error": "rate_limit_exceeded",
-            "message": message,
-            "limit": str(limit),
-            "remaining": remaining,
-            "reset_at": reset_time.isoformat() if hasattr(reset_time, 'isoformat') else reset_time
-        })
-        response.status_code = 429
-        return response
+    os.makedirs(Config.FRONTEND_BUILD_PATH, exist_ok=True)
 
-    limiter = Limiter(
-        app=app,
-        key_func=get_remote_address,
-        default_limits=[],
-        storage_uri=f"redis://:{Config.REDIS_PASSWORD}@{Config.REDIS_HOST}:{Config.REDIS_PORT}/{Config.REDIS_DB}",
-        strategy="fixed-window",
-        on_breach=limiter_breach_handler
-    )
-
-    @app.route('/', defaults={'path': ''})
-    @app.route('/<path:path>')
-    def serve(path):
-        # Handle API routes first
-        if path.startswith('api/') or path in ['upload', 'progress', 'submit_application', 'health']:
-            # Let Flask handle these routes normally
-            return
-        
-        # Serve static files if they exist
-        if path.startswith('static/'):
-            try:
-                return send_from_directory(app.static_folder, path[len('static/'):])
-            except:
-                pass
-        
-        # For all other routes, serve the index.html
-        try:
-            return send_from_directory(app.template_folder, 'index.html')
-        except:
-            return "Page not found", 404
-
+    # API Routes
     @app.route('/api/upload', methods=['POST'])
-    @limiter.limit("1000 per hour")
     def upload_file():
         if 'file' not in request.files:
-            logger.warning("No file provided in upload request")
-            return jsonify({"error": "error_file_not_selected"}), 400
+            return jsonify({"error": "No file provided"}), 400
         
         file = request.files['file']
-        
         if file.filename == '':
-            logger.warning("Empty filename in upload request")
-            return jsonify({"error": "error_file_not_selected"}), 400
+            return jsonify({"error": "No file selected"}), 400
         
-        if not file or not file_processor.allowed_file(file.filename):
-            logger.warning(f"Invalid file type attempted: {file.filename}")
-            return jsonify({"error": "error_unsupported_format"}), 400
-        
-        try:
+        if file and file_processor.allowed_file(file.filename):
+            filename = secure_filename(file.filename)
             task_id = str(uuid.uuid4())
-            filename = secure_filename(f"{task_id}_{file.filename}")
-            filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
-            
-            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            filepath = os.path.join(Config.UPLOAD_FOLDER, f"{task_id}_{filename}")
             file.save(filepath)
-            logger.info(f"File uploaded successfully: {filename}")
-
-            # Start processing in background
+            
+            # Process file in background thread
             thread = threading.Thread(
                 target=file_processor.process_file,
-                args=(task_id, filepath, filename),
-                daemon=True
+                args=(task_id, filepath, filename)
             )
+            thread.daemon = True
             thread.start()
             
-            return jsonify({
-                "task_id": task_id,
-                "message": "Файл загружен, начата обработка",
-                "model": "emotieff",
-                "model_name": "EmotiEffLib"
-            })
-        except Exception as e:
-            logger.error(f"Error during file upload: {str(e)}")
-            file_processor.cleanup_file(filepath)
-            return jsonify({"error": f"Upload failed: {str(e)}"}), 500
+            return jsonify({"task_id": task_id}), 202
+        else:
+            return jsonify({"error": "Invalid file type"}), 400
 
     @app.route('/api/progress/<task_id>')
     def get_progress(task_id: str):
-        """Check processing progress for a task"""
         status = redis_manager.get_task_status(task_id)
         if status is None:
             return jsonify({"error": "Task not found"}), 404
         return jsonify(status)
 
     @app.route('/api/submit_application', methods=['POST'])
-    @limiter.limit("120 per minute")
     def submit_application():
         try:
-            data = request.get_json()
-            if not data or 'plan' not in data or 'phone' not in data:
-                return jsonify({"error": "Недостаточно данных"}), 400
+            application_data = request.get_json()
+            if not application_data:
+                return jsonify({"error": "No application data provided"}), 400
             
-            application_data = {
-                "plan": data.get('plan'),
-                "name": data.get('name', ''),
-                "phone": data.get('phone'),
-                "company": data.get('company', ''),
-            }
-            
-            try:
-                application_id = redis_manager.save_application(application_data)
-                logger.info(f"New application received: {application_id}")
-                return jsonify({"success": True, "application_id": application_id})
-            except Exception:
-                return jsonify({"error": "Ошибка при сохранении заявки"}), 500
-                
+            application_id = redis_manager.save_application(application_data)
+            return jsonify({"application_id": application_id}), 201
         except Exception as e:
-            logger.error(f"Error processing application: {str(e)}")
-            return jsonify({"error": "Ошибка при обработке заявки"}), 500
-        
+            logger.error(f"Error submitting application: {str(e)}")
+            return jsonify({"error": "Internal server error"}), 500
+
+    @app.route('/api/results/<filename>')
+    def serve_result(filename):
+        """Serve processed result files"""
+        return send_from_directory(Config.RESULTS_FOLDER, filename)
+
     @app.route('/api/health')
     def health_check():
+        """Health check endpoint"""
         try:
             redis_manager.connection.ping()
-            limiter.storage.check()
             return jsonify({"status": "healthy"}), 200
         except Exception as e:
             logger.error(f"Health check failed: {str(e)}")
             return jsonify({"status": "unhealthy", "error": str(e)}), 500
 
-    @app.errorhandler(413)
-    def request_entity_too_large(error):
-        logger.warning("File size limit exceeded in upload request")
-        return jsonify({"error": "Файл слишком большой. Максимальный размер 50MB"}), 413
+    # Serve React static files
+    @app.route('/static/<path:filename>')
+    def serve_static(filename):
+        static_path = os.path.join(Config.FRONTEND_BUILD_PATH, 'static')
+        if os.path.exists(os.path.join(static_path, filename)):
+            return send_from_directory(static_path, filename)
+        return jsonify({"error": "File not found"}), 404
 
-    @app.errorhandler(429)
-    def ratelimit_handler(e):
-        logger.warning(f"Rate limit exceeded: {str(e)}")
-        return jsonify({
-            "error": "rate_limit_exceeded",
-            "message": "Превышен лимит запросов. Пожалуйста, попробуйте позже."
-        }), 429
-    
+    # Serve React build files (JS, CSS, etc.)
+    @app.route('/<path:filename>')
+    def serve_react_files(filename):
+        # Don't interfere with API routes
+        if filename.startswith('api/'):
+            return jsonify({"error": "Not found"}), 404
+        
+        file_path = os.path.join(Config.FRONTEND_BUILD_PATH, filename)
+        
+        # If it's a file that exists, serve it
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return send_from_directory(Config.FRONTEND_BUILD_PATH, filename)
+        
+        # For React Router - serve index.html for all other routes
+        return send_from_directory(Config.FRONTEND_BUILD_PATH, 'index.html')
+
+    # Root route - serve React app
+    @app.route('/')
+    def serve_root():
+        return send_from_directory(Config.FRONTEND_BUILD_PATH, 'index.html')
+
     return app
 
 app = create_app()
 
 if __name__ == '__main__':
     logger.info("Running in development mode")
-    app.run(host='0.0.0.0', port=5000, threaded=True)
+    app.run(host='0.0.0.0', port=5000, threaded=True, debug=True)
 else:
     logger.info("Running in production mode")
