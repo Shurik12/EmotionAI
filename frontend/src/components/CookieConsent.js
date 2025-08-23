@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useLanguage } from '../hooks/useLanguage';
-import { t as translate } from '../utils/translations';
+import { t } from '../utils/translations';
 
 const CookieConsent = () => {
 	const [showConsent, setShowConsent] = useState(false);
-	const { language } = useLanguage();
 
 	useEffect(() => {
 		// Check if user has already accepted cookies
@@ -17,10 +15,6 @@ const CookieConsent = () => {
 	const acceptCookies = () => {
 		localStorage.setItem('cookiesAccepted', 'true');
 		setShowConsent(false);
-	};
-
-	const t = (key, replacements = {}) => {
-		return translate(key, language, replacements);
 	};
 
 	if (!showConsent) return null;

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
-import { t as translate } from '../utils/translations';
+import { t } from '../utils/translations';
 
 const Features = () => {
 	const { language, updateTexts } = useLanguage();
@@ -8,11 +8,7 @@ const Features = () => {
 	useEffect(() => {
 		updateTexts();
 	}, [language, updateTexts]);
-
-	const t = (key, replacements = {}) => {
-		return translate(key, language, replacements);
-	};
-
+	
 	return (
 		<section className="features">
 			<div className="container">

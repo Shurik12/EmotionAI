@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
+import { t } from '../utils/translations';
 
 const ApplicationModal = ({ selectedPlan, closeModal }) => {
 	const [formData, setFormData] = useState({
@@ -50,10 +51,6 @@ const ApplicationModal = ({ selectedPlan, closeModal }) => {
 		} finally {
 			setIsSubmitting(false);
 		}
-	};
-
-	const t = (key, replacements = {}) => {
-		return translate(key, language, replacements);
 	};
 	
 	return (
