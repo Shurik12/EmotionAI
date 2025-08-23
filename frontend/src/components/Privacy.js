@@ -18,7 +18,7 @@ const Privacy = () => {
 				<div className="iframe-container">
 					<iframe
 						id="privacyIframe"
-						src={`/privacy-policy.html?lang=${language}&t=${Date.now()}`}
+						src={`/static/privacy-policy.html?lang=${language}&t=${Date.now()}`}
 						width="100%"
 						height="500px"
 						frameBorder="0"
