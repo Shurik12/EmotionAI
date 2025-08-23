@@ -1,5 +1,4 @@
 import React from 'react';
-import RazumaLogo from '../../public/static/Razuma_Black.svg';
 
 const Header = ({ navigateTo, language, setLanguage }) => {
 	const [showMobileMenu, setShowMobileMenu] = React.useState(false);

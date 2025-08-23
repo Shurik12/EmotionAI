@@ -1,21 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
-import { t as translate } from '../utils/translations';
+import { t } from '../utils/translations';
 
 const Privacy = () => {
-	const { language, updateTexts } = useLanguage();
+	const { language } = useLanguage();
 	const [iframeError, setIframeError] = useState(false);
-
-	useEffect(() => {
-		updateTexts();
-	}, [language, updateTexts]);
 
 	const handleIframeError = () => {
 		setIframeError(true);
-	};
-
-	const t = (key, replacements = {}) => {
-		return translate(key, language, replacements);
 	};
 
 	return (

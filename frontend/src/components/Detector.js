@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { getColorForEmotion } from '../utils/emotionColors';
 import { useLanguage } from '../hooks/useLanguage';
-import { t as translate } from '../utils/translations';
+import { t } from '../utils/translations';
 import './Detector.css';
 
 const Detector = () => {
@@ -12,14 +12,19 @@ const Detector = () => {
 	const [preview, setPreview] = useState(null);
 	const [results, setResults] = useState(null);
 	const [consentGiven, setConsentGiven] = useState(false);
-	const [error, setError] = useState('');
+	const [errorKey, setErrorKey] = useState('');
 	const [isProcessing, setIsProcessing] = useState(false);
 	const [progressComplete, setProgressComplete] = useState(false);
 	const [currentTaskId, setCurrentTaskId] = useState(null);
 
 	const fileInputRef = useRef(null);
 	const progressIntervalRef = useRef(null);
+
 	const { language, updateTexts } = useLanguage();
+
+	useEffect(() => {
+		updateTexts();
+	}, [language]);
 
 	useEffect(() => {
 		return () => {
@@ -30,16 +35,15 @@ const Detector = () => {
 		};
 	}, []);
 
-	const t = (key, replacements = {}) => {
-		return translate(key, language, replacements);
-	};
-
-	const showError = (message) => {
-		setError(message);
+	const showError = (translationKey) => {
+		setErrorKey(translationKey);
 		setTimeout(() => {
-			setError('');
+			setErrorKey('');
 		}, 3000);
 	};
+
+	const [fileName, setFileName] = useState('');
+	const [fileSize, setFileSize] = useState('');
 
 	const handleFileSelect = (e) => {
 		const file = e.target.files[0];
@@ -50,16 +54,8 @@ const Detector = () => {
 		}
 
 		setCurrentFile(file);
-		setFileInfo(`
-      <div style="word-break: break-all;">
-        <span>${t('selected_file')}:</span> <strong>${file.name}</strong><br>
-        (${formatFileSize(file.size)})
-      </div>
-      <button class="btn" id="clearFileBtn" 
-              style="margin-top: 8px; background-color: var(--error-color);">
-        ${t('clear_button')}
-      </button>
-    `);
+		setFileName(file.name);
+		setFileSize(formatFileSize(file.size));
 		setPreview(null);
 		setResults(null);
 	};
@@ -69,12 +65,12 @@ const Detector = () => {
 		const maxSize = 50 * 1024 * 1024;
 
 		if (!validTypes.includes(file.type)) {
-			showError(t('error_unsupported_format'));
+			showError('error_unsupported_format');
 			return false;
 		}
 
 		if (file.size > maxSize) {
-			showError(t('error_file_too_large'));
+			showError('error_file_too_large');
 			return false;
 		}
 
@@ -94,34 +90,22 @@ const Detector = () => {
 
 	const clearFile = () => {
 		setCurrentFile(null);
-		setFileInfo('');
+		setFileName('');
+		setFileSize('');
 		setPreview(null);
 		if (fileInputRef.current) {
 			fileInputRef.current.value = '';
 		}
 	};
 
-	useEffect(() => {
-		// Add event listener for clear button after fileInfo is rendered
-		if (fileInfo) {
-			const clearBtn = document.getElementById('clearFileBtn');
-			if (clearBtn) {
-				clearBtn.addEventListener('click', clearFile);
-				return () => {
-					clearBtn.removeEventListener('click', clearFile);
-				};
-			}
-		}
-	}, [fileInfo]);
-
 	const uploadFile = async () => {
 		if (!currentFile) {
-			showError(t('error_file_not_selected'));
+			showError('error_file_not_selected');
 			return;
 		}
 
 		if (!consentGiven) {
-			showError(t('error_consent_required'));
+			showError('error_consent_required');
 			return;
 		}
 
@@ -130,9 +114,9 @@ const Detector = () => {
 		// Reset UI state
 		setResults(null);
 		setShowProgress(true);
-		setProgressText(t('starting_processing'));
+		setProgressText(t('starting_processing', language));
 		setIsProcessing(true);
-		setError(null);
+		setErrorKey(null);
 		setProgressComplete(false);
 
 		console.log('Progress state set to visible');
@@ -149,24 +133,24 @@ const Detector = () => {
 
 			if (!response.ok) {
 				const err = await response.json();
-				throw new Error(t(err.error) || t('error_network_response'));
+				throw new Error(err.error || 'error_network_response');
 			}
 
 			const data = await response.json();
 
 			if (data.error) {
-				throw new Error(t(data.error));
+				throw new Error(data.error);
 			}
 
 			// Store for language switching
 			window.lastAnalysisResult = data.result;
 
 			setCurrentTaskId(data.task_id);
-			setProgressText(t('file_processing'));
+			setProgressText(t('file_processing', language));
 
 			checkProgress(data.task_id);
 		} catch (error) {
-			console.error(t('error_checking_progress'), error);
+			console.error('Error checking progress:', error);
 			showError(error.message);
 			hideProgress();
 		}
@@ -183,13 +167,13 @@ const Detector = () => {
 				const response = await fetch(`/api/progress/${taskId}`);
 
 				if (!response.ok) {
-					throw new Error(t('error_checking_progress'));
+					throw new Error('error_checking_progress');
 				}
 
 				const data = await response.json();
 
 				if (data.error) {
-					throw new Error(t(data.error));
+					throw new Error(data.error);
 				}
 
 				if (data.message) {
@@ -198,12 +182,12 @@ const Detector = () => {
 					if (data.message.includes("frame")) {
 						const frameMatch = data.message.match(/frame (\d+) of (\d+)/);
 						if (frameMatch) {
-							newProgressText = t('processing_frame')
+							newProgressText = t('processing_frame', language)
 								.replace('{current}', frameMatch[1])
 								.replace('{total}', frameMatch[2]);
 						}
 					} else {
-						newProgressText = t(data.message) || data.message;
+						newProgressText = t(data.message, language) || data.message;
 					}
 
 					setProgressText(newProgressText);
@@ -211,7 +195,7 @@ const Detector = () => {
 
 				if (data.complete) {
 					clearInterval(progressIntervalRef.current);
-					setProgressText(t('processing_complete'));
+					setProgressText(t('processing_complete', language));
 					setProgressComplete(true);
 
 					setTimeout(() => {
@@ -220,7 +204,7 @@ const Detector = () => {
 					}, 1000);
 				}
 			} catch (error) {
-				console.error(t('error_checking_progress'), error);
+				console.error('Error checking progress:', error);
 				clearInterval(progressIntervalRef.current);
 				showError(error.message);
 				hideProgress();
@@ -250,8 +234,7 @@ const Detector = () => {
 		return (
 			<div className="result-card">
 				<div className="main-emotion">
-					{t('detected_emotion')}:
-					<span>{mainPred.label || 'Unknown'}</span>
+					<span data-i18n={mainPred.label}>{t(mainPred.label, language)}</span>
 					({(mainPred.probability * 100).toFixed(1)}%)
 				</div>
 				<div className="emotion-display">
@@ -260,7 +243,7 @@ const Detector = () => {
 						return (
 							<div key={emotionKey} className="emotion-item">
 								<div className="emotion-label">
-									<span>{emotionKey}</span>
+									<span data-i18n={emotionKey}>{t(emotionKey, language)}</span>
 									<span>{percentage}%</span>
 								</div>
 								<div className="emotion-bar">
@@ -310,8 +293,8 @@ const Detector = () => {
 
 	return (
 		<div className="detector-container">
-			<div style={{ textAlign: 'center' }}>
-				<h1>{t('detector_title')}</h1>
+			<div style={{ textAlign: 'center' }} data-i18n="detected_title">
+				<h1 data-i18n="detector_title"></h1>
 			</div>
 
 			<div className="upload-section">
@@ -324,8 +307,8 @@ const Detector = () => {
 				>
 					<div className="upload-icon">📁</div>
 					<div className="upload-text">
-						<h3>{t('drag_file')}</h3>
-						<p>{t('or')}</p>
+						<h3 data-i18n="drag_file"></h3>
+						<p data-i18n="or"></p>
 					</div>
 					<input
 						type="file"
@@ -341,26 +324,32 @@ const Detector = () => {
 						id="selectFileBtn"
 						onClick={() => fileInputRef.current?.click()}
 						disabled={isProcessing}
+						data-i18n="choose_file"
 					>
-						{t('choose_file')}
 					</button>
-					<p className="supported-formats">
-						{t('supported_formats')}
-					</p>
+					<p className="supported-formats" data-i18n="supported_formats"></p>
 				</div>
 
-				{error && (
+				{errorKey && (
 					<div className="error-message">
-						{error}
+						{t(errorKey, language)}
 					</div>
 				)}
 
-				{fileInfo && (
-					<div
-						className="file-info"
-						id="fileInfo"
-						dangerouslySetInnerHTML={{ __html: fileInfo }}
-					/>
+				{fileName && (
+					<div className="file-info">
+						<div style={{ wordBreak: 'break-all' }}>
+							<span data-i18n="selected_file"></span> <strong>{fileName}</strong>
+							<br />({fileSize})
+						</div>
+						<button
+							className="btn"
+							style={{ marginTop: '8px', backgroundColor: 'var(--error-color)' }}
+							onClick={clearFile}
+							disabled={isProcessing}
+							data-i18n="clear_button"
+						>{t('clear_button', language)}</button>
+					</div>
 				)}
 
 				<div style={{ margin: '15px 0', textAlign: 'center' }}>
@@ -374,34 +363,33 @@ const Detector = () => {
 							onChange={(e) => setConsentGiven(e.target.checked)}
 							disabled={isProcessing}
 						/>
-						<span>
-							{t('consent_text')}{' '}
+						<span data-i18n="consent_text">
 							<a
 								href="#privacy"
 								className="nav-link"
 								style={{ color: 'var(--primary-color)' }}
 								onClick={(e) => e.preventDefault()}
+								data-i18n="privacy_policy"
 							>
-								{t('privacy_policy')}
 							</a>
 						</span>
 					</label>
 				</div>
 
 				<button
-					className="btn primary" // Added 'primary' class
+					className="btn primary"
 					id="uploadBtn"
 					onClick={uploadFile}
-					disabled={!currentFile || !consentGiven || isProcessing}
+					disabled={false}
+					data-i18n="analyze_emotions"
 				>
-					{t('analyze_emotions')}
 				</button>
 			</div>
 
 			{showProgress && (
 				<div className="progress-container" id="progressContainer">
 					<div className="progress-header">
-						<h3>{t('processing')}</h3>
+						<h3 data-i18n="processing"></h3>
 					</div>
 					<div className={`progress-wheel ${progressComplete ? 'complete' : ''}`} id="progressWheel"></div>
 					<div className="progress-text" id="progressText">
@@ -416,11 +404,11 @@ const Detector = () => {
 						<>
 							{results.image_url && (
 								<div className="preview-container processed-image">
-									<img 
-										src={results.image_url} 
-										alt={t('processed_image_alt')} 
+									<img
+										src={results.image_url}
 										loading="lazy"
 										className="processed-image"
+										data-i18n="processed_image_alt"
 									/>
 								</div>
 							)}
@@ -429,18 +417,19 @@ const Detector = () => {
 					) : results.type === 'video' ? (
 						<>
 							<div className="result-card">
-								<h3>{t('video_analysis_complete')}</h3>
-								<p>{t('processed_frames').replace('{count}', results.frames_processed)}</p>
+								<h3 data-i18n="video_analysis_complete"></h3>
+								<p data-i18n="processed_frames">{results.frames_processed}</p>
 							</div>
 							{results.results && results.results.map((frame, index) => (
 								<div key={index} className="frame-result">
-									<h4>{t('frame')} {frame.frame + 1}</h4>
+									<h4 data-i18n="frame">{frame.frame + 1}</h4>
 									{frame.image_url && (
-										<img 
-											src={frame.image_url} 
-											alt={`${t('video_frame')} ${frame.frame + 1}`} 
+										<img
+											src={frame.image_url}
+											alt={` ${frame.frame + 1}`}
 											loading="lazy"
 											className="processed-image"
+											data-i18n="video_frame"
 										/>
 									)}
 									{displayEmotionResult(frame.result)}

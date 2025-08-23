@@ -1,14 +1,8 @@
 // src/components/Footer.js
 import React from 'react';
-import { useLanguage } from '../hooks/useLanguage';
-import { t as translate } from '../utils/translations';
+import { t } from '../utils/translations';
 
-const Footer = ({ navigateTo }) => {
-	const { language } = useLanguage();
-
-	const t = (key, replacements = {}) => {
-		return translate(key, language, replacements);
-	};
+const Footer = ({ navigateTo }) => {;
 
 	const handleFooterClick = (path) => {
 		navigateTo(path);

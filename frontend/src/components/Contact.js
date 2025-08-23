@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
-import { t as translate } from '../utils/translations';
+import { t } from '../utils/translations';
 
 const Contact = () => {
 	const { language, updateTexts } = useLanguage();
@@ -8,10 +8,6 @@ const Contact = () => {
 	useEffect(() => {
 		updateTexts();
 	}, [language, updateTexts]);
-
-	const t = (key, replacements = {}) => {
-		return translate(key, language, replacements);
-	};
 
 	return (
 		<>
