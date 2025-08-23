@@ -74,7 +74,6 @@ const Detector = () => {
 			return false;
 		}
 
-		setError('');
 		return true;
 	};
 
@@ -99,6 +98,10 @@ const Detector = () => {
 	};
 
 	const uploadFile = async () => {
+
+		console.log('uploadFile called, currentFile:', currentFile);
+		console.log('consentGiven:', consentGiven);
+
 		if (!currentFile) {
 			showError('error_file_not_selected');
 			return;
@@ -114,9 +117,9 @@ const Detector = () => {
 		// Reset UI state
 		setResults(null);
 		setShowProgress(true);
-		setProgressText(t('starting_processing', language));
+		setProgressText(t('starting_processing', localStorage.getItem('language')));
 		setIsProcessing(true);
-		setErrorKey(null);
+		setErrorKey('');
 		setProgressComplete(false);
 
 		console.log('Progress state set to visible');
@@ -146,7 +149,7 @@ const Detector = () => {
 			window.lastAnalysisResult = data.result;
 
 			setCurrentTaskId(data.task_id);
-			setProgressText(t('file_processing', language));
+			setProgressText(t('file_processing', localStorage.getItem('language')));
 
 			checkProgress(data.task_id);
 		} catch (error) {
@@ -182,12 +185,12 @@ const Detector = () => {
 					if (data.message.includes("frame")) {
 						const frameMatch = data.message.match(/frame (\d+) of (\d+)/);
 						if (frameMatch) {
-							newProgressText = t('processing_frame', language)
+							newProgressText = t('processing_frame', localStorage.getItem('language'))
 								.replace('{current}', frameMatch[1])
 								.replace('{total}', frameMatch[2]);
 						}
 					} else {
-						newProgressText = t(data.message, language) || data.message;
+						newProgressText = t(data.message, localStorage.getItem('language')) || data.message;
 					}
 
 					setProgressText(newProgressText);
@@ -195,7 +198,7 @@ const Detector = () => {
 
 				if (data.complete) {
 					clearInterval(progressIntervalRef.current);
-					setProgressText(t('processing_complete', language));
+					setProgressText(t('processing_complete', localStorage.getItem('language')));
 					setProgressComplete(true);
 
 					setTimeout(() => {
@@ -234,7 +237,7 @@ const Detector = () => {
 		return (
 			<div className="result-card">
 				<div className="main-emotion">
-					<span data-i18n={mainPred.label}>{t(mainPred.label, language)}</span>
+					<span data-i18n={mainPred.label}>{t(mainPred.label, localStorage.getItem('language'))}</span>
 					({(mainPred.probability * 100).toFixed(1)}%)
 				</div>
 				<div className="emotion-display">
@@ -243,7 +246,7 @@ const Detector = () => {
 						return (
 							<div key={emotionKey} className="emotion-item">
 								<div className="emotion-label">
-									<span data-i18n={emotionKey}>{t(emotionKey, language)}</span>
+									<span data-i18n={emotionKey}>{t(emotionKey, localStorage.getItem('language'))}</span>
 									<span>{percentage}%</span>
 								</div>
 								<div className="emotion-bar">
@@ -332,7 +335,7 @@ const Detector = () => {
 
 				{errorKey && (
 					<div className="error-message">
-						{t(errorKey, language)}
+						{t(errorKey, localStorage.getItem('language'))}
 					</div>
 				)}
 
@@ -348,7 +351,7 @@ const Detector = () => {
 							onClick={clearFile}
 							disabled={isProcessing}
 							data-i18n="clear_button"
-						>{t('clear_button', language)}</button>
+						>{t('clear_button', localStorage.getItem('language'))}</button>
 					</div>
 				)}
 
@@ -369,8 +372,8 @@ const Detector = () => {
 								className="nav-link"
 								style={{ color: 'var(--primary-color)' }}
 								onClick={(e) => e.preventDefault()}
-								data-i18n="privacy_policy"
 							>
+								{t('privacy_policy', localStorage.getItem('language'))}
 							</a>
 						</span>
 					</label>

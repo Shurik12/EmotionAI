@@ -46,12 +46,11 @@ module.exports = {
 		new CopyWebpackPlugin({
 			patterns: [
 				{
-					from: 'public/static/privacy-policy.html',
-					to: 'privacy-policy.html'
-				},
-				{
-					from: 'public/favicon.ico',
-					to: 'favicon.ico'
+					from: 'public/static',
+					to: 'static',
+					globOptions: {
+						ignore: ['**/index.html']
+					}
 				}
 			]
 		})
