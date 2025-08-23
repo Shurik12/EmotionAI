@@ -3,7 +3,7 @@ import { translations } from '../utils/translations';
 
 export const useLanguage = () => {
 	const [language, setLanguage] = useState(
-		localStorage.getItem('language') || 'ru'
+		localStorage.getItem('language') || 'en'
 	);
 
 	useEffect(() => {

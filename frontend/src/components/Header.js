@@ -28,7 +28,7 @@ const Header = ({ navigateTo, language, setLanguage }) => {
 
 			<img
 				style={{ height: '7%', width: '7%' }}
-				src="/static/media/Razuma_Black.svg"
+				src="/static/Razuma_Black.svg"
 				alt="Razuma Logo"
 			/>
 

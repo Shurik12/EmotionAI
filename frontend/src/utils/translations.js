@@ -288,7 +288,7 @@ export const translations = {
 };
 
 // Helper function to get translated text with replacements
-export const t = (key, language = 'ru', replacements = {}) => {
+export const t = (key, language = 'en', replacements = {}) => {
 	let translation = translations[language]?.[key] || key;
 
 	// Replace placeholders with actual values
