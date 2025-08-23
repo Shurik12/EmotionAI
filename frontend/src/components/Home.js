@@ -1,12 +1,9 @@
 import React, { useEffect } from 'react';
-import { useLanguage } from '../hooks/useLanguage';
-import { t as translate } from '../utils/translations';
+import { t } from '../utils/translations';
 
 const Home = ({ openApplicationModal, navigateTo }) => {
-	const { language, updateTexts } = useLanguage();
 
 	useEffect(() => {
-		updateTexts();
 
 		// Add event listeners for plan buttons
 		const usePlanButtons = document.querySelectorAll('.use-plan-btn');
@@ -29,11 +26,7 @@ const Home = ({ openApplicationModal, navigateTo }) => {
 			usePlanButtons.forEach(btn => btn.removeEventListener('click', () => { }));
 			applyPlanButtons.forEach(btn => btn.removeEventListener('click', () => { }));
 		};
-	}, [language, updateTexts, navigateTo, openApplicationModal]);
-
-	const t = (key, replacements = {}) => {
-		return translate(key, language, replacements);
-	};
+	}, [navigateTo, openApplicationModal]);
 
 	return (
 		<>
