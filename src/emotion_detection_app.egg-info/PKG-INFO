@@ -1,0 +1,22 @@
+Metadata-Version: 2.4
+Name: emotion-detection-app
+Version: 1.0.0
+Summary: Emotion detection application using facial analysis
+Author-email: Your Name <your.email@example.com>
+Requires-Python: >=3.7
+License-File: LICENSE
+Requires-Dist: flask==2.3.3
+Requires-Dist: flask-cors==4.0.0
+Requires-Dist: flask-limiter==3.5.0
+Requires-Dist: redis==5.0.1
+Requires-Dist: opencv-python==4.8.1.78
+Requires-Dist: numpy==1.26.0
+Requires-Dist: torch==2.8.0
+Requires-Dist: torchaudio==2.8.0
+Requires-Dist: torchvision==0.23.0
+Requires-Dist: facenet-pytorch==2.5.3
+Requires-Dist: emotiefflib==1.0
+Requires-Dist: pyyaml==6.0.1
+Requires-Dist: werkzeug==2.3.7
+Requires-Dist: gunicorn==21.2.0
+Dynamic: license-file
