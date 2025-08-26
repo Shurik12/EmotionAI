@@ -1,0 +1,15 @@
+LICENSE
+README.md
+pyproject.toml
+src/emotion_detection_app.egg-info/PKG-INFO
+src/emotion_detection_app.egg-info/SOURCES.txt
+src/emotion_detection_app.egg-info/dependency_links.txt
+src/emotion_detection_app.egg-info/entry_points.txt
+src/emotion_detection_app.egg-info/requires.txt
+src/emotion_detection_app.egg-info/top_level.txt
+src/models/__init__.py
+src/models/file_processor.py
+src/models/redis_manager.py
+src/routes/__init__.py
+src/routes/api.py
+src/routes/frontend.py
