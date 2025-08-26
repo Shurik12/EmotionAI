@@ -1,12 +1,18 @@
 import os
-import sys
+import logging
+from src.app import create_app
 
-# Add the current directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from server import create_app
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('emotion_detection.log'),
+        logging.StreamHandler()
+    ]
+)
 
 app = create_app()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run()
