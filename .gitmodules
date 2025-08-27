@@ -1,0 +1,3 @@
+[submodule "contrib/emotiefflib"]
+	path = contrib/emotiefflib
+	url = https://github.com/sb-ai-lab/EmotiEffLib.git
