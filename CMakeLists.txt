@@ -19,7 +19,9 @@ find_package(yaml-cpp REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(hiredis REQUIRED)
+
+find_path(HIREDIS_INCLUDE_DIR hiredis/hiredis.h)
+find_library(HIREDIS_LIBRARY NAMES hiredis)
 
 # Set paths for optional dependencies
 set(WITH_TORCH "${CMAKE_CURRENT_SOURCE_DIR}/contrib/libtorch" CACHE PATH "Path to LibTorch")
@@ -58,6 +60,7 @@ include_directories(
 set(COMMON_SOURCES
     src/common/Config.cpp
     src/common/Logging.cpp
+    src/common/base64.cpp
 )
 
 set(DB_SOURCES
@@ -104,7 +107,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     fmt::fmt
     nlohmann_json::nlohmann_json
     emotiefflib
-    hiredis
+    ${HIREDIS_LIBRARY}
 )
 
 # Add definitions
