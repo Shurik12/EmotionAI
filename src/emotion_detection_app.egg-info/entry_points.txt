@@ -1,2 +1,0 @@
-[console_scripts]
-emotion-detection = src.app:main
