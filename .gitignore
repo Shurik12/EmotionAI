@@ -1,3 +1,6 @@
-static/results/
-__pycache__/
-output_files/
+.vscode/
+venv/
+frontend/build/
+config.yaml
+emotion_detection.log
+results.txt
