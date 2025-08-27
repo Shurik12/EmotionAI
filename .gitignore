@@ -1,3 +1,12 @@
-static/results/
-__pycache__/
-output_files/
+.vscode/
+venv/
+contrib/emotiefflib/
+contrib/libtorch/
+contrib/onnxruntime/
+build/
+frontend/build/
+src/emotion_detection_app.egg-info/
+config.yaml
+emotion_detection.log
+results.txt
+a.txt
