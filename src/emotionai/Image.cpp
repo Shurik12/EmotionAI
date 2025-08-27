@@ -196,7 +196,7 @@ namespace EmotionAI
 		return faces;
 	}
 
-	std::vector<cv::Mat> recognizeFaces(const cv::Mat &frame, int downscaleWidth)
+	std::vector<cv::Mat> Image::recognizeFaces(const cv::Mat &frame, int downscaleWidth)
 	{
 		// Configuration for MTCNN
 		std::string dirWithModels = "./models"; // Adjust this path as needed
