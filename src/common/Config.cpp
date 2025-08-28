@@ -32,6 +32,34 @@ namespace Common
 			config_ = YAML::LoadFile(config_path);
 			loaded_ = true;
 
+			// DEBUG: Print the entire config structure
+			spdlog::info("Configuration structure:");
+			try
+			{
+				if (config_["redis"])
+				{
+					spdlog::info("Redis section found");
+					if (config_["redis"]["password"])
+					{
+						spdlog::info("Redis password key exists");
+						spdlog::info("Redis password type: {}", config_["redis"]["password"].Type());
+						spdlog::info("Redis password value: '{}'", config_["redis"]["password"].as<std::string>());
+					}
+					else
+					{
+						spdlog::info("Redis password key NOT found");
+					}
+				}
+				else
+				{
+					spdlog::info("Redis section NOT found");
+				}
+			}
+			catch (const std::exception &e)
+			{
+				spdlog::warn("Error examining config structure: {}", e.what());
+			}
+
 			spdlog::info("Configuration loaded successfully from: {}", config_path);
 			return true;
 		}
@@ -74,27 +102,47 @@ namespace Common
 	std::string Config::getString(const std::vector<std::string> &path, const std::string &default_value) const
 	{
 		if (!loaded_)
+		{
+			spdlog::warn("Config not loaded, using default: {}", default_value);
 			return default_value;
+		}
 
 		try
 		{
 			YAML::Node node = config_;
-			for (const auto &key : path)
+			for (size_t i = 0; i < path.size(); ++i)
 			{
-				if (node[key])
-				{
-					node = node[key];
-				}
-				else
+				const auto &key = path[i];
+				if (!node[key])
 				{
 					return default_value;
 				}
+
+				node = node[key];
 			}
-			return node.as<std::string>(default_value);
+
+			// Check if the final node is valid and convertible to string
+			if (!node.IsDefined() || node.IsNull())
+			{
+				return default_value;
+			}
+
+			try
+			{
+				std::string value = node.as<std::string>();
+				return value;
+			}
+			catch (const YAML::BadConversion &e)
+			{
+				return default_value;
+			}
 		}
 		catch (const YAML::Exception &e)
 		{
-			spdlog::warn("Error reading config value: {}", e.what());
+			return default_value;
+		}
+		catch (const std::exception &e)
+		{
 			return default_value;
 		}
 	}
@@ -260,7 +308,36 @@ namespace Common
 
 	std::string Config::redisPassword() const
 	{
-		return getString({"redis", "password"}, "");
+		spdlog::debug("Getting Redis password...");
+		std::string password = getString({"redis", "password"}, "");
+
+		// If getString fails, try direct access as fallback
+		if (password.empty())
+		{
+			spdlog::warn("getString failed, trying direct access to Redis password");
+			try
+			{
+				if (config_["redis"] && config_["redis"]["password"])
+				{
+					password = config_["redis"]["password"].as<std::string>();
+					spdlog::info("Direct access successful: '{}'", password);
+				}
+				else
+				{
+					spdlog::warn("Direct access also failed - redis or password node not found");
+				}
+			}
+			catch (const std::exception &e)
+			{
+				spdlog::error("Direct access exception: {}", e.what());
+			}
+		}
+
+		spdlog::debug("Redis password result: '{}'", password);
+		spdlog::debug("Redis password length: {}", password.length());
+		spdlog::debug("Redis password empty: {}", password.empty() ? "YES" : "NO");
+
+		return password;
 	}
 
 	bool Config::mtcnnKeepAll() const

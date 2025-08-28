@@ -53,6 +53,7 @@ private:
 	void initializeLogging();
 	void setupRoutes();
 	void ensureDirectoriesExist();
+	void initializeComponents();
 
 	// Route handlers
 	void handleUpload(const httplib::Request &req, httplib::Response &res);

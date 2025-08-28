@@ -16,9 +16,22 @@ namespace db
 
 	RedisManager::RedisManager() : connection_(nullptr)
 	{
+	}
+
+	RedisManager::~RedisManager()
+	{
+		if (connection_)
+		{
+			redisFree(connection_);
+			connection_ = nullptr;
+		}
+	}
+
+	void RedisManager::initialize()
+	{
 		try
 		{
-			// Get configuration from environment or config
+			// Get configuration from Config singleton
 			auto &config = Common::Config::instance();
 
 			// Load upload folder from config
@@ -38,32 +51,22 @@ namespace db
 		}
 	}
 
-	RedisManager::~RedisManager()
-	{
-		if (connection_)
-		{
-			redisFree(connection_);
-			connection_ = nullptr;
-		}
-	}
-
 	redisContext *RedisManager::create_connection()
 	{
 		try
 		{
-			// Get Redis configuration from environment variables or config
-			const char *host = std::getenv("REDIS_HOST");
-			const char *port = std::getenv("REDIS_PORT");
-			const char *db = std::getenv("REDIS_DB");
-			const char *password = std::getenv("REDIS_PASSWORD");
+			// Get Redis configuration from Config singleton
+			auto &config = Common::Config::instance();
 
-			// Use defaults if environment variables are not set
-			std::string redis_host = host ? host : "localhost";
-			std::string redis_port_str = port ? port : "6379";
-			int redis_db = db ? std::stoi(db) : 0;
-			std::string redis_password = password ? password : "";
+			std::string redis_host = config.redisHost();
+			int redis_port = config.redisPort();
+			int redis_db = config.redisDb();
+			std::string redis_password = config.redisPassword();
 
-			int redis_port = std::stoi(redis_port_str);
+			spdlog::info("Connecting to Redis: {}:{} (DB: {})", redis_host, redis_port, redis_db);
+			spdlog::info("Password provided: {}", redis_password.empty() ? "NO" : "YES");
+			spdlog::info("Password value: '{}'", redis_password);
+			spdlog::info("Password length: {}", redis_password.length());
 
 			// Connect to Redis
 			redisContext *conn = redisConnect(redis_host.c_str(), redis_port);
@@ -78,6 +81,7 @@ namespace db
 			// Authenticate if password is provided
 			if (!redis_password.empty())
 			{
+				spdlog::info("Authenticating with Redis using password");
 				redisReply *reply = (redisReply *)redisCommand(conn, "AUTH %s", redis_password.c_str());
 				if (reply == nullptr || reply->type == REDIS_REPLY_ERROR)
 				{
@@ -87,6 +91,11 @@ namespace db
 					throw std::runtime_error("Redis authentication failed: " + error_msg);
 				}
 				freeReplyObject(reply);
+				spdlog::info("Redis authentication successful");
+			}
+			else
+			{
+				spdlog::info("No Redis password configured, skipping authentication");
 			}
 
 			// Select database if not default
@@ -101,6 +110,7 @@ namespace db
 					throw std::runtime_error("Redis database selection failed: " + error_msg);
 				}
 				freeReplyObject(reply);
+				spdlog::info("Selected Redis database: {}", redis_db);
 			}
 
 			// Test connection with PING
@@ -115,6 +125,7 @@ namespace db
 			}
 			freeReplyObject(reply);
 
+			spdlog::info("Redis connection test successful");
 			return conn;
 		}
 		catch (const std::exception &e)
@@ -123,7 +134,6 @@ namespace db
 			throw;
 		}
 	}
-
 	redisContext *RedisManager::connection()
 	{
 		if (!connection_)

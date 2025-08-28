@@ -20,10 +20,9 @@ namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 WebServer::WebServer()
-	: redis_manager_(std::make_unique<db::RedisManager>()),
-	  file_processor_(std::make_unique<EmotionAI::FileProcessor>(*redis_manager_))
+	: redis_manager_(nullptr),
+	  file_processor_(nullptr)
 {
-	initialize();
 }
 
 WebServer::~WebServer()
@@ -49,10 +48,32 @@ WebServer::~WebServer()
 
 void WebServer::initialize()
 {
+	spdlog::info("WebServer::initialize");
 	loadConfiguration();
 	initializeLogging();
 	ensureDirectoriesExist();
+	initializeComponents(); // Initialize RedisManager and FileProcessor after config is loaded
 	setupRoutes();
+}
+
+void WebServer::initializeComponents()
+{
+	spdlog::info("Initializing RedisManager and FileProcessor...");
+	try
+	{
+		// Create RedisManager first
+		redis_manager_ = std::make_unique<db::RedisManager>();
+		spdlog::info("RedisManager initialized successfully");
+
+		// Create FileProcessor with the RedisManager reference
+		file_processor_ = std::make_unique<EmotionAI::FileProcessor>(*redis_manager_);
+		spdlog::info("FileProcessor initialized successfully");
+	}
+	catch (const std::exception &e)
+	{
+		spdlog::error("Failed to initialize components: {}", e.what());
+		throw;
+	}
 }
 
 void WebServer::start()
@@ -85,7 +106,7 @@ void WebServer::loadConfiguration()
 	auto &config = Common::Config::instance();
 
 	// Load configuration from file
-	if (!config.loadFromFile())
+	if (!config.loadFromFile("config.yaml"))
 	{
 		spdlog::warn("Failed to load configuration file, using defaults");
 	}
@@ -194,6 +215,14 @@ void WebServer::handleUpload(const httplib::Request &req, httplib::Response &res
 			return;
 		}
 
+		// Check if file_processor_ is initialized
+		if (!file_processor_)
+		{
+			res.status = 500;
+			res.set_content(R"({"error": "Server not properly initialized"})", "application/json");
+			return;
+		}
+
 		if (file_processor_->allowed_file(file.filename))
 		{
 			std::string filename = file.filename;
@@ -238,6 +267,14 @@ void WebServer::handleProgress(const httplib::Request &req, httplib::Response &r
 {
 	try
 	{
+		// Check if redis_manager_ is initialized
+		if (!redis_manager_)
+		{
+			res.status = 500;
+			res.set_content(R"({"error": "Server not properly initialized"})", "application/json");
+			return;
+		}
+
 		auto status = redis_manager_->get_task_status(task_id);
 		if (!status)
 		{
@@ -260,6 +297,14 @@ void WebServer::handleSubmitApplication(const httplib::Request &req, httplib::Re
 {
 	try
 	{
+		// Check if redis_manager_ is initialized
+		if (!redis_manager_)
+		{
+			res.status = 500;
+			res.set_content(R"({"error": "Server not properly initialized"})", "application/json");
+			return;
+		}
+
 		json application_data;
 
 		try
@@ -292,7 +337,6 @@ void WebServer::handleSubmitApplication(const httplib::Request &req, httplib::Re
 		res.set_content(R"({"error": "Internal server error"})", "application/json");
 	}
 }
-
 void WebServer::handleServeResult(const httplib::Request &req, httplib::Response &res, const std::string &filename)
 {
 	try

@@ -59,7 +59,6 @@ namespace Common
 		bool getBool(const std::vector<std::string> &path, bool default_value = false) const;
 		std::vector<std::string> getStringArray(const std::vector<std::string> &path,
 												const std::vector<std::string> &default_value = {}) const;
-
 		YAML::Node config_;
 		bool loaded_ = false;
 	};
