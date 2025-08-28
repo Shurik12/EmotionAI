@@ -21,6 +21,8 @@ namespace db
 		RedisManager(RedisManager &&) = delete;
 		RedisManager &operator=(RedisManager &&) = delete;
 
+		void initialize();
+
 		redisContext *connection();
 		const redisContext *connection() const;
 

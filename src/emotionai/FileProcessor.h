@@ -8,6 +8,7 @@
 #include <torch/torch.h>
 #include <torch/script.h>
 #include <nlohmann/json.hpp>
+#include <emotiefflib/facial_analysis.h>
 
 // Forward declaration to avoid circular dependency
 namespace db
@@ -44,7 +45,7 @@ namespace EmotionAI
 		std::unique_ptr<MTCNNImpl> mtcnn_;
 
 		// Emotion recognition model
-		torch::jit::script::Module emotion_model_;
+		std::unique_ptr<EmotiEffLib::EmotiEffLibRecognizer> fer_;
 		bool model_loaded_;
 
 		void cleanup_file(const std::string &filepath);
@@ -55,7 +56,6 @@ namespace EmotionAI
 		// Helper functions
 		void initialize_models();
 		cv::Mat preprocess_face(const cv::Mat &face_image);
-		std::vector<float> predict_emotions(const cv::Mat &face_image);
 
 		// Configuration
 		static const std::vector<std::string> EMOTION_CATEGORIES;
