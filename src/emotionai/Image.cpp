@@ -4,9 +4,7 @@
 #include <fmt/format.h>
 #include <emotiefflib/facial_analysis.h>
 #include <common/Config.h>
-// #include <../3rdparty/opencv-mtcnn/lib/include/mtcnn/detector.h>
 #include <mtcnn/detector.h>
-
 
 namespace fs = std::filesystem;
 
@@ -226,7 +224,7 @@ namespace EmotionAI
 
 			for (const auto &face_img : facial_images)
 			{
-				EmotiEffLib::EmotiEffLibRes scores = fer->predictEmotions(face_img, true);
+				EmotiEffLib::EmotiEffLibRes scores = fer->predictEmotions(face_img, false);
 				scores_list.push_back(std::move(scores));
 			}
 
@@ -243,25 +241,20 @@ namespace EmotionAI
 			// Build JSON result
 			nlohmann::json result;
 
+			auto &config = Common::Config::instance();
+			auto emotions = config.emotionCategories();
 			// Main prediction
 			auto &main_pred = result["main_prediction"];
 			main_pred["index"] = main_emotion_idx;
-			main_pred["label"] = "";
+			main_pred["label"] = emotions[main_emotion_idx];
 			main_pred["probability"] = first_score.scores[main_emotion_idx];
 
 			// Additional probabilities
 			nlohmann::json additional_probs;
 
-			for (size_t i=0; i < first_score.scores.size(); ++i)
-			{
-				std::cout << first_score.scores[i] << "\n";
-			}
-
-			for (size_t i = 0; i < first_score.labels.size(); ++i)
-			{
-				std::cout << first_score.labels[i] << "\n";
-				additional_probs[first_score.labels[i]] = fmt::format("{:.2f}", first_score.scores[i]);
-			}
+			for (size_t i = 0; i < emotions.size(); ++i)
+				additional_probs[emotions[i]] = fmt::format("{:.2f}", first_score.scores[i]);
+				
 			result["additional_probs"] = std::move(additional_probs);
 
 			cv::Mat annotated_image = image_rgb.clone();
