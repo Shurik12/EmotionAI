@@ -20,7 +20,7 @@ namespace Common
             auto &config = Common::Config::instance();
 
             // Check if logging is configured
-            if (config.logFolder().empty())
+            if (config.logPath().empty())
             {
                 throw std::runtime_error("Log folder not configured");
             }
@@ -31,7 +31,7 @@ namespace Common
 
             // Create full log file path using the configured log folder
             // Convert both paths to std::filesystem::path before using /
-            fs::path log_folder_path = config.logFolder();
+            fs::path log_folder_path = config.logPath();
             fs::path log_file_path = log_file;
             fs::path full_log_path = log_folder_path / log_file_path;
 

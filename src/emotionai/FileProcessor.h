@@ -2,11 +2,8 @@
 
 #include <string>
 #include <vector>
-#include <map>
 #include <memory>
 #include <opencv2/opencv.hpp>
-#include <torch/torch.h>
-#include <torch/script.h>
 #include <nlohmann/json.hpp>
 #include <emotiefflib/facial_analysis.h>
 
@@ -18,7 +15,6 @@ namespace db
 
 namespace EmotionAI
 {
-
 	class Image; // Forward declaration
 
 	// Forward declaration for MTCNN implementation
@@ -38,13 +34,14 @@ namespace EmotionAI
 		bool allowed_file(const std::string &filename);
 		void process_file(const std::string &task_id, const std::string &filepath, const std::string &filename);
 
+		// Getter for emotion recognizer to be used by Image class
+		EmotiEffLib::EmotiEffLibRecognizer *get_emotion_recognizer() const { return fer_.get(); }
+		bool is_model_loaded() const { return model_loaded_; }
+
 	private:
 		db::RedisManager &redis_manager_;
 
-		// MTCNN implementation using PIMPL pattern
-		std::unique_ptr<MTCNNImpl> mtcnn_;
-
-		// Emotion recognition model
+		// Emotion recognition model (now shared with Image class)
 		std::unique_ptr<EmotiEffLib::EmotiEffLibRecognizer> fer_;
 		bool model_loaded_;
 
@@ -55,11 +52,9 @@ namespace EmotionAI
 
 		// Helper functions
 		void initialize_models();
-		cv::Mat preprocess_face(const cv::Mat &face_image);
 
 		// Configuration
 		static const std::vector<std::string> EMOTION_CATEGORIES;
 		static const std::vector<std::string> ALLOWED_EXTENSIONS;
 	};
-
 } // namespace EmotionAI

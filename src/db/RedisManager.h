@@ -3,6 +3,8 @@
 #include <string>
 #include <optional>
 #include <memory>
+#include <mutex>
+#include <atomic>
 #include <hiredis/hiredis.h>
 #include <nlohmann/json.hpp>
 #include <common/uuid.h>
@@ -23,8 +25,9 @@ namespace db
 
 		void initialize();
 
-		redisContext *connection();
-		const redisContext *connection() const;
+		void loadConfiguration();
+
+		bool is_initialized() const { return initialized_.load(); }
 
 		void set_task_status(const std::string &task_id, const std::string &status_data);
 		void set_task_status(const std::string &task_id, const nlohmann::json &status_data);
@@ -35,14 +38,25 @@ namespace db
 		std::string save_application(const std::string &application_data);
 		std::string save_application(const nlohmann::json &application_data);
 
-		// Helper method to generate UUID using the provided uuid.h
 		static std::string generate_uuid();
 
 	private:
 		redisContext *create_connection();
 		void free_reply(redisReply *reply);
 
-		redisContext *connection_;
+		redisReply *execute_command(const char *format, ...);
+
+		bool ensure_connection();
+
+		// Cached configuration
+		std::string redis_host_;
+		int redis_port_;
+		int redis_db_;
+		std::string redis_password_;
+
+		std::unique_ptr<redisContext> connection_;
+		std::mutex connection_mutex_;
+		std::atomic<bool> initialized_{false};
 		std::string upload_folder_;
 		int task_expiration_;
 	};

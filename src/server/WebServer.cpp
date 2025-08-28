@@ -63,6 +63,7 @@ void WebServer::initializeComponents()
 	{
 		// Create RedisManager first
 		redis_manager_ = std::make_unique<db::RedisManager>();
+		redis_manager_->initialize();
 		spdlog::info("RedisManager initialized successfully");
 
 		// Create FileProcessor with the RedisManager reference
@@ -78,13 +79,17 @@ void WebServer::initializeComponents()
 
 void WebServer::start()
 {
+	auto &config = Common::Config::instance();
+	std::string host = config.serverHost();
+	int port = config.serverPort();
+
 	svr_.set_logger([](const auto &req, const auto &res)
 					{ Common::log_request_response(req, res); });
 
-	spdlog::info("Starting server on 0.0.0.0:8080");
-	if (!svr_.listen("0.0.0.0", 8080))
+	spdlog::info("Starting server on {}:{}", host, port);
+	if (!svr_.listen(host.c_str(), port))
 	{
-		throw std::runtime_error("Failed to start server");
+		throw std::runtime_error(fmt::format("Failed to start server on {}:{}", host, port));
 	}
 }
 
@@ -117,11 +122,11 @@ void WebServer::loadConfiguration()
 		throw std::runtime_error("Failed to setup application environment");
 	}
 
-	// Get the configured paths
-	log_folder_ = config.logFolder();
+	// Get the configured paths from config
+	log_folder_ = config.logPath();
 	static_files_root_ = config.frontendBuildPath();
-	upload_folder_ = config.uploadFolder();
-	results_folder_ = config.resultsFolder();
+	upload_folder_ = config.uploadPath();
+	results_folder_ = config.resultPath();
 }
 
 void WebServer::initializeLogging()
