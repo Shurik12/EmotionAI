@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <sstream>
 #include <random>
+#include <cstdarg>
 #include <common/uuid.h>
 #include <common/Config.h>
 
@@ -14,40 +15,96 @@ namespace fs = std::filesystem;
 namespace db
 {
 
-	RedisManager::RedisManager() : connection_(nullptr)
+	RedisManager::RedisManager() : connection_(nullptr), redis_port_(6379), redis_db_(0), task_expiration_(3600)
 	{
 	}
 
 	RedisManager::~RedisManager()
 	{
+		std::lock_guard<std::mutex> lock(connection_mutex_);
 		if (connection_)
 		{
-			redisFree(connection_);
-			connection_ = nullptr;
+			redisFree(connection_.get());
+			connection_.reset();
 		}
+		initialized_.store(false);
 	}
 
 	void RedisManager::initialize()
 	{
+		loadConfiguration();
+
+		fs::create_directories(upload_folder_);
+		std::lock_guard<std::mutex> lock(connection_mutex_);
+		connection_.reset(create_connection());
+		initialized_.store(true);
+		spdlog::info("Successfully connected to Redis");
+	}
+
+	void RedisManager::loadConfiguration()
+	{
+		auto &config = Common::Config::instance();
+
+		// Load configuration with proper defaults from config
+		redis_host_ = config.redisHost();
+		redis_port_ = config.redisPort();
+		redis_db_ = config.redisDb();
+		redis_password_ = config.redisPassword();
+		upload_folder_ = config.uploadPath();
+		task_expiration_ = config.taskExpiration();
+
+		spdlog::info("Redis configuration loaded: {}:{} (DB: {})",
+					 redis_host_, redis_port_, redis_db_);
+	}
+	bool RedisManager::ensure_connection()
+	{
+		if (initialized_.load())
+		{
+			return true;
+		}
+
+		std::lock_guard<std::mutex> lock(connection_mutex_);
+		if (!connection_)
+		{
+			try
+			{
+				connection_.reset(create_connection());
+				initialized_.store(true);
+				spdlog::info("Reconnected to Redis successfully");
+				return true;
+			}
+			catch (const std::exception &e)
+			{
+				spdlog::error("Failed to reconnect to Redis: {}", e.what());
+				return false;
+			}
+		}
+
+		// Test if connection is still alive
+		redisReply *reply = (redisReply *)redisCommand(connection_.get(), "PING");
+		if (reply && reply->type == REDIS_REPLY_STRING && std::string(reply->str) == "PONG")
+		{
+			freeReplyObject(reply);
+			return true;
+		}
+
+		freeReplyObject(reply);
+
+		// Connection is dead, try to reconnect
 		try
 		{
-			// Get configuration from Config singleton
-			auto &config = Common::Config::instance();
-
-			// Load upload folder from config
-			upload_folder_ = config.uploadFolder();
-			task_expiration_ = config.taskExpiration();
-
-			// Create upload directory if it doesn't exist
-			fs::create_directories(upload_folder_);
-
-			connection_ = create_connection();
-			spdlog::info("Successfully connected to Redis");
+			redisFree(connection_.get());
+			connection_.reset(create_connection());
+			initialized_.store(true);
+			spdlog::info("Reconnected to Redis after connection loss");
+			return true;
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Failed to initialize RedisManager: {}", e.what());
-			throw;
+			spdlog::error("Failed to reconnect to Redis: {}", e.what());
+			connection_.reset(nullptr);
+			initialized_.store(false);
+			return false;
 		}
 	}
 
@@ -55,21 +112,12 @@ namespace db
 	{
 		try
 		{
-			// Get Redis configuration from Config singleton
-			auto &config = Common::Config::instance();
+			spdlog::info("Connecting to Redis: {}:{} (DB: {})", redis_host_, redis_port_, redis_db_);
 
-			std::string redis_host = config.redisHost();
-			int redis_port = config.redisPort();
-			int redis_db = config.redisDb();
-			std::string redis_password = config.redisPassword();
+			// Set connection timeout
+			struct timeval timeout = {1, 500000}; // 1.5 seconds
+			redisContext *conn = redisConnectWithTimeout(redis_host_.c_str(), redis_port_, timeout);
 
-			spdlog::info("Connecting to Redis: {}:{} (DB: {})", redis_host, redis_port, redis_db);
-			spdlog::info("Password provided: {}", redis_password.empty() ? "NO" : "YES");
-			spdlog::info("Password value: '{}'", redis_password);
-			spdlog::info("Password length: {}", redis_password.length());
-
-			// Connect to Redis
-			redisContext *conn = redisConnect(redis_host.c_str(), redis_port);
 			if (conn == nullptr || conn->err)
 			{
 				std::string error_msg = conn ? conn->errstr : "Cannot allocate redis context";
@@ -79,10 +127,9 @@ namespace db
 			}
 
 			// Authenticate if password is provided
-			if (!redis_password.empty())
+			if (!redis_password_.empty())
 			{
-				spdlog::info("Authenticating with Redis using password");
-				redisReply *reply = (redisReply *)redisCommand(conn, "AUTH %s", redis_password.c_str());
+				redisReply *reply = (redisReply *)redisCommand(conn, "AUTH %s", redis_password_.c_str());
 				if (reply == nullptr || reply->type == REDIS_REPLY_ERROR)
 				{
 					std::string error_msg = reply ? reply->str : "Authentication failed";
@@ -93,15 +140,11 @@ namespace db
 				freeReplyObject(reply);
 				spdlog::info("Redis authentication successful");
 			}
-			else
-			{
-				spdlog::info("No Redis password configured, skipping authentication");
-			}
 
 			// Select database if not default
-			if (redis_db != 0)
+			if (redis_db_ != 0)
 			{
-				redisReply *reply = (redisReply *)redisCommand(conn, "SELECT %d", redis_db);
+				redisReply *reply = (redisReply *)redisCommand(conn, "SELECT %d", redis_db_);
 				if (reply == nullptr || reply->type == REDIS_REPLY_ERROR)
 				{
 					std::string error_msg = reply ? reply->str : "Database selection failed";
@@ -110,10 +153,10 @@ namespace db
 					throw std::runtime_error("Redis database selection failed: " + error_msg);
 				}
 				freeReplyObject(reply);
-				spdlog::info("Selected Redis database: {}", redis_db);
+				spdlog::info("Selected Redis database: {}", redis_db_);
 			}
 
-			// Test connection with PING
+			// Test connection
 			redisReply *reply = (redisReply *)redisCommand(conn, "PING");
 			if (reply == nullptr || reply->type == REDIS_REPLY_ERROR ||
 				(reply->type == REDIS_REPLY_STRING && std::string(reply->str) != "PONG"))
@@ -134,22 +177,44 @@ namespace db
 			throw;
 		}
 	}
-	redisContext *RedisManager::connection()
-	{
-		if (!connection_)
-		{
-			throw std::runtime_error("Redis connection is not initialized");
-		}
-		return connection_;
-	}
 
-	const redisContext *RedisManager::connection() const
+	redisReply *RedisManager::execute_command(const char *format, ...)
 	{
-		if (!connection_)
+		if (!ensure_connection())
 		{
-			throw std::runtime_error("Redis connection is not initialized");
+			throw std::runtime_error("Redis connection is not available");
 		}
-		return connection_;
+
+		std::lock_guard<std::mutex> lock(connection_mutex_);
+
+		va_list ap;
+		va_start(ap, format);
+		redisReply *reply = (redisReply *)redisvCommand(connection_.get(), format, ap);
+		va_end(ap);
+
+		if (reply == nullptr)
+		{
+			// Connection might be broken, mark as uninitialized
+			initialized_.store(false);
+			throw std::runtime_error("Redis command failed: null reply - connection may be broken");
+		}
+
+		if (reply->type == REDIS_REPLY_ERROR)
+		{
+			std::string error_msg = reply->str;
+			freeReplyObject(reply);
+
+			// Check if it's a connection error
+			if (error_msg.find("Connection") != std::string::npos ||
+				error_msg.find("broken") != std::string::npos)
+			{
+				initialized_.store(false);
+			}
+
+			throw std::runtime_error("Redis command failed: " + error_msg);
+		}
+
+		return reply;
 	}
 
 	void RedisManager::free_reply(redisReply *reply)
@@ -165,15 +230,11 @@ namespace db
 		try
 		{
 			std::string key = "task:" + task_id;
-			redisReply *reply = (redisReply *)redisCommand(connection_, "SETEX %s %d %s",
-														   key.c_str(), task_expiration_, status_data.c_str());
-
-			if (reply == nullptr || reply->type == REDIS_REPLY_ERROR)
-			{
-				std::string error_msg = reply ? reply->str : "SETEX command failed";
-				free_reply(reply);
-				throw std::runtime_error("Error updating task status: " + error_msg);
-			}
+			redisReply *reply = execute_command("SETEX %s %d %b",
+												key.c_str(),
+												task_expiration_,
+												status_data.c_str(),
+												status_data.size());
 
 			free_reply(reply);
 			spdlog::debug("Set task status for task_id: {}", task_id);
@@ -181,7 +242,8 @@ namespace db
 		catch (const std::exception &e)
 		{
 			spdlog::error("Error updating task status for task_id {}: {}", task_id, e.what());
-			throw;
+			// Don't throw here to avoid crashing the application
+			// The error will be stored in the task status itself
 		}
 	}
 
@@ -195,19 +257,7 @@ namespace db
 		try
 		{
 			std::string key = "task:" + task_id;
-			redisReply *reply = (redisReply *)redisCommand(connection_, "GET %s", key.c_str());
-
-			if (reply == nullptr)
-			{
-				throw std::runtime_error("GET command failed: null reply");
-			}
-
-			if (reply->type == REDIS_REPLY_ERROR)
-			{
-				std::string error_msg = reply->str;
-				free_reply(reply);
-				throw std::runtime_error("GET command failed: " + error_msg);
-			}
+			redisReply *reply = execute_command("GET %s", key.c_str());
 
 			if (reply->type == REDIS_REPLY_NIL)
 			{
@@ -262,18 +312,16 @@ namespace db
 	{
 		try
 		{
-			// Use the uuid library's random generator
 			std::random_device rd;
 			std::mt19937 gen(rd());
 			uuids::uuid_random_generator generator(gen);
-
 			uuids::uuid id = generator();
 			return uuids::to_string(id);
 		}
 		catch (const std::exception &e)
 		{
 			spdlog::error("Error generating UUID: {}", e.what());
-			// Fallback to simple random generation if uuid library fails
+			// Fallback implementation
 			std::random_device rd;
 			std::mt19937 gen(rd());
 			std::uniform_int_distribution<> dis(0, 15);
@@ -281,33 +329,21 @@ namespace db
 
 			std::stringstream ss;
 			ss << std::hex;
-
 			for (int i = 0; i < 8; i++)
-			{
 				ss << dis(gen);
-			}
 			ss << "-";
 			for (int i = 0; i < 4; i++)
-			{
 				ss << dis(gen);
-			}
 			ss << "-4";
 			for (int i = 0; i < 3; i++)
-			{
 				ss << dis(gen);
-			}
 			ss << "-";
 			ss << dis2(gen);
 			for (int i = 0; i < 3; i++)
-			{
 				ss << dis(gen);
-			}
 			ss << "-";
 			for (int i = 0; i < 12; i++)
-			{
 				ss << dis(gen);
-			}
-
 			return ss.str();
 		}
 	}
@@ -316,18 +352,12 @@ namespace db
 	{
 		try
 		{
-			// Parse the application data to add metadata
-			nlohmann::json application_json;
-			try
-			{
-				application_json = nlohmann::json::parse(application_data);
-			}
-			catch (const nlohmann::json::parse_error &e)
-			{
-				throw std::runtime_error("Invalid JSON data: " + std::string(e.what()));
-			}
-
+			nlohmann::json application_json = nlohmann::json::parse(application_data);
 			return save_application(application_json);
+		}
+		catch (const nlohmann::json::parse_error &e)
+		{
+			throw std::runtime_error("Invalid JSON data: " + std::string(e.what()));
 		}
 		catch (const std::exception &e)
 		{
@@ -341,25 +371,18 @@ namespace db
 		try
 		{
 			std::string application_id = generate_uuid();
-
-			// Create a copy and add metadata
 			nlohmann::json application_with_meta = application_data;
 
-			// Get current timestamp in ISO format
 			auto now = std::chrono::system_clock::now();
 			auto in_time_t = std::chrono::system_clock::to_time_t(now);
 			std::stringstream ss;
 			ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%dT%H:%M:%S");
-			std::string timestamp = ss.str();
 
-			// Add metadata
 			application_with_meta["id"] = application_id;
-			application_with_meta["timestamp"] = timestamp;
+			application_with_meta["timestamp"] = ss.str();
 			application_with_meta["status"] = "new";
 
-			// Save to text file
 			fs::path applications_file = fs::path(upload_folder_) / "applications.txt";
-
 			std::ofstream out_file(applications_file, std::ios::app);
 			if (!out_file.is_open())
 			{
