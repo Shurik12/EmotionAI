@@ -156,7 +156,7 @@ namespace EmotionAI
 			// Save result using Image class
 			Image result_image(processed_image, ".jpg");
 			std::string result_filename = "result_" + filename;
-			std::string result_path = (fs::path("results") / result_filename).string();
+			std::string result_path = (fs::path("result") / result_filename).string();
 
 			// Save the processed image
 			std::ofstream out_file(result_path, std::ios::binary);
