@@ -89,17 +89,18 @@ namespace EmotionAI
 			try
 			{
 				// This would be the path to your trained model
-				std::string model_path = "models/emotion_model.pt";
-				if (fs::exists(model_path))
+				std::string backend = "onnx"; // ["onnx", "torch"]
+				std::string modelName = EmotiEffLib::getSupportedModels(backend)[4];
+				std::string modelPath = "/home/alex/git/EmotionAI/contrib/emotiefflib/models/emotieffcpplib_prepared_models/enet_b2_7.onnx";
+				if (fs::exists(modelPath))
 				{
-					emotion_model_ = torch::jit::load(model_path);
-					emotion_model_.eval();
+					fer_ = EmotiEffLib::EmotiEffLibRecognizer::createInstance(backend, modelPath);
 					model_loaded_ = true;
 					spdlog::info("Emotion model loaded successfully");
 				}
 				else
 				{
-					spdlog::warn("Emotion model file not found: {}", model_path);
+					spdlog::warn("Emotion model file not found: {}", modelPath);
 				}
 			}
 			catch (const std::exception &e)
@@ -128,41 +129,6 @@ namespace EmotionAI
 		cv::cvtColor(processed, processed, cv::COLOR_BGR2RGB);
 
 		return processed;
-	}
-
-	std::vector<float> FileProcessor::predict_emotions(const cv::Mat &face_image)
-	{
-		if (!model_loaded_)
-		{
-			// Return dummy probabilities if model isn't loaded
-			return std::vector<float>(EMOTION_CATEGORIES.size(), 1.0f / EMOTION_CATEGORIES.size());
-		}
-
-		try
-		{
-			// Preprocess the face image
-			cv::Mat processed = preprocess_face(face_image);
-
-			// Convert to tensor
-			auto input_tensor = torch::from_blob(processed.data, {1, processed.rows, processed.cols, 3});
-			input_tensor = input_tensor.permute({0, 3, 1, 2}); // NHWC to NCHW
-			input_tensor = input_tensor.to(torch::kFloat32);
-
-			// Run inference
-			auto output = emotion_model_.forward({input_tensor}).toTensor();
-			auto probabilities = torch::softmax(output, 1);
-
-			// Convert to vector
-			std::vector<float> result(probabilities.data_ptr<float>(),
-									  probabilities.data_ptr<float>() + probabilities.numel());
-
-			return result;
-		}
-		catch (const std::exception &e)
-		{
-			spdlog::error("Error in emotion prediction: {}", e.what());
-			return std::vector<float>(EMOTION_CATEGORIES.size(), 1.0f / EMOTION_CATEGORIES.size());
-		}
 	}
 
 	void FileProcessor::process_image_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
