@@ -5,19 +5,11 @@
 #include <nlohmann/json.hpp>
 #include <db/RedisManager.h>
 #include <emotionai/Image.h>
+#include <common/Config.h>
 
 namespace fs = std::filesystem;
 namespace EmotionAI
 {
-
-	// Define the MTCNNImpl struct (placeholder implementation)
-	struct MTCNNImpl
-	{
-		// Placeholder for MTCNN implementation details
-		// This would contain the actual MTCNN models and state
-		~MTCNNImpl() = default;
-	};
-
 	// Emotion categories configuration
 	const std::vector<std::string> FileProcessor::EMOTION_CATEGORIES = {
 		"Anger", "Disgust", "Fear", "Happiness", "Neutral", "Sadness", "Surprise"};
@@ -27,7 +19,7 @@ namespace EmotionAI
 		"png", "jpg", "jpeg", "mp4", "avi", "webm"};
 
 	FileProcessor::FileProcessor(db::RedisManager &redis_manager)
-		: redis_manager_(redis_manager), mtcnn_(nullptr), model_loaded_(false)
+		: redis_manager_(redis_manager), model_loaded_(false)
 	{
 		try
 		{
@@ -41,7 +33,7 @@ namespace EmotionAI
 
 	FileProcessor::~FileProcessor()
 	{
-		// Cleanup resources - unique_ptr will automatically delete mtcnn_
+		// Cleanup resources
 	}
 
 	bool FileProcessor::allowed_file(const std::string &filename)
@@ -78,29 +70,47 @@ namespace EmotionAI
 	{
 		try
 		{
-			// Placeholder for model loading
-			// In a real implementation, this would load ONNX models or TorchScript models
 			spdlog::info("Initializing emotion recognition models...");
 
-			// Initialize MTCNN (placeholder)
-			mtcnn_ = std::make_unique<MTCNNImpl>();
+			auto &config = Common::Config::instance();
+
+			// Get model paths from configuration
+			std::string model_backend = "onnx";
+			std::string emotion_model_path = "/home/alex/git/EmotionAI/contrib/emotiefflib/models/emotieffcpplib_prepared_models/enet_b2_7.onnx";
 
 			// Try to load emotion model
 			try
 			{
-				// This would be the path to your trained model
-				std::string backend = "onnx"; // ["onnx", "torch"]
-				std::string modelName = EmotiEffLib::getSupportedModels(backend)[4];
-				std::string modelPath = "/home/alex/git/EmotionAI/contrib/emotiefflib/models/emotieffcpplib_prepared_models/enet_b2_7.onnx";
-				if (fs::exists(modelPath))
+				if (fs::exists(emotion_model_path))
 				{
-					fer_ = EmotiEffLib::EmotiEffLibRecognizer::createInstance(backend, modelPath);
+					fer_ = EmotiEffLib::EmotiEffLibRecognizer::createInstance(model_backend, emotion_model_path);
 					model_loaded_ = true;
-					spdlog::info("Emotion model loaded successfully");
+					spdlog::info("Emotion model loaded successfully: {}", emotion_model_path);
 				}
 				else
 				{
-					spdlog::warn("Emotion model file not found: {}", modelPath);
+					spdlog::warn("Emotion model file not found: {}", emotion_model_path);
+					// Try to find the model in different locations
+					std::vector<std::string> possible_paths = {
+						emotion_model_path,
+						"./models/" + fs::path(emotion_model_path).filename().string(),
+						"/usr/share/emotionai/models/" + fs::path(emotion_model_path).filename().string()};
+
+					for (const auto &path : possible_paths)
+					{
+						if (fs::exists(path))
+						{
+							fer_ = EmotiEffLib::EmotiEffLibRecognizer::createInstance(model_backend, path);
+							model_loaded_ = true;
+							spdlog::info("Emotion model loaded from alternative path: {}", path);
+							break;
+						}
+					}
+
+					if (!model_loaded_)
+					{
+						spdlog::error("Could not find emotion model in any known location");
+					}
 				}
 			}
 			catch (const std::exception &e)
@@ -114,23 +124,6 @@ namespace EmotionAI
 			throw;
 		}
 	}
-
-	cv::Mat FileProcessor::preprocess_face(const cv::Mat &face_image)
-	{
-		cv::Mat processed;
-
-		// Resize to model input size (assuming 224x224)
-		cv::resize(face_image, processed, cv::Size(224, 224));
-
-		// Convert to float and normalize
-		processed.convertTo(processed, CV_32F, 1.0 / 255.0);
-
-		// Convert BGR to RGB
-		cv::cvtColor(processed, processed, cv::COLOR_BGR2RGB);
-
-		return processed;
-	}
-
 	void FileProcessor::process_image_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
 	{
 		redis_manager_.set_task_status(task_id, nlohmann::json{
@@ -297,6 +290,11 @@ namespace EmotionAI
 				{"model_name", "EmotiEffLib"}};
 			redis_manager_.set_task_status(task_id, initial_status.dump());
 
+			if (!allowed_file(filename))
+			{
+				throw std::runtime_error("Неподдерживаемый формат файла");
+			}
+
 			size_t dot_pos = filename.find_last_of('.');
 			if (dot_pos == std::string::npos)
 			{
@@ -314,21 +312,22 @@ namespace EmotionAI
 			{
 				process_video_file(task_id, filepath, filename);
 			}
-			else
-			{
-				redis_manager_.set_task_status(task_id, nlohmann::json{
-															{"error", "Неподдерживаемый формат файла"},
-															{"complete", true}}
-															.dump());
-			}
 		}
 		catch (const std::exception &e)
 		{
 			spdlog::error("Error processing file {}: {}", filename, e.what());
-			redis_manager_.set_task_status(task_id, nlohmann::json{
-														{"error", e.what()},
-														{"complete", true}}
-														.dump());
+
+			// Try to update status even if Redis might be having issues
+			try
+			{
+				redis_manager_.set_task_status(task_id, nlohmann::json{
+															{"error", e.what()},
+															{"complete", true}});
+			}
+			catch (const std::exception &redis_error)
+			{
+				spdlog::error("Failed to update Redis status for task {}: {}", task_id, redis_error.what());
+			}
 		}
 
 		cleanup_file(filepath);
@@ -336,10 +335,8 @@ namespace EmotionAI
 
 	std::pair<cv::Mat, nlohmann::json> FileProcessor::process_image(const cv::Mat &image)
 	{
-		// This method should be implemented in Image.cpp
-		// For now, create a placeholder implementation
+		// Pass the emotion recognizer to Image for processing
 		Image img(image);
-		return img.process_image(image);
+		return img.process_image(image, fer_.get());
 	}
-
 } // namespace EmotionAI

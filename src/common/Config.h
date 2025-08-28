@@ -5,6 +5,8 @@
 #include <memory>
 #include <yaml-cpp/yaml.h>
 #include <filesystem>
+#include <atomic>
+#include <mutex>
 
 namespace Common
 {
@@ -19,17 +21,20 @@ namespace Common
 		// Get singleton instance
 		static Config &instance();
 
-		// Load configuration from file
+		// Load configuration from file (thread-safe)
 		bool loadFromFile(const std::string &config_path = "config.yaml");
+
+		// Reload configuration
+		bool reload();
 
 		// Setup application environment
 		bool setupApplicationEnvironment();
 
 		// Getters for configuration values
-		std::string uploadFolder() const;
-		std::string resultsFolder() const;
+		std::string uploadPath() const;
+		std::string resultPath() const;
 		std::string frontendBuildPath() const;
-		std::string logFolder() const;
+		std::string logPath() const;
 		int maxContentLength() const;
 		std::vector<std::string> allowedExtensions() const;
 		int taskExpiration() const;
@@ -45,22 +50,27 @@ namespace Common
 		bool mtcnnPostProcess() const;
 		int mtcnnMinFaceSize() const;
 		std::string mtcnnDevice() const;
+		std::string mtcnnModelsPath() const;
+		std::string mtcnnfaceModelsPath() const;
 
-		// Get raw YAML node for advanced access
-		const YAML::Node &getRawConfig() const;
+		// Server configuration
+		std::string serverHost() const;
+		int serverPort() const;
+
+		// Check if config is loaded
+		bool isLoaded() const { return loaded_.load(); }
+
+		// Validate configuration
+		bool validate() const;
 
 	private:
 		Config();
 		~Config() = default;
 
-		// Helper methods
-		std::string getString(const std::vector<std::string> &path, const std::string &default_value = "") const;
-		int getInt(const std::vector<std::string> &path, int default_value = 0) const;
-		bool getBool(const std::vector<std::string> &path, bool default_value = false) const;
-		std::vector<std::string> getStringArray(const std::vector<std::string> &path,
-												const std::vector<std::string> &default_value = {}) const;
 		YAML::Node config_;
-		bool loaded_ = false;
+		mutable std::mutex config_mutex_;
+		std::atomic<bool> loaded_{false};
+		std::string config_file_path_;
 	};
 
 } // namespace Common

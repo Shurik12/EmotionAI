@@ -27,6 +27,24 @@ find_library(HIREDIS_LIBRARY NAMES hiredis)
 set(WITH_TORCH "${CMAKE_CURRENT_SOURCE_DIR}/contrib/libtorch" CACHE PATH "Path to LibTorch")
 set(WITH_ONNX "${CMAKE_CURRENT_SOURCE_DIR}/contrib/onnxruntime" CACHE PATH "Path to onnxruntime")
 
+# Check if MTCNN source files exist and build them
+if(EXISTS "${PROJECT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/src")
+    file(GLOB MTCNN_SOURCES
+        "${PROJECT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/src/*.cpp"
+        "${PROJECT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/lib/src/*.cpp"
+    )
+    
+    if(MTCNN_SOURCES)
+        add_library(opencv-mtcnn STATIC ${MTCNN_SOURCES})
+        target_include_directories(opencv-mtcnn PUBLIC
+            "${PROJECT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/include"
+            "${PROJECT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/lib/include"
+        )
+        target_link_libraries(opencv-mtcnn PUBLIC ${OpenCV_LIBS})
+        message(STATUS "Built opencv-mtcnn from sources")
+    endif()
+endif()
+
 # Check for LibTorch
 if(EXISTS ${WITH_TORCH})
     find_package(Torch REQUIRED PATHS ${WITH_TORCH})
@@ -76,6 +94,13 @@ set(SERVER_SOURCES
     src/server/WebServer.cpp
 )
 
+set(MTCNN_SOURCES
+    src/mtcnn/detector.cc
+    src/mtcnn/onet.cc
+    src/mtcnn/pnet.cc
+    src/mtcnn/rnet.cc
+)
+
 # Add main executable
 add_executable(${PROJECT_NAME}
     main.cpp
@@ -83,6 +108,7 @@ add_executable(${PROJECT_NAME}
     ${DB_SOURCES}
     ${EMOTIONAI_SOURCES}
     ${SERVER_SOURCES}
+    ${MTCNN_SOURCES}
 )
 
 # Set target properties
@@ -98,6 +124,7 @@ set_property(SOURCE ${COMMON_SOURCES} PROPERTY FOLDER "Common")
 set_property(SOURCE ${DB_SOURCES} PROPERTY FOLDER "Database")
 set_property(SOURCE ${EMOTIONAI_SOURCES} PROPERTY FOLDER "EmotionAI")
 set_property(SOURCE ${SERVER_SOURCES} PROPERTY FOLDER "Server")
+set_property(SOURCE ${MTCNN_SOURCES} PROPERTY FOLDER "Mtcnn")
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE

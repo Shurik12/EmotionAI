@@ -3,10 +3,15 @@
 #include <spdlog/spdlog.h>
 #include <fmt/format.h>
 #include <emotiefflib/facial_analysis.h>
+#include <common/Config.h>
+// #include <../3rdparty/opencv-mtcnn/lib/include/mtcnn/detector.h>
+#include <mtcnn/detector.h>
+
+
+namespace fs = std::filesystem;
 
 namespace EmotionAI
 {
-
 	// Image class implementation
 	Image::Image(const std::string &filename)
 	{
@@ -48,8 +53,6 @@ namespace EmotionAI
 		{
 			std::string encoded = base64_encode(m_buffer.str());
 			bundle["image/jpeg"] = encoded;
-			// Also provide PNG format if needed
-			bundle["image/png"] = encoded; // Note: This assumes JPEG data, might need conversion
 		}
 		catch (const std::exception &e)
 		{
@@ -117,7 +120,6 @@ namespace EmotionAI
 			return cv::Mat();
 		}
 
-		// Get the original dimensions
 		int originalWidth = inputImage.cols;
 		int originalHeight = inputImage.rows;
 
@@ -126,94 +128,35 @@ namespace EmotionAI
 			return inputImage.clone();
 		}
 
-		// Calculate the scaling factor
 		double scaleFactor = static_cast<double>(targetWidth) / originalWidth;
-
-		// Calculate the new height while maintaining the aspect ratio
 		int targetHeight = static_cast<int>(originalHeight * scaleFactor);
 
-		// Resize the image
 		cv::Mat outputImage;
 		cv::resize(inputImage, outputImage, cv::Size(targetWidth, targetHeight), 0, 0, cv::INTER_LINEAR);
 
 		return outputImage;
 	}
 
-	// MTCNNDetector implementation (placeholder)
-	MTCNNDetector::MTCNNDetector(const Config &pConfig, const Config &rConfig, const Config &oConfig)
-	{
-		// Initialize MTCNN detector with the provided configurations
-		// This would load the Caffe models in a real implementation
-		spdlog::info("Initializing MTCNN detector with models: {}, {}, {}",
-					 pConfig.caffeModel, rConfig.caffeModel, oConfig.caffeModel);
-	}
-
-	std::vector<Face> MTCNNDetector::detect(const cv::Mat &image, float scale_factor, float threshold)
-	{
-		// Placeholder implementation - in real code, this would run MTCNN detection
-		std::vector<Face> faces;
-
-		// For now, use OpenCV's face detection as fallback
-		static cv::CascadeClassifier face_cascade;
-		static bool cascade_loaded = false;
-
-		if (!cascade_loaded)
-		{
-			try
-			{
-				std::string cascade_path = cv::samples::findFile("haarcascade_frontalface_default.xml");
-				if (face_cascade.load(cascade_path))
-				{
-					cascade_loaded = true;
-				}
-			}
-			catch (...)
-			{
-				spdlog::warn("Could not load Haar cascade for face detection");
-			}
-		}
-
-		if (cascade_loaded)
-		{
-			std::vector<cv::Rect> detected_faces;
-			cv::Mat gray;
-			cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
-			cv::equalizeHist(gray, gray);
-
-			face_cascade.detectMultiScale(gray, detected_faces, 1.1, 3, 0, cv::Size(30, 30));
-
-			for (const auto &rect : detected_faces)
-			{
-				Face face;
-				face.bbox.x1 = static_cast<float>(rect.x);
-				face.bbox.y1 = static_cast<float>(rect.y);
-				face.bbox.x2 = static_cast<float>(rect.x + rect.width);
-				face.bbox.y2 = static_cast<float>(rect.y + rect.height);
-				faces.push_back(face);
-			}
-		}
-
-		return faces;
-	}
-
 	std::vector<cv::Mat> Image::recognizeFaces(const cv::Mat &frame, int downscaleWidth)
 	{
-		// Configuration for MTCNN
-		std::string dirWithModels = "./models"; // Adjust this path as needed
+		auto &config = Common::Config::instance();
 
-		MTCNNDetector::Config pConfig;
-		pConfig.protoText = dirWithModels + "/det1.prototxt";
-		pConfig.caffeModel = dirWithModels + "/det1.caffemodel";
+		// Get MTCNN configuration from config
+		std::string mtcnn_dir = config.mtcnnfaceModelsPath();
+
+		ProposalNetwork::Config pConfig;
+		pConfig.protoText = (fs::path(mtcnn_dir) / "det1.prototxt").string();
+		pConfig.caffeModel = (fs::path(mtcnn_dir) / "det1.caffemodel").string();
 		pConfig.threshold = 0.6f;
 
-		MTCNNDetector::Config rConfig;
-		rConfig.protoText = dirWithModels + "/det2.prototxt";
-		rConfig.caffeModel = dirWithModels + "/det2.caffemodel";
+		RefineNetwork::Config rConfig;
+		rConfig.protoText = (fs::path(mtcnn_dir) / "det2.prototxt").string();
+		rConfig.caffeModel = (fs::path(mtcnn_dir) / "det2.caffemodel").string();
 		rConfig.threshold = 0.7f;
 
-		MTCNNDetector::Config oConfig;
-		oConfig.protoText = dirWithModels + "/det3.prototxt";
-		oConfig.caffeModel = dirWithModels + "/det3.caffemodel";
+		OutputNetwork::Config oConfig;
+		oConfig.protoText = (fs::path(mtcnn_dir) / "det3.prototxt").string();
+		oConfig.caffeModel = (fs::path(mtcnn_dir) / "det3.caffemodel").string();
 		oConfig.threshold = 0.7f;
 
 		MTCNNDetector detector(pConfig, rConfig, oConfig);
@@ -238,12 +181,6 @@ namespace EmotionAI
 			face.bbox.y1 *= downcastRatioH;
 			face.bbox.y2 *= downcastRatioH;
 
-			// Ma addition
-			// if face.bbox.x1 < 0:
-			//     face.bbox.x1 = 0
-			// if face.bbox.y1 < 0:
-			//     face.bbox.y1 = 0
-
 			cv::Rect roi(static_cast<int>(face.bbox.x1),
 						 static_cast<int>(face.bbox.y1),
 						 static_cast<int>(face.bbox.x2 - face.bbox.x1),
@@ -262,26 +199,26 @@ namespace EmotionAI
 		return cvFaces;
 	}
 
-	std::pair<cv::Mat, nlohmann::json> Image::process_image(const cv::Mat &image)
+	std::pair<cv::Mat, nlohmann::json> Image::process_image(const cv::Mat &image, EmotiEffLib::EmotiEffLibRecognizer *fer)
 	{
 		try
 		{
+			if (!fer)
+			{
+				throw std::runtime_error("Emotion recognizer not initialized");
+			}
+
 			// Convert to RGB for display and processing
 			cv::Mat image_rgb;
 			cv::cvtColor(image, image_rgb, cv::COLOR_BGR2RGB);
 
-			// Detect faces once and reuse the results
+			// Detect faces
 			std::vector<cv::Mat> facial_images = recognizeFaces(image_rgb, 500);
 
 			if (facial_images.empty())
 			{
 				throw std::runtime_error("no_faces_detected");
 			}
-
-			std::string backend = "torch"; // ["onnx", "torch"]
-			std::string modelName = EmotiEffLib::getSupportedModels(backend)[4];
-			std::string modelPath = "/home/alex/git/EmotionAI/contrib/emotiefflib/models/affectnet_emotions/"+modelName;
-			auto fer = EmotiEffLib::EmotiEffLibRecognizer::createInstance(backend, modelPath);
 
 			// Process emotions for all detected faces
 			std::vector<EmotiEffLib::EmotiEffLibRes> scores_list;
@@ -309,13 +246,20 @@ namespace EmotionAI
 			// Main prediction
 			auto &main_pred = result["main_prediction"];
 			main_pred["index"] = main_emotion_idx;
-			main_pred["label"] = first_score.labels[main_emotion_idx];
+			main_pred["label"] = "";
 			main_pred["probability"] = first_score.scores[main_emotion_idx];
 
 			// Additional probabilities
 			nlohmann::json additional_probs;
+
+			for (size_t i=0; i < first_score.scores.size(); ++i)
+			{
+				std::cout << first_score.scores[i] << "\n";
+			}
+
 			for (size_t i = 0; i < first_score.labels.size(); ++i)
 			{
+				std::cout << first_score.labels[i] << "\n";
 				additional_probs[first_score.labels[i]] = fmt::format("{:.2f}", first_score.scores[i]);
 			}
 			result["additional_probs"] = std::move(additional_probs);
@@ -323,8 +267,6 @@ namespace EmotionAI
 			cv::Mat annotated_image = image_rgb.clone();
 			for (const auto &face_img : facial_images)
 			{
-				// Simplified: draw rectangle around the entire image area where face was detected
-				// This is a placeholder - actual implementation should use original face coordinates
 				cv::rectangle(annotated_image,
 							  cv::Rect(0, 0, face_img.cols, face_img.rows),
 							  cv::Scalar(0, 255, 0), 2);
