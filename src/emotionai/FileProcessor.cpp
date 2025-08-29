@@ -139,6 +139,14 @@ namespace EmotionAI
 			Image input_image(filepath);
 			cv::Mat image = input_image.to_cv_mat();
 
+			// Save uploaded image
+			std::string result_filename = "result_" + filename;
+			std::string result_path = (fs::path("result") / result_filename).string();
+			if (cv::imwrite(result_path, image))
+				spdlog::info("Image saved successfully to {}", result_path);
+			else
+				spdlog::error("Error: Could not save image to {}", result_path);
+
 			if (image.empty())
 			{
 				throw std::runtime_error("Could not read image");
@@ -155,13 +163,6 @@ namespace EmotionAI
 
 			// Save result using Image class
 			Image result_image(processed_image, ".jpg");
-			std::string result_filename = "result_" + filename;
-			std::string result_path = (fs::path("result") / result_filename).string();
-
-			// Save the processed image
-			std::ofstream out_file(result_path, std::ios::binary);
-			out_file << result_image.get_buffer();
-			out_file.close();
 
 			// Update status
 			redis_manager_.set_task_status(task_id, nlohmann::json{
@@ -292,7 +293,7 @@ namespace EmotionAI
 
 			if (!allowed_file(filename))
 			{
-				throw std::runtime_error("Неподдерживаемый формат файла");
+				throw std::runtime_error("Unsupported file format");
 			}
 
 			size_t dot_pos = filename.find_last_of('.');
