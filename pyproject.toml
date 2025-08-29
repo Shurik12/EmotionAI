@@ -24,10 +24,11 @@ dependencies = [
     "pyyaml==6.0.1",
     "werkzeug==2.3.7",
     "gunicorn==21.2.0",
-    "gevent==25.5.1"
-    "tensorflow==2.16.1"
-    "tf2onnx==1.16.1"
-    "protobuf==3.20.3"
+    "gevent==25.5.1",
+    "tensorflow==2.16.1",
+    "tf2onnx==1.16.1",
+    "protobuf==3.20.3",
+    "timm==0.9.16"
 ]
 requires-python = ">=3.7"
 
