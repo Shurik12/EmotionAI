@@ -41,7 +41,19 @@ namespace db
 		static std::string generate_uuid();
 
 	private:
-		redisContext *create_connection();
+		// Custom deleter for redisContext
+		struct RedisContextDeleter
+		{
+			void operator()(redisContext *ctx) const
+			{
+				if (ctx)
+				{
+					redisFree(ctx);
+				}
+			}
+		};
+
+		std::unique_ptr<redisContext, RedisContextDeleter> create_connection();
 		void free_reply(redisReply *reply);
 
 		redisReply *execute_command(const char *format, ...);
@@ -54,7 +66,7 @@ namespace db
 		int redis_db_;
 		std::string redis_password_;
 
-		std::unique_ptr<redisContext> connection_;
+		std::unique_ptr<redisContext, RedisContextDeleter> connection_;
 		std::mutex connection_mutex_;
 		std::atomic<bool> initialized_{false};
 		std::string upload_folder_;
