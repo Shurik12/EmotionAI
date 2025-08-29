@@ -195,14 +195,19 @@ namespace Common
 		return config_["mtcnn"]["device"].as<std::string>();
 	}
 
-	std::string Config::mtcnnModelsPath() const
+	std::string Config::modelBackend() const
 	{
-		return config_["mtcnn"]["modelsPath"].as<std::string>();
+		return config_["model"]["backend"].as<std::string>();
 	}
 
-	std::string Config::mtcnnfaceModelsPath() const
+	std::string Config::emotionModelPath() const
 	{
-		return config_["mtcnn"]["faceModelsPath"].as<std::string>();
+		return config_["model"]["emotion_model_path"].as<std::string>();
+	}
+
+	std::string Config::faceDetectionModelsPath() const
+	{
+		return config_["mtcnn"]["face_detection_models_path"].as<std::string>();
 	}
 
 } // namespace Common

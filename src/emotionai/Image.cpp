@@ -140,7 +140,7 @@ namespace EmotionAI
 		auto &config = Common::Config::instance();
 
 		// Get MTCNN configuration from config
-		std::string mtcnn_dir = config.mtcnnfaceModelsPath();
+		std::string mtcnn_dir = config.faceDetectionModelsPath();
 
 		ProposalNetwork::Config pConfig;
 		pConfig.protoText = (fs::path(mtcnn_dir) / "det1.prototxt").string();
