@@ -13,8 +13,8 @@ CONFIG = load_config()
 
 class Config:
     """Centralized configuration management"""
-    UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', CONFIG['app']['upload_folder'])
-    RESULTS_FOLDER = os.path.join(os.path.dirname(__file__), '..', CONFIG['app']['results_folder'])
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', CONFIG['app']['uploadPath'])
+    RESULTS_FOLDER = os.path.join(os.path.dirname(__file__), '..', CONFIG['app']['resultPath'])
     REDIS_HOST = os.getenv('REDIS_HOST', CONFIG['redis']['host'])
     REDIS_PORT = int(os.getenv('REDIS_PORT', CONFIG['redis']['port']))
     REDIS_DB = int(os.getenv('REDIS_DB', CONFIG['redis']['db']))
