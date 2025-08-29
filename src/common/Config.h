@@ -50,8 +50,10 @@ namespace Common
 		bool mtcnnPostProcess() const;
 		int mtcnnMinFaceSize() const;
 		std::string mtcnnDevice() const;
-		std::string mtcnnModelsPath() const;
-		std::string mtcnnfaceModelsPath() const;
+
+		std::string modelBackend() const;
+		std::string emotionModelPath() const;
+		std::string faceDetectionModelsPath() const;
 
 		// Server configuration
 		std::string serverHost() const;

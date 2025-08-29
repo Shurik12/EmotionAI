@@ -71,12 +71,11 @@ namespace EmotionAI
 		try
 		{
 			spdlog::info("Initializing emotion recognition models...");
-
-			auto &config = Common::Config::instance();
-
+			
 			// Get model paths from configuration
-			std::string model_backend = "onnx";
-			std::string emotion_model_path = "/home/alex/git/EmotionAI/contrib/emotiefflib/models/emotieffcpplib_prepared_models/enet_b2_7.onnx";
+			auto &config = Common::Config::instance();
+			std::string model_backend = config.modelBackend();
+			std::string emotion_model_path = config.emotionModelPath();
 
 			// Try to load emotion model
 			try
