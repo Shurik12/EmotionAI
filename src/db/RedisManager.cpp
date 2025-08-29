@@ -22,11 +22,7 @@ namespace db
 	RedisManager::~RedisManager()
 	{
 		std::lock_guard<std::mutex> lock(connection_mutex_);
-		if (connection_)
-		{
-			redisFree(connection_.get());
-			connection_.reset();
-		}
+		// No need to manually free connection_ as unique_ptr will handle it
 		initialized_.store(false);
 	}
 
@@ -36,7 +32,7 @@ namespace db
 
 		fs::create_directories(upload_folder_);
 		std::lock_guard<std::mutex> lock(connection_mutex_);
-		connection_.reset(create_connection());
+		connection_ = create_connection();
 		initialized_.store(true);
 		spdlog::info("Successfully connected to Redis");
 	}
@@ -68,7 +64,7 @@ namespace db
 		{
 			try
 			{
-				connection_.reset(create_connection());
+				connection_ = create_connection();
 				initialized_.store(true);
 				spdlog::info("Reconnected to Redis successfully");
 				return true;
@@ -93,8 +89,8 @@ namespace db
 		// Connection is dead, try to reconnect
 		try
 		{
-			redisFree(connection_.get());
-			connection_.reset(create_connection());
+			connection_.reset(); // Reset the current connection
+			connection_ = create_connection();
 			initialized_.store(true);
 			spdlog::info("Reconnected to Redis after connection loss");
 			return true;
@@ -102,13 +98,13 @@ namespace db
 		catch (const std::exception &e)
 		{
 			spdlog::error("Failed to reconnect to Redis: {}", e.what());
-			connection_.reset(nullptr);
+			connection_.reset();
 			initialized_.store(false);
 			return false;
 		}
 	}
 
-	redisContext *RedisManager::create_connection()
+	std::unique_ptr<redisContext, RedisManager::RedisContextDeleter> RedisManager::create_connection()
 	{
 		try
 		{
@@ -169,7 +165,9 @@ namespace db
 			freeReplyObject(reply);
 
 			spdlog::info("Redis connection test successful");
-			return conn;
+
+			// Return as unique_ptr with custom deleter
+			return std::unique_ptr<redisContext, RedisContextDeleter>(conn);
 		}
 		catch (const std::exception &e)
 		{

@@ -6,18 +6,19 @@
 #include "pnet.h"
 #include "rnet.h"
 
-class MTCNNDetector {
+class MTCNNDetector
+{
 private:
-  std::unique_ptr<ProposalNetwork> _pnet;
-  std::unique_ptr<RefineNetwork> _rnet;
-  std::unique_ptr<OutputNetwork> _onet;
+	std::unique_ptr<ProposalNetwork> _pnet;
+	std::unique_ptr<RefineNetwork> _rnet;
+	std::unique_ptr<OutputNetwork> _onet;
 
 public:
-  MTCNNDetector(const ProposalNetwork::Config &pConfig,
-                const RefineNetwork::Config &rConfig,
-                const OutputNetwork::Config &oConfig);
-  std::vector<Face> detect(const cv::Mat &img, const float minFaceSize,
-                           const float scaleFactor);
+	MTCNNDetector(const ProposalNetwork::Config &pConfig,
+				  const RefineNetwork::Config &rConfig,
+				  const OutputNetwork::Config &oConfig);
+	std::vector<Face> detect(const cv::Mat &img, const float minFaceSize,
+							 const float scaleFactor);
 };
 
 #endif

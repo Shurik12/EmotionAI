@@ -4,29 +4,31 @@
 #include "face.h"
 #include <opencv2/dnn.hpp>
 
-class RefineNetwork {
+class RefineNetwork
+{
 public:
-  struct Config {
-  public:
-    std::string protoText;
-    std::string caffeModel;
-    float threshold;
-  };
+	struct Config
+	{
+	public:
+		std::string protoText;
+		std::string caffeModel;
+		float threshold;
+	};
 
 private:
-  cv::dnn::Net _net;
-  float _threshold;
+	cv::dnn::Net _net;
+	float _threshold;
 
 public:
-  RefineNetwork(const RefineNetwork::Config &config);
-  ~RefineNetwork();
+	RefineNetwork(const RefineNetwork::Config &config);
+	~RefineNetwork();
 
 private:
-  RefineNetwork(const RefineNetwork &rhs) = delete;
-  RefineNetwork &operator=(const RefineNetwork &rhs) = delete;
+	RefineNetwork(const RefineNetwork &rhs) = delete;
+	RefineNetwork &operator=(const RefineNetwork &rhs) = delete;
 
 public:
-  std::vector<Face> run(const cv::Mat &img, const std::vector<Face> &faces);
+	std::vector<Face> run(const cv::Mat &img, const std::vector<Face> &faces);
 };
 
 #endif
