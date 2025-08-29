@@ -10,14 +10,14 @@ run:
 	python run.py
 
 run-prod:
-	gunicorn --bind 0.0.0.0:8000 wsgi:app
+	gunicorn --bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 120 wsgi:application
 
 test:
 	python -m pytest tests/ -v
 
 clean:
-	rm -rf uploads/*
-	rm -rf results/*
+	rm -rf upload/*
+	rm -rf result/*
 	rm -rf __pycache__
 	rm -rf src/__pycache__
 	rm -rf src/models/__pycache__
