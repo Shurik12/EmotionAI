@@ -1,57 +1,13 @@
-### Summary:
+# EmotionAI
+
+### Project description
+
+### Models description
 This multimodal emotion detection model predicts a speaker's emotion using audio and image sequences from videos.
 The repository contains two primary models: an audio tone recognition model with a CNN for audio-based emotion prediction, and a facial emotion recognition model using a CNN and optional mediapipe face landmarks for facial emotion prediction.
 The third model combines a video clip's audio and image sequences, processed through an LSTM for speaker emotion prediction.
 Hyperparameters such as landmark usage, CNN model selection, LSTM units, and dense layers are tuned for optimal accuracy using included modules.
 For new datasets, follow the instructions below to retune the hyperparameters.
-_______________
-### Sample output for all 3 models:
-#### Face model:
-
-<table>
-  <tr>
-    <td><img src="display_files/child smile.png" width="300" style="margin-right: 10px;"></td>
-    <td><img src="display_files/child_smile_emotion.jpg" width="200" style="margin-right: 10px;"></td>
-    <td><img src="display_files/child_smile_grad_cam.jpg" width="200" style="margin-right: 10px;"></td>
-  </tr>
-  <tr>
-    <td><img src="display_files/nervous_woman.png" width="300" style="margin-right: 10px;"></td>
-    <td><img src="display_files/nervous_woman_emotion.jpg" width="200" style="margin-right: 10px;"></td>
-    <td><img src="display_files/nervous_woman_grad_cam.jpg" width="200" style="margin-right: 10px;"></td>
-  </tr>
-  <tr>
-    <td><img src="display_files/disgust_2.png" width="300" style="margin-right: 10px;"></td>
-    <td><img src="display_files/disgust_emotion.jpg" width="200" style="margin-right: 10px;"></td>
-    <td><img src="display_files/disgust_grad_cam.jpg" width="200" style="margin-right: 10px;"></td>
-  </tr>
-  <tr>
-    <td><img src="display_files/angry.png" width="300" style="margin-right: 10px;"></td>
-    <td><img src="display_files/angry_emotion.jpg" width="200" style="margin-right: 10px;"></td>
-    <td><img src="display_files/angry_grad_cam.jpg" width="200"></td>
-  </tr>
-</table>
-
-____________________
-#### Audio model:
-
-[angry_alex.mp4](display_files%2Fangry_alex.mp4)<br><br>
-**_Prediction labels:_**<br>
-Sad/Fear: 0.0%<br>
-Neutral: 0.0%<br>
-Happy: 0.0%<br>
-Angry: 100.0%<br>
-Surprise/Disgust: 0.0%<br>
-
-[audio_happy.mp4](display_files%2Faudio_happy.mp4)<br><br>
-**_Prediction labels:_**<br>
-Sad/Fear: 0.0%<br>
-Neutral: 0.0%<br>
-Happy: 100.0%<br>
-Angry: 0.0%<br>
-Surprise/Disgust: 0.0%
-_____________
-#### Video/combined model:
-<Program implemented, display items yet to be added>
 _________________
 
 ### To run the program
@@ -237,8 +193,8 @@ lesser RAM for training and less than 8GB can run inference very easily. If you 
 
 _____________
 ### Contributing:
-I've made this project public so that it can be used by anyone who wants to use it. I've tried to make it as easy to use as possible, but if you have any questions or suggestions, create an issue or discuss it in the discussions section.
-I'll try to answer them as soon as possible. If you want to contribute, create a pull request. I'll try to review it as soon as possible.
+1. Create issue: https://github.com/Shurik12/EmotionAI/issues
+2. 
 
 ### Additional info
 1. How to run in dev
