@@ -1,5 +1,5 @@
 # gunicorn_config.py
-bind = "unix:/tmp/gunicorn.sock"
+bind = "unix:/var/run/emotionai/gunicorn.sock"
 workers = 4
 worker_class = "gevent"
 timeout = 120
