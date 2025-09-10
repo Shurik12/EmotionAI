@@ -5,6 +5,7 @@ contrib/libtorch/
 contrib/onnxruntime/
 build/
 frontend/build/
+frontend/node_modules/
 src/emotion_detection_app.egg-info/
 config.yaml
 emotion_detection.log
