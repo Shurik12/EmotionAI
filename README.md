@@ -262,3 +262,9 @@ sudo apt update
 sudo apt install redis-server
 sudo vim /etc/redis/redis.conf
 ```
+5. Frontend
+```bash
+cd frontend
+npm install
+npm run build
+```
