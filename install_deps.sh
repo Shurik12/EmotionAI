@@ -9,6 +9,27 @@ echo "=========================================="
 echo "Installing dependencies for EmotionAI project"
 echo "=========================================="
 
+# Install submodules
+echo "Installing git submodules..."
+git submodule update --init --recursive
+git apply emotiefflib.patch
+
+# Install onnx
+echo "Installing onnx..."
+wget https://github.com/microsoft/onnxruntime/releases/download/v1.21.0/onnxruntime-linux-x64-1.21.0.tgz -P contrib/
+tar zxvf contrib/onnxruntime-linux-x64-1.21.0.tgz -C contrib/
+mv contrib/onnxruntime-linux-x64-1.21.0 contrib/onnxruntime
+rm contrib/onnxruntime-linux-x64-1.21.0.tgz
+mkdir contrib/onnxruntime/lib64
+mv contrib/onnxruntime/lib/*.so* contrib/onnxruntime/lib64/
+
+# Install torch
+echo "Installing libtorch..."
+wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.1.0%2Bcpu.zip -P contrib/
+unzip contrib/libtorch-shared-with-deps-2.1.0+cpu.zip -d contrib/
+rm contrib/libtorch-shared-with-deps-2.1.0+cpu.zip
+
+
 # Update package list
 echo "Updating package list..."
 sudo apt-get update
