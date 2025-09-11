@@ -1,8 +1,5 @@
 .vscode/
 venv/
-contrib/emotiefflib/
-contrib/libtorch/
-contrib/onnxruntime/
 build/
 frontend/build/
 config.yaml
