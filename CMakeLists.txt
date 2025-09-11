@@ -64,14 +64,14 @@ add_subdirectory("${PROJECT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib")
 
 # Include directories
 include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib/include
     ${OpenCV_INCLUDE_DIRS}
     ${yaml-cpp_INCLUDE_DIRS}
     ${spdlog_INCLUDE_DIRS}
     ${fmt_INCLUDE_DIRS}
     ${nlohmann_json_INCLUDE_DIRS}
     ${hiredis_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib/include
 )
 
 # Source files
