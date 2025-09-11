@@ -4,6 +4,7 @@ build/
 frontend/build/
 contrib/libtorch/
 contrib/onnxruntime/
+contrib/emotiefflib
 config.yaml
 emotion_detection.log
 results.txt
