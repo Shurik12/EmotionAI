@@ -22,13 +22,13 @@ mv contrib/onnxruntime-linux-x64-1.21.0 contrib/onnxruntime
 rm contrib/onnxruntime-linux-x64-1.21.0.tgz
 mkdir contrib/onnxruntime/lib64
 mv contrib/onnxruntime/lib/*.so* contrib/onnxruntime/lib64/
+cp contrib/onnxruntime/lib/cmake/onnxruntime/onnxruntimeConfig.cmake contrib/onnxruntime/lib/cmake/onnxruntime/ONNXRuntimeConfig.cmake
 
 # Install torch
 echo "Installing libtorch..."
-wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.1.0%2Bcpu.zip -P contrib/
-unzip contrib/libtorch-shared-with-deps-2.1.0+cpu.zip -d contrib/
-rm contrib/libtorch-shared-with-deps-2.1.0+cpu.zip
-
+wget https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcpu.zip
+unzip libtorch-cxx11-abi-shared-with-deps-2.1.0+cpu.zip
+rm libtorch-cxx11-abi-shared-with-deps-2.1.0+cpu.zip
 
 # Update package list
 echo "Updating package list..."
