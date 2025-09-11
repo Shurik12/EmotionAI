@@ -27,7 +27,7 @@ cp contrib/onnxruntime/lib/cmake/onnxruntime/onnxruntimeConfig.cmake contrib/onn
 # Install torch
 echo "Installing libtorch..."
 wget https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcpu.zip
-unzip libtorch-cxx11-abi-shared-with-deps-2.1.0+cpu.zip
+unzip libtorch-cxx11-abi-shared-with-deps-2.1.0+cpu.zip -d contrib/
 rm libtorch-cxx11-abi-shared-with-deps-2.1.0+cpu.zip
 
 # Update package list

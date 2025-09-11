@@ -140,21 +140,21 @@ namespace EmotionAI
 		auto &config = Common::Config::instance();
 
 		// Get MTCNN configuration from config
-		std::string mtcnn_dir = config.faceDetectionModelsPath();
+		std::string models_dir = config.faceDetectionModelsPath();
 
 		ProposalNetwork::Config pConfig;
-		pConfig.protoText = (fs::path(mtcnn_dir) / "det1.prototxt").string();
-		pConfig.caffeModel = (fs::path(mtcnn_dir) / "det1.caffemodel").string();
+		pConfig.protoText = (fs::path(models_dir) / "det1.prototxt").string();
+		pConfig.caffeModel = (fs::path(models_dir) / "det1.caffemodel").string();
 		pConfig.threshold = 0.6f;
 
 		RefineNetwork::Config rConfig;
-		rConfig.protoText = (fs::path(mtcnn_dir) / "det2.prototxt").string();
-		rConfig.caffeModel = (fs::path(mtcnn_dir) / "det2.caffemodel").string();
+		rConfig.protoText = (fs::path(models_dir) / "det2.prototxt").string();
+		rConfig.caffeModel = (fs::path(models_dir) / "det2.caffemodel").string();
 		rConfig.threshold = 0.7f;
 
 		OutputNetwork::Config oConfig;
-		oConfig.protoText = (fs::path(mtcnn_dir) / "det3.prototxt").string();
-		oConfig.caffeModel = (fs::path(mtcnn_dir) / "det3.caffemodel").string();
+		oConfig.protoText = (fs::path(models_dir) / "det3.prototxt").string();
+		oConfig.caffeModel = (fs::path(models_dir) / "det3.caffemodel").string();
 		oConfig.threshold = 0.7f;
 
 		MTCNNDetector detector(pConfig, rConfig, oConfig);
