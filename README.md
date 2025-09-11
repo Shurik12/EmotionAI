@@ -218,3 +218,11 @@ sudo apt update
 sudo apt install redis-server
 sudo vim /etc/redis/redis.conf
 ```
+5. Build c++ project
+```bash
+git submodule update --init --recursive
+bash install_deps.sh
+mkdir build && cd build
+cmake .. -G Ninja
+cmake --build .
+```
