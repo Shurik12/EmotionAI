@@ -207,7 +207,7 @@ namespace Common
 
 	std::string Config::faceDetectionModelsPath() const
 	{
-		return config_["mtcnn"]["face_detection_models_path"].as<std::string>();
+		return config_["model"]["face_detection_models_path"].as<std::string>();
 	}
 
 } // namespace Common
