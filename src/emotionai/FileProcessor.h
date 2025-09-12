@@ -52,9 +52,5 @@ namespace EmotionAI
 
 		// Helper functions
 		void initialize_models();
-
-		// Configuration
-		static const std::vector<std::string> EMOTION_CATEGORIES;
-		static const std::vector<std::string> ALLOWED_EXTENSIONS;
 	};
 } // namespace EmotionAI

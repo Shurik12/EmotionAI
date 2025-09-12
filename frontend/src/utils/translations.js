@@ -99,13 +99,14 @@ export const translations = {
 		error_processing_failed: "Не удалось выполнить обработку. Пожалуйста, попробуйте снова.",
 
 		// Emotion labels
-		happiness: "Радость",
-		neutral: "Нейтрально",
-		sadness: "Грусть",
+		anger: "Гнев",
+		contempt: "Презрение",
 		disgust: "Отвращение",
 		fear: "Страх",
+		neutral: "Нейтрально",
+		happiness: "Радость",
 		surprise: "Удивление",
-		anger: "Гнев",
+		sadness: "Грусть",
 
 		// Privacy page
 		privacy_policy: "Политика конфиденциальности",
@@ -242,13 +243,14 @@ export const translations = {
 		error_processing_failed: "Processing failed. Please try again.",
 
 		// Emotion labels
+		anger: "Anger",
+		contempt: "Contempt",
+		disgust: "Disgust",
+		fear: "Fear",
 		happiness: "Happiness",
 		neutral: "Neutral",
 		sadness: "Sadness",
-		disgust: "Disgust",
-		fear: "Fear",
 		surprise: "Surprise",
-		anger: "Anger",
 
 		// Privacy page
 		privacy_policy: "Privacy Policy",

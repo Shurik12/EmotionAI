@@ -10,14 +10,6 @@
 namespace fs = std::filesystem;
 namespace EmotionAI
 {
-	// Emotion categories configuration
-	const std::vector<std::string> FileProcessor::EMOTION_CATEGORIES = {
-		"Anger", "Disgust", "Fear", "Happiness", "Neutral", "Sadness", "Surprise"};
-
-	// Allowed file extensions
-	const std::vector<std::string> FileProcessor::ALLOWED_EXTENSIONS = {
-		"png", "jpg", "jpeg", "mp4", "avi", "webm"};
-
 	FileProcessor::FileProcessor(db::RedisManager &redis_manager)
 		: redis_manager_(redis_manager), model_loaded_(false)
 	{
@@ -47,7 +39,10 @@ namespace EmotionAI
 		std::string extension = filename.substr(dot_pos + 1);
 		std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 
-		return std::find(ALLOWED_EXTENSIONS.begin(), ALLOWED_EXTENSIONS.end(), extension) != ALLOWED_EXTENSIONS.end();
+		auto &config = Common::Config::instance();
+		std::vector<std::string> allowed_extensions = config.allowedExtensions();
+
+		return std::find(allowed_extensions.begin(), allowed_extensions.end(), extension) != allowed_extensions.end();
 	}
 
 	void FileProcessor::cleanup_file(const std::string &filepath)
