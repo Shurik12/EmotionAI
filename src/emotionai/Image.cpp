@@ -206,6 +206,16 @@ namespace EmotionAI
 				throw std::runtime_error("Emotion recognizer not initialized");
 			}
 
+			// Get model from configuration
+			auto &config = Common::Config::instance();
+			std::string emotion_model_path = config.emotionModelPath();
+			std::string model = fs::path(emotion_model_path).filename().string();
+			std::vector<std::string> emotions;
+			if (model == "enet_b2_7.pt")
+				emotions = { "anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise" };
+			else
+				emotions = { "anger", "contempt", "disgust", "fear", "happiness", "neutral", "sadness", "surprise" };
+
 			// Convert to RGB for display and processing
 			cv::Mat image_rgb;
 			cv::cvtColor(image, image_rgb, cv::COLOR_BGR2RGB);
@@ -241,8 +251,6 @@ namespace EmotionAI
 			// Build JSON result
 			nlohmann::json result;
 
-			auto &config = Common::Config::instance();
-			auto emotions = config.emotionCategories();
 			// Main prediction
 			auto &main_pred = result["main_prediction"];
 			main_pred["index"] = main_emotion_idx;
