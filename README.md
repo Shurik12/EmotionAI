@@ -52,3 +52,24 @@ sudo systemctl enable your-cpp-service.service
 # Create symlink from sites-available to sites-enabled
 sudo ln -s /etc/nginx/sites-available/your-cpp-service /etc/nginx/sites-enabled/
 ```
+
+```bash
+sudo mkdir -p /var/www/emotion-ai
+sudo mkdir -p /var/www/emotion-ai/models
+sudo cp build/EmotionAI /var/www/emotion-ai/emotion-ai
+sudo cp config.yaml /var/www/emotion-ai/
+sudo cp contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/data/models/* /var/www/emotion-ai/models/
+sudo cp contrib/emotiefflib/models/emotieffcpplib_prepared_models/enet_b2_7.pt /var/www/emotion-ai/models/
+sudo chown -R www-data:www-data /var/www/emotion-ai/
+sudo cp -r frontend/build/ /var/www/emotion-ai/frontend
+
+sudo mkdir -p /var/www/emotion-ai/lib/libtorch
+sudo cp contrib/libtorch/lib/* /var/www/emotion-ai/lib/libtorch/
+
+sudo chown -R www-data:www-data /var/www/emotion-ai
+sudo chmod -R 755 /var/www/emotion-ai
+sudo chmod +x /var/www/emotion-ai/emotion-ai
+sudo systemctl daemon-reload
+sudo systemctl restart emotion-ai
+sudo systemctl reload nginx
+```
