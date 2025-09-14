@@ -225,8 +225,12 @@ namespace EmotionAI
 
 						std::string frame_filename = fmt::format("frame_{}_{}.jpg", processed_count,
 																 filename.substr(0, filename.find_last_of('.')));
-						std::string frame_path = (fs::path("results") / frame_filename).string();
-						cv::imwrite(frame_path, processed_frame);
+						std::string frame_path = (fs::path("result") / frame_filename).string();
+						
+						if (cv::imwrite(frame_path, frame))
+							spdlog::info("Image saved successfully to {}", frame_path);
+						else
+							spdlog::error("Error: Could not save image to {}", frame_path);
 
 						nlohmann::json frame_result;
 						frame_result["frame"] = frame_count;
