@@ -19,6 +19,7 @@ const Detector = () => {
 
 	const fileInputRef = useRef(null);
 	const progressIntervalRef = useRef(null);
+	const audioRef = useRef(null);
 
 	const { language, updateTexts } = useLanguage();
 
@@ -58,10 +59,23 @@ const Detector = () => {
 		setFileSize(formatFileSize(file.size));
 		setPreview(null);
 		setResults(null);
+
+		// Create preview for audio files
+		if (file.type.startsWith('audio/')) {
+			const audioUrl = URL.createObjectURL(file);
+			setPreview({
+				type: 'audio',
+				url: audioUrl
+			});
+		}
 	};
 
 	const validateFile = (file) => {
-		const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'video/mp4', 'video/avi', 'video/webm'];
+		const validTypes = [
+			'image/jpeg', 'image/png', 'image/jpg', 
+			'video/mp4', 'video/avi', 'video/webm',
+			'audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg', 'audio/wav'
+		];
 		const maxSize = 50 * 1024 * 1024;
 
 		if (!validTypes.includes(file.type)) {
@@ -180,14 +194,15 @@ const Detector = () => {
 				}
 
 				if (data.message) {
-					// Handle frame processing messages
+					// Handle frame/segment processing messages
 					let newProgressText = '';
-					if (data.message.includes("frame")) {
-						const frameMatch = data.message.match(/frame (\d+) of (\d+)/);
+					if (data.message.includes("frame") || data.message.includes("segment")) {
+						const frameMatch = data.message.match(/(frame|segment) (\d+) of (\d+)/);
 						if (frameMatch) {
-							newProgressText = t('processing_frame', localStorage.getItem('language'))
-								.replace('{current}', frameMatch[1])
-								.replace('{total}', frameMatch[2]);
+							const unit = frameMatch[1] === 'frame' ? 'processing_frame' : 'processing_segment';
+							newProgressText = t(unit, localStorage.getItem('language'))
+								.replace('{current}', frameMatch[2])
+								.replace('{total}', frameMatch[3]);
 						}
 					} else {
 						newProgressText = t(data.message, localStorage.getItem('language')) || data.message;
@@ -318,7 +333,7 @@ const Detector = () => {
 						id="fileInput"
 						ref={fileInputRef}
 						className="file-input"
-						accept="image/*,video/*"
+						accept="image/*,video/*,audio/*"
 						onChange={handleFileSelect}
 						disabled={isProcessing}
 					/>
@@ -336,6 +351,14 @@ const Detector = () => {
 				{errorKey && (
 					<div className="error-message">
 						{t(errorKey, localStorage.getItem('language'))}
+					</div>
+				)}
+
+				{preview && preview.type === 'audio' && (
+					<div className="preview-container audio-preview">
+						<audio ref={audioRef} controls src={preview.url} className="audio-player">
+							Your browser does not support the audio element.
+						</audio>
 					</div>
 				)}
 
@@ -438,6 +461,20 @@ const Detector = () => {
 									{displayEmotionResult(frame.result)}
 								</div>
 							))}
+						</>
+					) : results.type === 'audio' ? (
+						<>
+							{results.audio_url && (
+								<div className="preview-container processed-image">
+									<audio 
+										controls 
+										src={results.audio_url}
+										className="audio-segment"
+										data-i18n="processed_audio_alt"
+									/>
+								</div>
+							)}
+							{displayEmotionResult(results.result)}
 						</>
 					) : (
 						// Fallback for unknown response format

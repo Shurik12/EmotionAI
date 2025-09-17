@@ -1,7 +1,7 @@
 import os
 from torch import cuda
 
-MAIN_PATH = str(os.path.dirname(os.path.abspath(__file__)).split('source')[0])
+MAIN_PATH = str(os.path.dirname(os.path.abspath(__file__)).split('src')[0])
 windows = (True if (os.name == 'nt') else False)
 if windows:
     OS = 'windows'
