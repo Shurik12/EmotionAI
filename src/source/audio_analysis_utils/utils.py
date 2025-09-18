@@ -5,6 +5,7 @@ import json
 import math
 import random
 import librosa
+import soundfile as sf
 from sklearn.utils import shuffle
 import moviepy.editor as mp
 import time
@@ -17,6 +18,8 @@ import source.config as config
 
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.preprocessing import MultiLabelBinarizer
+
+from config.settings import Config
 
 
 def convert_video_to_audio(video_path, audio_path, sample_rate=audio_config.READ_SAMPLE_RATE):
@@ -126,7 +129,7 @@ def make_signal_len_consistent(signal, signal_len):
 
 
 # function to extract mean and variance of Mel-Frequency Cepstrum Components (MFCCs)
-def extract_mfcc(file_or_samples_and_sr, N_FFT, NUM_MFCC, HOP_LENGTH, print_flag=False):
+def extract_mfcc(file_name, N_FFT, NUM_MFCC, HOP_LENGTH, print_flag=False):
     """Extracts MFCCs from music dataset and saves them into a json file.
 
     :param num_mfcc (int): Number of coefficients to extract
@@ -135,11 +138,14 @@ def extract_mfcc(file_or_samples_and_sr, N_FFT, NUM_MFCC, HOP_LENGTH, print_flag
     """
     print_flag = True
 
+    file_or_samples_and_sr = os.path.join(Config.UPLOAD_FOLDER, file_name)
     if type(file_or_samples_and_sr) == str:
         # load audio file and slice it to ensure length consistency among different files
         signal, sample_rate = librosa.load(file_or_samples_and_sr)
     else:
         signal, sample_rate = file_or_samples_and_sr
+    
+    sf.write(os.path.join(Config.RESULTS_FOLDER, file_name), signal, sample_rate)
 
     if print_flag:
         print(f"Signal shape: {signal.shape}, sample rate: {sample_rate}")
