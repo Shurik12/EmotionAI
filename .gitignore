@@ -1,5 +1,6 @@
 .vscode/
 venv/
+src/source/pytorch_utils/
 contrib/emotiefflib/
 contrib/libtorch/
 contrib/onnxruntime/

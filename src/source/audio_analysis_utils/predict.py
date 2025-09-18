@@ -17,7 +17,7 @@ def predict(input_file, model_save_path=config.AUDIO_MODEL_SAVE_PATH):
 
     # Extract features
     extracted_mfcc = utils.extract_mfcc(
-        os.path.join(Config.UPLOAD_FOLDER, input_file),
+        input_file,
         N_FFT=best_hyperparameters['N_FFT'],
         NUM_MFCC=best_hyperparameters['NUM_MFCC'],
         HOP_LENGTH=best_hyperparameters['HOP_LENGTH']
