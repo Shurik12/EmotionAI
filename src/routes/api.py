@@ -23,11 +23,15 @@ def upload_file():
         return jsonify({"error": "No file selected"}), 400
     
     if file and file_processor.allowed_file(file.filename):
-        filename = file.filename
         task_id = str(uuid.uuid4())
-        filepath = os.path.join(Config.UPLOAD_FOLDER, f"{task_id}_{filename}")
-        file.save(filepath)
+        filename = f"{task_id}_{file.filename}"
         
+        filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
+        file.save(filepath)
+
+        filepath = os.path.join(Config.RESULTS_FOLDER, filename)
+        file.save(filepath)
+
         # Process file in background thread
         thread = threading.Thread(
             target=file_processor.process_file,
