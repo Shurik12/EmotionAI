@@ -11,6 +11,8 @@ from emotiefflib.facial_analysis import EmotiEffLibRecognizer, get_model_list
 from config.settings import Config
 from src.models.redis_manager import RedisManager
 
+import source.audio_analysis_utils.predict as audio_predict
+
 logger = logging.getLogger(__name__)
 
 class FileProcessor:
@@ -32,7 +34,7 @@ class FileProcessor:
         """Safely remove a file if it exists"""
         try:
             if os.path.exists(filepath):
-                os.remove(filepath)
+                # os.remove(filepath)
                 logger.info(f"Cleaned up file: {filepath}")
         except Exception as e:
             logger.error(f"Error cleaning up file {filepath}: {str(e)}")
@@ -213,6 +215,46 @@ class FileProcessor:
             })
         except Exception as e:
             raise Exception(f"Video processing failed: {str(e)}")
+    
+    def process_audio_file(self, task_id: str, filepath: str, filename: str) -> None:
+        """Process an image file with the specified model"""
+        self.redis.set_task_status(task_id, {
+            "progress": 0,
+            "message": "Processing image...",
+            "error": None,
+            "complete": False
+        })
+        
+        try:
+            filepath = os.path.join(Config.UPLOAD_FOLDER, filename)
+            emotion, prob, q = audio_predict.predict(filename)
+            
+            self.redis.set_task_status(task_id, {
+                "progress": 50,
+                "message": "Processing audio...",
+                "error": None,
+                "complete": False
+            })
+
+            result = {
+                "main_prediction": {
+                    "index": int(1),
+                    "label": emotion,
+                    "probability": float(prob)
+                },
+                "additional_probs": q
+            }
+            
+            # Update status
+            self.redis.set_task_status(task_id, {
+                "complete": True,
+                "type": "audio",
+                "audio_url": f"/api/results/{filename}",
+                "result": result,
+                "progress": 100
+            })
+        except Exception as e:
+            raise Exception(f"Image processing failed: {str(e)}")
 
     def process_file(self, task_id: str, filepath: str, filename: str) -> None:
         """Process a file (image or video) to detect emotions"""
@@ -232,6 +274,8 @@ class FileProcessor:
                 self.process_image_file(task_id, filepath, filename)
             elif file_ext in {'mp4', 'avi', 'webm'}:
                 self.process_video_file(task_id, filepath, filename)
+            elif file_ext in {'mp3', 'aac', 'ogg'}:
+                self.process_audio_file(task_id, filepath, filename)
             else:
                 self.redis.set_task_status(task_id, {
                     "error": "Неподдерживаемый формат файла",
