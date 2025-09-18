@@ -1,16 +1,41 @@
-# /etc/systemd/system/emotion_detection.service
+# /etc/systemd/system/emotion-ai.service
 [Unit]
-Description=Emotion Detection AI Service
+Description=My C++ Backend Service
 After=network.target
 
 [Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/home/alex/EmotionAI
-Environment="PATH=/home/alex/EmotionAI/venv/bin"
-ExecStart=/home/alex/EmotionAI/venv/bin/gunicorn --config /home/alex/EmotionAI/gunicorn_config.py --bind unix:/var/run/emotionai/gunicorn.sock wsgi:app
+Type=simple
+#User=emotionai
+#Group=emotionai
+WorkingDirectory=/home/alex/emotion-ai
+Environment=LD_LIBRARY_PATH=/opt/emotion-ai/lib:/usr/local/lib
+
+# C++ binary execution
+ExecStart=/home/alex/emotion-ai/build/EmotionAI --config /home/alex/emotion-ai/config.yaml
+
+# Restart policy
 Restart=always
-RestartSec=3
+RestartSec=5
+StartLimitInterval=0
+
+# Security hardening
+# NoNewPrivileges=yes
+# PrivateTmp=yes
+# ProtectSystem=strict
+# ProtectHome=yes
+# ReadWritePaths=/var/log/emotion-ai /tmp
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=65536
+MemoryMax=4G
+CPUQuota=200%
+
+# Core dump settings (useful for debugging C++ apps)
+LimitCORE=infinity
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=emotion-ai
 
 [Install]
 WantedBy=multi-user.target

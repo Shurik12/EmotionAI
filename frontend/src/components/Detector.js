@@ -446,21 +446,22 @@ const Detector = () => {
 								<h3 data-i18n="video_analysis_complete"></h3>
 								<p data-i18n="processed_frames">{results.frames_processed}</p>
 							</div>
-							{results.results && results.results.map((frame, index) => (
-								<div key={index} className="frame-result">
-									<h4 data-i18n="frame">{frame.frame + 1}</h4>
-									{frame.image_url && (
-										<img
-											src={frame.image_url}
-											alt={` ${frame.frame + 1}`}
-											loading="lazy"
-											className="processed-image"
-											data-i18n="video_frame"
-										/>
-									)}
-									{displayEmotionResult(frame.result)}
-								</div>
-							))}
+							<div className="results-container video-results">
+								{results.results && results.results.map((frame, index) => (
+									<div key={index} className="frame-result">
+										<h4>{t('frame', localStorage.getItem('language'))} {frame.frame + 1}</h4>
+										{frame.image_url && (
+											<img
+												src={frame.image_url}
+												alt={`${t('video_frame', localStorage.getItem('language'))} ${frame.frame + 1}`}
+												loading="lazy"
+												className="processed-image"
+											/>
+										)}
+										{displayEmotionResult(frame.result)}
+									</div>
+								))}
+							</div>
 						</>
 					) : results.type === 'audio' ? (
 						<>
