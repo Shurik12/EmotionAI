@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Your Name <your.email@example.com>
+Date: $(date +"%a, %d %b %Y %H:%M:%S %z")
+Subject: [PATCH] Fix ONNX library path and torch model loading
+
+- Change ONNX runtime library search path from lib to lib64
+- Add weights_only=False parameter to torch.load for compatibility
+
+ contrib/emotiefflib/emotieffcpplib/CMakeLists.txt              | 2 +-
+ contrib/emotiefflib/models/prepare_models_for_emotieffcpplib.py | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/contrib/emotiefflib/emotieffcpplib/CMakeLists.txt b/contrib/emotiefflib/emotieffcpplib/CMakeLists.txt
+index 012365b..1526f21 100644
+--- a/contrib/emotiefflib/emotieffcpplib/CMakeLists.txt
++++ b/contrib/emotiefflib/emotieffcpplib/CMakeLists.txt
+@@ -51,7 +51,7 @@ if (WITH_ONNX)
+     list(APPEND CMAKE_PREFIX_PATH "${WITH_ONNX}")
+     find_package(onnxruntime REQUIRED)
+     list(APPEND INCLUDE_DIRS "${WITH_ONNX}/include")
+-    find_library(ONNX_RUNTIME_LIB onnxruntime HINTS "${WITH_ONNX}/lib")
++    find_library(ONNX_RUNTIME_LIB onnxruntime HINTS "${WITH_ONNX}/lib64")
+     list(APPEND LINK_LIBRARIES ${ONNX_RUNTIME_LIB})
+     file(GLOB onnx_src_files
+         "src/backends/onnx/*.cpp"
+diff --git a/contrib/emotiefflib/models/prepare_models_for_emotieffcpplib.py b/contrib/emotiefflib/models/prepare_models_for_emotieffcpplib.py
+index b77a63a..e90bffd 100644
+--- a/contrib/emotiefflib/models/prepare_models_for_emotieffcpplib.py
++++ b/contrib/emotiefflib/models/prepare_models_for_emotieffcpplib.py
+@@ -60,7 +60,7 @@ def trace_model(
+         img_size = 224
+     input_shape = (1, 3, img_size, img_size)
+     model_example = torch.rand(*input_shape)
+-    model = torch.load(torch_model, map_location=torch.device("cpu"))
++    model = torch.load(torch_model, map_location=torch.device("cpu"), weights_only=False)
+     # pylint: disable=no-else-return
+     if model_name in ("mbf_va_mtl.pt", "mobilevit_va_mtl.pt"):
+         # This is a workaround but it still is not working because of shapes issues in runtime
+-- 
+2.34.1
