@@ -72,7 +72,7 @@ const Detector = () => {
 
 	const validateFile = (file) => {
 		const validTypes = [
-			'image/jpeg', 'image/png', 'image/jpg', 
+			'image/jpeg', 'image/png', 'image/jpg',
 			'video/mp4', 'video/avi', 'video/webm',
 			'audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg', 'audio/wav'
 		];
@@ -249,6 +249,18 @@ const Detector = () => {
 		const mainPred = result.main_prediction || {};
 		const additional = result.additional_probs || {};
 
+		// Separate emotions from valence/arousal
+		const emotions = {};
+		const additionalFeatures = {};
+
+		Object.entries(additional).forEach(([key, value]) => {
+			if (key === 'valence' || key === 'arousal') {
+				additionalFeatures[key] = value;
+			} else {
+				emotions[key] = value;
+			}
+		});
+
 		return (
 			<div className="result-card">
 				<div className="main-emotion">
@@ -256,7 +268,7 @@ const Detector = () => {
 					({(mainPred.probability * 100).toFixed(1)}%)
 				</div>
 				<div className="emotion-display">
-					{Object.entries(additional).map(([emotionKey, prob]) => {
+					{Object.entries(emotions).map(([emotionKey, prob]) => {
 						const percentage = (parseFloat(prob) * 100).toFixed(1);
 						return (
 							<div key={emotionKey} className="emotion-item">
@@ -277,6 +289,31 @@ const Detector = () => {
 						);
 					})}
 				</div>
+
+				{/* Display valence and arousal if they exist */}
+				{Object.keys(additionalFeatures).length > 0 && (
+					<div className="additional-features">
+						<h4 data-i18n="additional_features">{t('additional_features', localStorage.getItem('language'))}</h4>
+						{Object.entries(additionalFeatures).map(([key, value]) => (
+							<div key={key} className="feature-item">
+								<div className="feature-label">
+									<span data-i18n={key}>{t(key, localStorage.getItem('language'))}</span>
+									<span>{parseFloat(value).toFixed(2)}</span>
+								</div>
+								{/* Optional: Display as a different kind of bar or numerical value */}
+								<div className="feature-value">
+									<div
+										className="feature-fill"
+										style={{
+											width: `${(parseFloat(value) + 1) * 50}%`, // Scale from -1 to +1 to 0-100%
+											backgroundColor: key === 'valence' ? '#4CAF50' : '#2196F3'
+										}}
+									></div>
+								</div>
+							</div>
+						))}
+					</div>
+				)}
 			</div>
 		);
 	};
@@ -467,8 +504,8 @@ const Detector = () => {
 						<>
 							{results.audio_url && (
 								<div className="preview-container processed-image">
-									<audio 
-										controls 
+									<audio
+										controls
 										src={results.audio_url}
 										className="audio-segment"
 										data-i18n="processed_audio_alt"

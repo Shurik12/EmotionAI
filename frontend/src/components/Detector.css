@@ -208,3 +208,58 @@
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
+/* Additional features styling */
+.additional-features {
+	margin-top: 25px;
+	padding-top: 20px;
+	border-top: 2px dashed #dee2e6;
+}
+
+.additional-features h4 {
+	color: #495057;
+	margin-bottom: 15px;
+	font-size: 1.1rem;
+}
+
+.feature-item {
+	margin-bottom: 15px;
+	padding: 12px;
+	background: white;
+	border-radius: 8px;
+	border: 1px solid #e9ecef;
+}
+
+.feature-label {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 8px;
+	font-weight: 600;
+	color: #495057;
+}
+
+.feature-value {
+	width: 100%;
+	height: 8px;
+	background: #dee2e6;
+	border-radius: 4px;
+	overflow: hidden;
+	position: relative;
+}
+
+.feature-fill {
+	height: 100%;
+	transition: width 0.5s ease-in-out;
+	border-radius: 4px;
+}
+
+/* Center point indicator for valence/arousal scales */
+.feature-value::before {
+	content: '';
+	position: absolute;
+	left: 50%;
+	top: 0;
+	bottom: 0;
+	width: 2px;
+	background: rgba(0, 0, 0, 0.3);
+	transform: translateX(-50%);
+}
