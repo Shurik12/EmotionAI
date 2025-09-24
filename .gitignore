@@ -7,6 +7,10 @@ build/
 frontend/build/
 frontend/node_modules/
 src/emotion_detection_app.egg-info/
+src/training/images
+src/training/processed_images
+src/training/test.tsv
+src/training/train.tsv
 config.yaml
 emotion_detection.log
 results.txt
