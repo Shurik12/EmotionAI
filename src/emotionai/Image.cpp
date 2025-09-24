@@ -262,6 +262,12 @@ namespace EmotionAI
 
 			for (size_t i = 0; i < emotions.size(); ++i)
 				additional_probs[emotions[i]] = fmt::format("{:.2f}", first_score.scores[i]);
+
+			if (emotions.size() == 8) 
+			{
+				additional_probs["valence"] = fmt::format("{:.2f}", first_score.scores[8]);
+				additional_probs["arousal"] = fmt::format("{:.2f}", first_score.scores[9]);
+			}
 				
 			result["additional_probs"] = std::move(additional_probs);
 
