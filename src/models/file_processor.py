@@ -70,7 +70,7 @@ class FileProcessor:
             if not facial_images:
                 raise ValueError("no_faces_detected")
                 
-            model_name = get_model_list()[4]  # Using the 5th model from the list
+            model_name = get_model_list()[3]  # Using the 5th model from the list
             device = "cuda" if torch.cuda.is_available() else "cpu"
             fer = EmotiEffLibRecognizer(engine="onnx", model_name=model_name, device=device)
             
@@ -79,6 +79,8 @@ class FileProcessor:
             
             for face_img in facial_images:
                 emotion, scores = fer.predict_emotions(face_img, logits=False)
+                print (f'valence: {scores[0][-2]}')
+                print (f'arousal: {scores[0][-1]}')
                 emotions.append(emotion[0])
                 scores_list.append(scores[0])
             
