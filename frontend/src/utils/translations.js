@@ -108,6 +108,10 @@ export const translations = {
 		surprise: "Удивление",
 		sadness: "Грусть",
 
+		additional_features: "Дополнительные признаки",
+		valence: "Валентность",
+		arousal: "Интенсивность",
+
 		// Privacy page
 		privacy_policy: "Политика конфиденциальности",
 		privacy_error: "Не удалось загрузить политику конфиденциальности. Пожалуйста, попробуйте позже.",
@@ -251,6 +255,10 @@ export const translations = {
 		neutral: "Neutral",
 		sadness: "Sadness",
 		surprise: "Surprise",
+
+		additional_features: "Additional Features",
+		valence: "Valence",
+		arousal: "Intensity",
 
 		// Privacy page
 		privacy_policy: "Privacy Policy",
