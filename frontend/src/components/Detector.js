@@ -4,6 +4,209 @@ import { useLanguage } from '../hooks/useLanguage';
 import { t } from '../utils/translations';
 import './Detector.css';
 
+// Chart components
+const LineChart = ({ data, labels, title, color, height = 200 }) => {
+	if (!data || data.length === 0) {
+		return (
+			<div className="chart-container">
+				<h4>{title}</h4>
+				<div className="no-data">No data available</div>
+			</div>
+		);
+	}
+
+	const maxVal = Math.max(...data);
+	const minVal = Math.min(...data);
+	const range = maxVal - minVal || 1;
+
+	return (
+		<div className="chart-container">
+			<h4>{title}</h4>
+			<div className="line-chart" style={{ height: `${height}px` }}>
+				{data.map((value, index) => (
+					<div
+						key={index}
+						className="chart-point"
+						style={{
+							left: `${(index / (data.length - 1)) * 100}%`,
+							bottom: `${((value - minVal) / range) * 100}%`,
+							backgroundColor: color
+						}}
+						title={`${labels[index]}: ${value.toFixed(2)}`}
+					/>
+				))}
+				<div className="chart-line" style={{ borderColor: color }}></div>
+				<div className="chart-labels">
+					<span>{minVal.toFixed(1)}</span>
+					<span>{maxVal.toFixed(1)}</span>
+				</div>
+			</div>
+		</div>
+	);
+};
+
+const EmotionDistributionChart = ({ emotions, height = 250 }) => {
+	if (!emotions || Object.keys(emotions).length === 0) {
+		return (
+			<div className="chart-container">
+				<h4>Average Emotion Distribution</h4>
+				<div className="no-data">No emotion data available</div>
+			</div>
+		);
+	}
+
+	const emotionEntries = Object.entries(emotions).sort((a, b) => b[1] - a[1]);
+
+	return (
+		<div className="chart-container">
+			<h4>Average Emotion Distribution</h4>
+			<div className="distribution-chart" style={{ height: `${height}px` }}>
+				{emotionEntries.map(([emotion, value]) => (
+					<div key={emotion} className="distribution-item">
+						<div className="emotion-label">
+							<span>{t(emotion, localStorage.getItem('language'))}</span>
+							<span>{(value * 100).toFixed(1)}%</span>
+						</div>
+						<div className="distribution-bar">
+							<div
+								className="distribution-fill"
+								style={{
+									width: `${value * 100}%`,
+									backgroundColor: getColorForEmotion(emotion)
+								}}
+							/>
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+};
+
+const TimelineChart = ({ frameResults, height = 200 }) => {
+	if (!frameResults || frameResults.length === 0) {
+		return (
+			<div className="chart-container">
+				<h4>Emotion Timeline</h4>
+				<div className="no-data">No timeline data available</div>
+			</div>
+		);
+	}
+
+	const [selectedFrame, setSelectedFrame] = useState(null);
+
+	return (
+		<div className="chart-container">
+			<h4>Emotion Timeline</h4>
+			<div className="timeline-chart" style={{ height: `${height}px` }}>
+				{frameResults.map((frame, index) => {
+					const mainEmotion = frame.result?.main_prediction?.label;
+					const probability = frame.result?.main_prediction?.probability || 0;
+
+					return (
+						<div
+							key={index}
+							className={`timeline-point ${selectedFrame === index ? 'selected' : ''}`}
+							style={{
+								left: `${(frame.timestamp / (frameResults[frameResults.length - 1]?.timestamp || 1)) * 100}%`,
+								backgroundColor: getColorForEmotion(mainEmotion),
+								opacity: 0.5 + (probability * 0.5)
+							}}
+							onMouseEnter={() => setSelectedFrame(index)}
+							onMouseLeave={() => setSelectedFrame(null)}
+							title={`${frame.timestamp.toFixed(1)}s: ${mainEmotion} (${(probability * 100).toFixed(1)}%)`}
+						/>
+					);
+				})}
+				{selectedFrame !== null && (
+					<div
+						className="timeline-tooltip"
+						style={{
+							left: `${(frameResults[selectedFrame].timestamp / (frameResults[frameResults.length - 1]?.timestamp || 1)) * 100}%`
+						}}
+					>
+						<strong>Time: {frameResults[selectedFrame].timestamp.toFixed(1)}s</strong>
+						<br />
+						Main emotion: {t(frameResults[selectedFrame].result?.main_prediction?.label, localStorage.getItem('language'))}
+						<br />
+						Confidence: {(frameResults[selectedFrame].result?.main_prediction?.probability * 100).toFixed(1)}%
+					</div>
+				)}
+			</div>
+		</div>
+	);
+};
+
+const SampleFrame = ({ frame, index }) => {
+	return (
+		<div key={index} className="sample-frame">
+			<div className="frame-header">
+				<strong>Time: {frame.timestamp.toFixed(1)}s</strong>
+			</div>
+			{frame.image_url && (
+				<div className="frame-image-container">
+					<img
+						src={frame.image_url}
+						alt={`Frame at ${frame.timestamp.toFixed(1)} seconds`}
+						loading="lazy"
+						className="frame-image"
+					/>
+				</div>
+			)}
+			<div className="frame-results">
+				{frame.result && (
+					<>
+						<div className="main-emotion">
+							<span>{t(frame.result.main_prediction?.label, localStorage.getItem('language'))}</span>
+							({(frame.result.main_prediction?.probability * 100).toFixed(1)}%)
+						</div>
+						<div className="emotion-display">
+							{frame.result.additional_probs && Object.entries(frame.result.additional_probs)
+								.filter(([key]) => key !== 'valence' && key !== 'arousal')
+								.map(([emotionKey, prob]) => {
+									const percentage = (parseFloat(prob) * 100).toFixed(1);
+									return (
+										<div key={emotionKey} className="emotion-item">
+											<div className="emotion-label">
+												<span>{t(emotionKey, localStorage.getItem('language'))}</span>
+												<span>{percentage}%</span>
+											</div>
+											<div className="emotion-bar">
+												<div
+													className="emotion-fill"
+													style={{
+														width: `${percentage}%`,
+														backgroundColor: getColorForEmotion(emotionKey)
+													}}
+												></div>
+											</div>
+										</div>
+									);
+								})}
+						</div>
+						{(frame.valence !== undefined || frame.arousal !== undefined) && (
+							<div className="valence-arousal">
+								{frame.valence !== undefined && (
+									<div className="va-item">
+										<span>Valence: </span>
+										<span>{frame.valence.toFixed(2)}</span>
+									</div>
+								)}
+								{frame.arousal !== undefined && (
+									<div className="va-item">
+										<span>Arousal: </span>
+										<span>{frame.arousal.toFixed(2)}</span>
+									</div>
+								)}
+							</div>
+						)}
+					</>
+				)}
+			</div>
+		</div>
+	);
+};
+
 const Detector = () => {
 	const [currentFile, setCurrentFile] = useState(null);
 	const [fileInfo, setFileInfo] = useState('');
@@ -16,6 +219,8 @@ const Detector = () => {
 	const [isProcessing, setIsProcessing] = useState(false);
 	const [progressComplete, setProgressComplete] = useState(false);
 	const [currentTaskId, setCurrentTaskId] = useState(null);
+	const [processingMode, setProcessingMode] = useState('standard'); // 'standard' or 'realtime'
+	const [selectedTimeRange, setSelectedTimeRange] = useState([0, 1]);
 
 	const fileInputRef = useRef(null);
 	const progressIntervalRef = useRef(null);
@@ -59,6 +264,7 @@ const Detector = () => {
 		setFileSize(formatFileSize(file.size));
 		setPreview(null);
 		setResults(null);
+		setSelectedTimeRange([0, 1]);
 
 		// Create preview for audio files
 		if (file.type.startsWith('audio/')) {
@@ -106,15 +312,17 @@ const Detector = () => {
 		setFileName('');
 		setFileSize('');
 		setPreview(null);
+		setResults(null);
+		setSelectedTimeRange([0, 1]);
 		if (fileInputRef.current) {
 			fileInputRef.current.value = '';
 		}
 	};
 
 	const uploadFile = async () => {
-
 		console.log('uploadFile called, currentFile:', currentFile);
 		console.log('consentGiven:', consentGiven);
+		console.log('processingMode:', processingMode);
 
 		if (!currentFile) {
 			showError('error_file_not_selected');
@@ -142,8 +350,10 @@ const Detector = () => {
 		formData.append('file', currentFile);
 		formData.append('model', "emotieff");
 
+		const endpoint = processingMode === 'realtime' ? '/api/upload_realtime' : '/api/upload';
+
 		try {
-			const response = await fetch('/api/upload', {
+			const response = await fetch(endpoint, {
 				method: 'POST',
 				body: formData
 			});
@@ -318,6 +528,27 @@ const Detector = () => {
 		);
 	};
 
+	// Filter data based on selected time range
+	const getFilteredData = () => {
+		if (!results?.frame_results) return { valence: [], arousal: [], labels: [], frames: [] };
+
+		const frameResults = results.frame_results;
+		const totalDuration = results.duration || 1;
+		const startTime = selectedTimeRange[0] * totalDuration;
+		const endTime = selectedTimeRange[1] * totalDuration;
+
+		const filtered = frameResults.filter(frame =>
+			frame.timestamp >= startTime && frame.timestamp <= endTime
+		);
+
+		return {
+			valence: filtered.map(f => f.valence || 0),
+			arousal: filtered.map(f => f.arousal || 0),
+			labels: filtered.map(f => `${f.timestamp.toFixed(1)}s`),
+			frames: filtered
+		};
+	};
+
 	// Drag and drop handlers
 	const handleDragOver = (e) => {
 		e.preventDefault();
@@ -375,7 +606,7 @@ const Detector = () => {
 						disabled={isProcessing}
 					/>
 					<button
-						className="btn primary" // Added 'primary' class
+						className="btn primary"
 						id="selectFileBtn"
 						onClick={() => fileInputRef.current?.click()}
 						disabled={isProcessing}
@@ -415,6 +646,22 @@ const Detector = () => {
 					</div>
 				)}
 
+				{/* Processing Mode Selection */}
+				<div style={{ margin: '15px 0', textAlign: 'center' }}>
+					<label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+						<span style={{ marginRight: '10px' }} data-i18n="processing_mode">Processing Mode:</span>
+						<select
+							value={processingMode}
+							onChange={(e) => setProcessingMode(e.target.value)}
+							disabled={isProcessing}
+							style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ced4da' }}
+						>
+							<option value="standard">Standard Analysis</option>
+							<option value="realtime">Real-time Analysis</option>
+						</select>
+					</label>
+				</div>
+
 				<div style={{ margin: '15px 0', textAlign: 'center' }}>
 					<label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
 						<input
@@ -443,9 +690,10 @@ const Detector = () => {
 					className="btn primary"
 					id="uploadBtn"
 					onClick={uploadFile}
-					disabled={false}
+					disabled={isProcessing}
 					data-i18n="analyze_emotions"
 				>
+					{t('analyze_emotions', localStorage.getItem('language'))}
 				</button>
 			</div>
 
@@ -498,6 +746,108 @@ const Detector = () => {
 										{displayEmotionResult(frame.result)}
 									</div>
 								))}
+							</div>
+						</>
+					) : results.type === 'video_realtime' ? (
+						<>
+							<div className="result-card">
+								<h3>Real-time Video Analysis Complete</h3>
+								<p>Analyzed {results.frames_processed} frames over {results.duration?.toFixed(1) || 0} seconds</p>
+
+								{results.statistics && (
+									<div className="statistics-summary">
+										<h4>Summary Statistics</h4>
+										<div className="stats-grid">
+											<div className="stat-item">
+												<label>Valence Range:</label>
+												<span>{results.statistics.valence_min?.toFixed(2)} to {results.statistics.valence_max?.toFixed(2)}</span>
+											</div>
+											<div className="stat-item">
+												<label>Arousal Range:</label>
+												<span>{results.statistics.arousal_min?.toFixed(2)} to {results.statistics.arousal_max?.toFixed(2)}</span>
+											</div>
+											<div className="stat-item">
+												<label>Average Valence:</label>
+												<span>{results.statistics.valence_avg?.toFixed(2)}</span>
+											</div>
+											<div className="stat-item">
+												<label>Average Arousal:</label>
+												<span>{results.statistics.arousal_avg?.toFixed(2)}</span>
+											</div>
+										</div>
+									</div>
+								)}
+							</div>
+
+							{/* Time Range Selector */}
+							{results.duration > 5 && (
+								<div className="time-range-selector">
+									<h4>Select Time Range</h4>
+									<div className="range-inputs">
+										<input
+											type="range"
+											min="0"
+											max="1"
+											step="0.01"
+											value={selectedTimeRange[0]}
+											onChange={(e) => setSelectedTimeRange([parseFloat(e.target.value), selectedTimeRange[1]])}
+										/>
+										<input
+											type="range"
+											min="0"
+											max="1"
+											step="0.01"
+											value={selectedTimeRange[1]}
+											onChange={(e) => setSelectedTimeRange([selectedTimeRange[0], parseFloat(e.target.value)])}
+										/>
+									</div>
+									<div className="time-labels">
+										<span>0s</span>
+										<span>{(results.duration * selectedTimeRange[0]).toFixed(1)}s - {(results.duration * selectedTimeRange[1]).toFixed(1)}s</span>
+										<span>{results.duration.toFixed(1)}s</span>
+									</div>
+								</div>
+							)}
+
+							{/* Reorganized Charts Grid - 2x2 layout */}
+							<div className="charts-grid-realtime">
+								<div className="chart-row">
+									<LineChart
+										data={getFilteredData().valence}
+										labels={getFilteredData().labels}
+										title="Valence Trend"
+										color="#4CAF50"
+										height={180}
+									/>
+									<LineChart
+										data={getFilteredData().arousal}
+										labels={getFilteredData().labels}
+										title="Arousal Trend"
+										color="#2196F3"
+										height={180}
+									/>
+								</div>
+
+								<div className="chart-row">
+									<EmotionDistributionChart
+										emotions={results.average_emotions}
+										height={250}
+									/>
+									<TimelineChart
+										frameResults={getFilteredData().frames}
+										height={180}
+									/>
+								</div>
+							</div>
+
+							{/* Sample Frame Results with Images */}
+							<div className="sample-frames">
+								<h4>Sample Frame Analysis</h4>
+								<div className="frames-grid">
+									{results.frame_results?.slice(0, 4).map((frame, index) => (
+										<SampleFrame key={index} frame={frame} index={index} />
+									))}
+								</div>
 							</div>
 						</>
 					) : results.type === 'audio' ? (
