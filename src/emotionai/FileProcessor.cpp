@@ -66,7 +66,7 @@ namespace EmotionAI
 		try
 		{
 			spdlog::info("Initializing emotion recognition models...");
-			
+
 			// Get model paths from configuration
 			auto &config = Common::Config::instance();
 			std::string model_backend = config.modelBackend();
@@ -118,6 +118,7 @@ namespace EmotionAI
 			throw;
 		}
 	}
+
 	void FileProcessor::process_image_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
 	{
 		redis_manager_.set_task_status(task_id, nlohmann::json{
@@ -226,7 +227,7 @@ namespace EmotionAI
 						std::string frame_filename = fmt::format("frame_{}_{}.jpg", processed_count,
 																 filename.substr(0, filename.find_last_of('.')));
 						std::string frame_path = (fs::path("result") / frame_filename).string();
-						
+
 						if (cv::imwrite(frame_path, frame))
 							spdlog::info("Image saved successfully to {}", frame_path);
 						else
@@ -276,6 +277,202 @@ namespace EmotionAI
 		}
 	}
 
+	void FileProcessor::process_video_realtime(const std::string &task_id, const std::string &filepath, const std::string &filename)
+	{
+		redis_manager_.set_task_status(task_id, nlohmann::json{
+													{"progress", 0},
+													{"message", "Processing video for real-time analysis..."},
+													{"error", nullptr},
+													{"complete", false},
+													{"mode", "realtime"}}
+													.dump());
+
+		try
+		{
+			cv::VideoCapture cap(filepath);
+			if (!cap.isOpened())
+			{
+				throw std::runtime_error("Could not open video");
+			}
+
+			int total_frames = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_COUNT));
+			double fps = cap.get(cv::CAP_PROP_FPS);
+
+			spdlog::info("Real-time video analysis: {}, Frames: {}, FPS: {:.2f}",
+						 filename, total_frames, fps);
+
+			int frame_count = 0;
+			std::vector<nlohmann::json> frame_results;
+			std::vector<double> valence_history;
+			std::vector<double> arousal_history;
+			std::vector<int> frame_numbers;
+
+			// Process frames at a reasonable rate
+			int frame_interval = std::max(1, static_cast<int>(fps / 10)); // Process 2 frames per second
+			int max_frames = 60;										 // Maximum frames to process for performance
+
+			while (cap.isOpened() && frame_count < max_frames)
+			{
+				cv::Mat frame;
+				if (!cap.read(frame))
+				{
+					break;
+				}
+
+				// Skip frames based on interval
+				if (frame_count % frame_interval != 0)
+				{
+					frame_count++;
+					continue;
+				}
+
+				// Update progress
+				if (frame_results.size() % 5 == 0)
+				{
+					redis_manager_.set_task_status(task_id, nlohmann::json{
+																{"progress", static_cast<int>((frame_count * 100.0) / std::min(total_frames, max_frames))},
+																{"message", fmt::format("Analyzing frame {}...", frame_count + 1)},
+																{"error", nullptr},
+																{"complete", false},
+																{"frames_processed", frame_results.size()}}
+																.dump());
+				}
+
+				try
+				{
+					auto [processed_frame, result] = process_image(frame);
+
+					// Save the processed frame image
+					std::string frame_filename = fmt::format("realtime_frame_{}_{}.jpg", frame_results.size(),
+															 filename.substr(0, filename.find_last_of('.')));
+					std::string frame_path = (fs::path("result") / frame_filename).string();
+
+					if (cv::imwrite(frame_path, frame))
+					{
+						spdlog::info("Real-time frame saved: {}", frame_path);
+					}
+					else
+					{
+						spdlog::warn("Failed to save real-time frame: {}", frame_path);
+					}
+
+					// Store frame result with timestamp and image URL
+					nlohmann::json frame_result;
+					frame_result["frame_number"] = frame_count;
+					frame_result["timestamp"] = frame_count / fps; // seconds
+					frame_result["image_url"] = "/api/results/" + frame_filename;
+					frame_result["result"] = result;
+
+					// Extract valence and arousal if available
+					if (result.contains("additional_probs"))
+					{
+						auto &additional = result["additional_probs"];
+						if (additional.contains("valence"))
+						{
+							double valence = std::stod(additional["valence"].get<std::string>());
+							valence_history.push_back(valence);
+							frame_result["valence"] = valence;
+						}
+						if (additional.contains("arousal"))
+						{
+							double arousal = std::stod(additional["arousal"].get<std::string>());
+							arousal_history.push_back(arousal);
+							frame_result["arousal"] = arousal;
+						}
+
+						// Extract emotion probabilities
+						std::vector<std::string> emotion_keys = {"anger", "disgust", "fear", "happiness",
+																 "neutral", "sadness", "surprise", "contempt"};
+						nlohmann::json emotions;
+						for (const auto &emotion : emotion_keys)
+						{
+							if (additional.contains(emotion))
+							{
+								emotions[emotion] = std::stod(additional[emotion].get<std::string>());
+							}
+						}
+						frame_result["emotions"] = emotions;
+					}
+
+					frame_numbers.push_back(frame_count);
+					frame_results.push_back(frame_result);
+				}
+				catch (const std::exception &e)
+				{
+					spdlog::warn("Error processing frame {}: {}", frame_count, e.what());
+				}
+
+				frame_count++;
+
+				// Break if we have enough samples
+				if (frame_results.size() >= 30)
+					break; // Max 30 data points for clean charts
+			}
+
+			cap.release();
+
+			if (frame_results.empty())
+			{
+				throw std::runtime_error("No frames were processed successfully");
+			}
+
+			// Calculate overall statistics
+			nlohmann::json stats;
+			if (!valence_history.empty())
+			{
+				stats["valence_avg"] = std::accumulate(valence_history.begin(), valence_history.end(), 0.0) / valence_history.size();
+				stats["valence_min"] = *std::min_element(valence_history.begin(), valence_history.end());
+				stats["valence_max"] = *std::max_element(valence_history.begin(), valence_history.end());
+			}
+			if (!arousal_history.empty())
+			{
+				stats["arousal_avg"] = std::accumulate(arousal_history.begin(), arousal_history.end(), 0.0) / arousal_history.size();
+				stats["arousal_min"] = *std::min_element(arousal_history.begin(), arousal_history.end());
+				stats["arousal_max"] = *std::max_element(arousal_history.begin(), arousal_history.end());
+			}
+
+			// Calculate average emotion distribution
+			nlohmann::json avg_emotions;
+			std::vector<std::string> emotion_keys = {"anger", "disgust", "fear", "happiness",
+													 "neutral", "sadness", "surprise", "contempt"};
+			for (const auto &emotion : emotion_keys)
+			{
+				double sum = 0.0;
+				int count = 0;
+				for (const auto &frame : frame_results)
+				{
+					if (frame["emotions"].contains(emotion))
+					{
+						sum += frame["emotions"][emotion].get<double>();
+						count++;
+					}
+				}
+				if (count > 0)
+				{
+					avg_emotions[emotion] = sum / count;
+				}
+			}
+
+			redis_manager_.set_task_status(task_id, nlohmann::json{
+														{"complete", true},
+														{"type", "video_realtime"},
+														{"frames_processed", frame_results.size()},
+														{"frame_results", frame_results},
+														{"valence_history", valence_history},
+														{"arousal_history", arousal_history},
+														{"frame_numbers", frame_numbers},
+														{"fps", fps},
+														{"duration", total_frames / fps},
+														{"statistics", stats},
+														{"average_emotions", avg_emotions},
+														{"progress", 100}}
+														.dump());
+		}
+		catch (const std::exception &e)
+		{
+			throw std::runtime_error("Real-time video analysis failed: " + std::string(e.what()));
+		}
+	}
 	void FileProcessor::process_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
 	{
 		try
