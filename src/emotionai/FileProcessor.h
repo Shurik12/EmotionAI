@@ -38,6 +38,8 @@ namespace EmotionAI
 		EmotiEffLib::EmotiEffLibRecognizer *get_emotion_recognizer() const { return fer_.get(); }
 		bool is_model_loaded() const { return model_loaded_; }
 
+		void process_video_realtime(const std::string &task_id, const std::string &filepath, const std::string &filename);
+
 	private:
 		db::RedisManager &redis_manager_;
 
