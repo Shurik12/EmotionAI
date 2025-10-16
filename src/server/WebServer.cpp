@@ -161,6 +161,57 @@ void WebServer::ensureDirectoriesExist()
 void WebServer::setupRoutes()
 {
 	// API Routes
+	svr_.Post("/api/upload_realtime", [this](const httplib::Request &req, httplib::Response &res) {
+		// Similar to handleUpload but for real-time processing
+		try {
+			if (!req.form.has_file("file")) {
+				res.status = 400;
+				res.set_content(R"({"error": "No file provided"})", "application/json");
+				return;
+			}
+
+			const auto &file = req.form.get_file("file");
+			if (file.filename.empty()) {
+				res.status = 400;
+				res.set_content(R"({"error": "No file selected"})", "application/json");
+				return;
+			}
+
+			if (!file_processor_->allowed_file(file.filename)) {
+				res.status = 400;
+				res.set_content(R"({"error": "Invalid file type"})", "application/json");
+				return;
+			}
+
+			std::string filename = file.filename;
+			std::string task_id = db::RedisManager::generate_uuid();
+			fs::path filepath = upload_folder_ / (task_id + "_" + filename);
+
+			// Save the file
+			std::ofstream out_file(filepath, std::ios::binary);
+			out_file.write(file.content.data(), file.content.size());
+			out_file.close();
+
+			// Process file in real-time mode
+			std::lock_guard<std::mutex> lock(task_mutex_);
+			background_threads_[task_id] = std::thread(
+				[this, task_id, filepath, filename]() {
+					file_processor_->process_video_realtime(task_id, filepath.string(), filename);
+					std::lock_guard<std::mutex> lock(task_mutex_);
+					background_threads_.erase(task_id);
+				});
+			background_threads_[task_id].detach();
+
+			res.status = 202;
+			res.set_content(fmt::format(R"({{"task_id": "{}", "mode": "realtime"}})", task_id), "application/json");
+
+		} catch (const std::exception &e) {
+			spdlog::error("Exception in real-time upload: {}", e.what());
+			res.status = 500;
+			res.set_content(R"({"error": "Internal server error"})", "application/json");
+		}
+	});
+	
 	svr_.Post("/api/upload", [this](const httplib::Request &req, httplib::Response &res)
 			  { handleUpload(req, res); });
 

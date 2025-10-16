@@ -245,13 +245,14 @@ namespace EmotionAI
 			const auto &first_score = scores_list[0];
 
 			// Find the dominant emotion
-			auto max_it = std::max_element(first_score.scores.begin(), first_score.scores.end());
+			auto max_it = std::max_element(first_score.scores.begin(), first_score.scores.end() - 2);
 			int main_emotion_idx = std::distance(first_score.scores.begin(), max_it);
 
 			// Build JSON result
 			nlohmann::json result;
 
 			// Main prediction
+			spdlog::info("main_emotion_idx: {}", main_emotion_idx);
 			auto &main_pred = result["main_prediction"];
 			main_pred["index"] = main_emotion_idx;
 			main_pred["label"] = emotions[main_emotion_idx];
