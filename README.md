@@ -39,8 +39,9 @@ sudo vim /etc/redis/redis.conf
 ```bash
 git submodule update --init --recursive
 bash install_deps.sh
+patch -p1 < emotiefflib.patch
 mkdir build && cd build
-cmake .. -G Ninja
+cmake .. -G Ninja -DBUILD_TESTS=ON
 cmake --build .
 ```
 6. For production
