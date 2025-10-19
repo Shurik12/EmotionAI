@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 3.12)
 project(EmotionAI)
 
-# Set C++ standard
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Set default build type to Release if not specified
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
@@ -33,7 +35,7 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib/3rdparty/ope
         "${PROJECT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/src/*.cpp"
         "${PROJECT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/lib/src/*.cpp"
     )
-    
+
     if(MTCNN_SOURCES)
         add_library(opencv-mtcnn STATIC ${MTCNN_SOURCES})
         target_include_directories(opencv-mtcnn PUBLIC
@@ -158,6 +160,129 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/models
     COMMENT "Creating models directory"
 )
+
+# ============================================================================
+# TEST CONFIGURATION
+# ============================================================================
+option(BUILD_TESTS "Build tests" ON)
+
+if(BUILD_TESTS)
+    # Download GoogleTest and GoogleMock
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG release-1.12.1
+    )
+    
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+    
+    enable_testing()
+    
+    # Create object library from main project sources for testing
+    add_library(EmotionAI_Objects OBJECT
+        ${COMMON_SOURCES}
+        ${DB_SOURCES}
+        ${EMOTIONAI_SOURCES}
+        ${SERVER_SOURCES}
+        ${MTCNN_SOURCES}
+    )
+    
+    target_include_directories(EmotionAI_Objects PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib/include
+    )
+    
+    target_link_libraries(EmotionAI_Objects PUBLIC
+        ${OpenCV_LIBS}
+        yaml-cpp
+        spdlog::spdlog
+        fmt::fmt
+        nlohmann_json::nlohmann_json
+        emotiefflib
+        ${HIREDIS_LIBRARY}
+    )
+    
+    # Unit Tests
+    set(UNIT_TEST_SOURCES
+        tests/unit/common/ConfigTest.cpp
+        tests/unit/common/LoggingTest.cpp
+        tests/unit/db/RedisManagerTest.cpp
+        tests/unit/emotionai/ImageTest.cpp
+        tests/unit/emotionai/FileProcessorTest.cpp
+        tests/unit/server/WebServerTest.cpp
+        tests/utils/TestUtils.cpp
+        tests/unit/test_main.cpp  # Add this file
+    )
+    
+    add_executable(EmotionAI_UnitTests ${UNIT_TEST_SOURCES})
+    
+    # Integration Tests
+    set(INTEGRATION_TEST_SOURCES
+        tests/integration/BasicIntegrationTest.cpp
+        tests/utils/TestUtils.cpp
+        tests/integration/test_main.cpp  # Add this file
+    )
+    
+    add_executable(EmotionAI_IntegrationTests ${INTEGRATION_TEST_SOURCES})
+    
+    # Common test properties for both test executables
+    foreach(test_target EmotionAI_UnitTests EmotionAI_IntegrationTests)
+        target_include_directories(${test_target} PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests
+            ${CMAKE_CURRENT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib/include
+        )
+        
+        # Link against the object library and dependencies
+        target_link_libraries(${test_target} PRIVATE
+            EmotionAI_Objects
+            GTest::gtest
+            GTest::gtest_main
+            GTest::gmock
+            ${OpenCV_LIBS}
+            yaml-cpp
+            spdlog::spdlog
+            fmt::fmt
+            nlohmann_json::nlohmann_json
+            ${HIREDIS_LIBRARY}
+            emotiefflib
+        )
+        
+        set_target_properties(${test_target} PROPERTIES
+            CXX_STANDARD 20
+            CXX_STANDARD_REQUIRED ON
+            CXX_EXTENSIONS OFF
+        )
+        
+        # Set output directory for test binaries
+        set_target_properties(${test_target} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests
+        )
+    endforeach()
+    
+    # Organize test targets in IDE
+    set_target_properties(EmotionAI_UnitTests PROPERTIES FOLDER "Tests/Unit")
+    set_target_properties(EmotionAI_IntegrationTests PROPERTIES FOLDER "Tests/Integration")
+    
+    # Add tests to CTest
+    add_test(NAME EmotionAI_UnitTests COMMAND $<TARGET_FILE:EmotionAI_UnitTests>)
+    add_test(NAME EmotionAI_IntegrationTests COMMAND $<TARGET_FILE:EmotionAI_IntegrationTests>)
+    
+    # Set test properties for better output
+    set_tests_properties(EmotionAI_UnitTests PROPERTIES
+        TIMEOUT 60
+        LABELS "unit"
+    )
+    
+    set_tests_properties(EmotionAI_IntegrationTests PROPERTIES
+        TIMEOUT 120
+        LABELS "integration"
+    )
+    
+    message(STATUS "Tests enabled: Unit tests and Integration tests")
+endif()
 
 message(STATUS "EmotionAI project configured successfully")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
