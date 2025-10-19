@@ -14,63 +14,42 @@ For new datasets, follow the instructions below to retune the hyperparameters.
 1. Create issue: https://github.com/Shurik12/EmotionAI/issues
 
 ### Additional info
-1. How to run in dev
+1. How to run in dev python
 ```bash
 gunicorn --bind 0.0.0.0:8000 wsgi:app
 ```
-2. How to run in production
-```bash
-sudo systemctl restart emotion_detection.service
-```
-3. Production settings
-```bash
-# Nginx configuration
-/etc/nginx/sites-available/emotion_detection
-# Service configuration
-/etc/systemd/system/emotion_detection.service
-```
-4. Install redis server
+2. Install redis server
 ```bash
 sudo apt update
 sudo apt install redis-server
 sudo vim /etc/redis/redis.conf
 ```
-5. Build c++ project
+3. Build c++ project
 ```bash
+# build
 git submodule update --init --recursive
 bash install_deps.sh
 patch -p1 < emotiefflib.patch
 mkdir build && cd build
 cmake .. -G Ninja -DBUILD_TESTS=ON
 cmake --build .
+# run
+./EmotionAI
+# run tests
+./tests/EmotionAI_UnitTests
+./tests/EmotionAI_IntegrationTests
 ```
-6. For production
+4. For production
 ```bash
 sudo vim /etc/nginx/sites-available/your-cpp-service
 sudo vim /etc/systemd/system/your-cpp-service.service
+
 # Create symlink to enable your service using command
 sudo systemctl enable your-cpp-service.service 
 # Create symlink from sites-available to sites-enabled
 sudo ln -s /etc/nginx/sites-available/your-cpp-service /etc/nginx/sites-enabled/
-```
 
-```bash
-sudo mkdir -p /var/www/emotion-ai
-sudo mkdir -p /var/www/emotion-ai/models
-sudo cp build/EmotionAI /var/www/emotion-ai/emotion-ai
-sudo cp config.yaml /var/www/emotion-ai/
-sudo cp contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/data/models/* /var/www/emotion-ai/models/
-sudo cp contrib/emotiefflib/models/emotieffcpplib_prepared_models/enet_b2_7.pt /var/www/emotion-ai/models/
-sudo chown -R www-data:www-data /var/www/emotion-ai/
-sudo cp -r frontend/build/ /var/www/emotion-ai/frontend
-
-sudo mkdir -p /var/www/emotion-ai/lib/libtorch
-sudo cp contrib/libtorch/lib/* /var/www/emotion-ai/lib/libtorch/
-
-sudo chown -R www-data:www-data /var/www/emotion-ai
-sudo chmod -R 755 /var/www/emotion-ai
-sudo chmod +x /var/www/emotion-ai/emotion-ai
 sudo systemctl daemon-reload
-sudo systemctl restart emotion-ai
+sudo systemctl restart your-cpp-service
 sudo systemctl reload nginx
 ```
