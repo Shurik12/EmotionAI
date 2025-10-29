@@ -10,36 +10,18 @@ The third model combines a video clip's audio and image sequences, processed thr
 Hyperparameters such as landmark usage, CNN model selection, LSTM units, and dense layers are tuned for optimal accuracy using included modules.
 For new datasets, follow the instructions below to retune the hyperparameters.
 
-### Contributing:
-1. Create issue: https://github.com/Shurik12/EmotionAI/issues
+### How to use project
+1. make install
+2. make build
+3. make models
+4. Set up config.yaml, copy to build/config.yaml
+5. Change field `requirepass` in /etc/redis/redis.conf
+6. make run
 
 ### Additional info
-1. How to run in dev python
-```bash
-gunicorn --bind 0.0.0.0:8000 wsgi:app
-```
-2. Install redis server
-```bash
-sudo apt update
-sudo apt install redis-server
-sudo vim /etc/redis/redis.conf
-```
-3. Build c++ project
-```bash
-# build
-git submodule update --init --recursive
-bash install_deps.sh
-patch -p1 < emotiefflib.patch
-mkdir build && cd build
-cmake .. -G Ninja -DBUILD_TESTS=ON
-cmake --build .
-# run
-./EmotionAI
-# run tests
-./tests/EmotionAI_UnitTests
-./tests/EmotionAI_IntegrationTests
-```
-4. For production
+1. `gunicorn --bind 0.0.0.0:8000 wsgi:app` - run python version in dev
+2. /etc/redis/redis.conf - redis configuration file
+3. For production
 ```bash
 sudo vim /etc/nginx/sites-available/your-cpp-service
 sudo vim /etc/systemd/system/your-cpp-service.service
@@ -53,3 +35,6 @@ sudo systemctl daemon-reload
 sudo systemctl restart your-cpp-service
 sudo systemctl reload nginx
 ```
+
+### Contributing:
+1. Create issue: https://github.com/Shurik12/EmotionAI/issues
