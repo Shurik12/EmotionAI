@@ -1,14 +1,20 @@
-.PHONY: configure build build_frontend build_backend install run python_env models clean help
+.PHONY: configure build build_frontend build_backend install run python_env models clean help unit_tests integration_tests
 
 # Default target
 help:
 	@echo "Available commands:"
-	@echo "  make install       - Install dependencies"
-	@echo "  make python_env    - Setup python environment"
-	@echo "  make build         - Build project"
-	@echo "  make models        - Create c++ models"
-	@echo "  make clean         - Remove build frontend and backend"
-	@echo "  make help          - Show this help message"
+	@echo "  make install           - Install system dependencies"
+	@echo "  make python_env        - Create Python virtual environment and install dependencies"
+	@echo "  make models            - Generate C++ models from Python scripts"
+	@echo "  make configure         - Configure CMake build system"
+	@echo "  make build_backend     - Build backend C++ code"
+	@echo "  make build_frontend    - Build frontend React application"
+	@echo "  make build             - Full build (configure, backend, and frontend)"
+	@echo "  make run               - Run the EmotionAI application"
+	@echo "  make unit_tests        - Run unit tests"
+	@echo "  make integration_tests - Run integration tests"
+	@echo "  make clean             - Remove build artifacts, dependencies, and virtual environment"
+	@echo "  make help              - Show this help message"
 
 # Variables
 BUILD_DIR := build
@@ -31,6 +37,12 @@ build_backend:
 
 run:
 	cd $(BUILD_DIR) && ./EmotionAI
+
+unit_tests:
+	cd build && ./tests/EmotionAI_UnitTests
+
+integration_tests:
+	cd build && ./tests/EmotionAI_IntegrationTests
 
 python_env: $(VENV_DIR)
 	. $(VENV_DIR)/bin/activate && pip install -r requirements.txt
