@@ -9,6 +9,28 @@ echo "=========================================="
 echo "Installing dependencies for EmotionAI project"
 echo "=========================================="
 
+# Install core dependencies
+echo "Installing core dependencies..."
+sudo apt-get install -y \
+    nginx \
+    certbot \
+    python3-certbot-nginx \
+    python3.12-venv \
+    unzip \
+    npm \
+    cmake \
+    ninja-build \
+    gdb \
+    redis-server \
+    libopencv-dev \
+    libyaml-cpp-dev \
+    libspdlog-dev \
+    libfmt-dev \
+    nlohmann-json3-dev \
+    libhiredis-dev \
+    build-essential \
+    pkg-config
+
 # Install submodules
 echo "Installing git submodules..."
 git submodule update --init --recursive
@@ -33,18 +55,6 @@ rm libtorch-cxx11-abi-shared-with-deps-2.1.0+cpu.zip
 # Update package list
 echo "Updating package list..."
 sudo apt-get update
-
-# Install core dependencies
-echo "Installing core dependencies..."
-sudo apt-get install -y \
-    libopencv-dev \
-    libyaml-cpp-dev \
-    libspdlog-dev \
-    libfmt-dev \
-    nlohmann-json3-dev \
-    libhiredis-dev \
-    build-essential \
-    pkg-config
 
 echo "=========================================="
 echo "Verifying installations"
