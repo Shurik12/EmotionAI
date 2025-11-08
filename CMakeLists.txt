@@ -94,6 +94,7 @@ set(EMOTIONAI_SOURCES
 
 set(SERVER_SOURCES
     src/server/WebServer.cpp
+    src/server/MultiplexingServer.cpp
 )
 
 set(MTCNN_SOURCES
