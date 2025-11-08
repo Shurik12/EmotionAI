@@ -1,10 +1,10 @@
 #include <iostream>
 #include <memory>
 #include <csignal>
-#include <server/WebServer.h>
+#include <server/MultiplexingServer.h>
 #include <common/Config.h>
 
-std::unique_ptr<WebServer> web_server;
+std::unique_ptr<MultiplexingServer> web_server;
 
 // Signal handler for graceful shutdown
 void signal_handler(int signal)
@@ -24,10 +24,10 @@ int main()
         std::signal(SIGINT, signal_handler);
         std::signal(SIGTERM, signal_handler);
 
-        std::cout << "Starting EmotionAI Web Server..." << std::endl;
+        std::cout << "Starting EmotionAI Multiplexing Server..." << std::endl;
 
-        // Create and start the web server
-        web_server = std::make_unique<WebServer>();
+        // Create and start the multiplexing server
+        web_server = std::make_unique<MultiplexingServer>();
         web_server->initialize();
         web_server->start();
 
