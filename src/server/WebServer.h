@@ -11,8 +11,9 @@
 
 #include <common/httplib.h>
 #include <nlohmann/json.hpp>
+#include <server/IServer.h>
 
-// Forward declarations to avoid circular dependencies
+// Forward declarations
 namespace db
 {
 	class RedisManager;
@@ -23,20 +24,15 @@ namespace EmotionAI
 	class FileProcessor;
 }
 
-class WebServer
+class WebServer : public IServer
 {
 public:
 	explicit WebServer();
-	~WebServer();
+	~WebServer() override;
 
-	WebServer(const WebServer &) = delete;
-	WebServer &operator=(const WebServer &) = delete;
-	WebServer(WebServer &&) = delete;
-	WebServer &operator=(WebServer &&) = delete;
-
-	void initialize();
-	void start();
-	void stop() noexcept;
+	void initialize() override;
+	void start() override;
+	void stop() noexcept override;
 
 private:
 	httplib::Server svr_;

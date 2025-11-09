@@ -1,12 +1,14 @@
+// main.cpp (updated)
 #include <csignal>
 #include <iostream>
 #include <memory>
 
 #include <config/Config.h>
 #include <logging/Logger.h>
-#include <server/MultiplexingServer.h>
+#include <server/ServerFactory.h>
+#include <server/IServer.h>
 
-std::unique_ptr<MultiplexingServer> web_server;
+std::unique_ptr<IServer> web_server;
 
 void signal_handler(int signal)
 {
@@ -25,7 +27,7 @@ int main()
 		std::signal(SIGINT, signal_handler);
 		std::signal(SIGTERM, signal_handler);
 
-		std::cout << "Starting EmotionAI Multiplexing Server..." << std::endl;
+		std::cout << "Starting EmotionAI Server..." << std::endl;
 
 		// Initialize configuration first
 		auto &config = Common::Config::instance();
@@ -38,8 +40,13 @@ int main()
 		Logger::instance().initialize(config.logPath(), "EmotionAI-Server");
 		Logger::instance().info("Logger initialized successfully");
 
-		// Create and start server
-		web_server = std::make_unique<MultiplexingServer>();
+		// Create server based on configuration
+		std::string server_type = config.server().type;
+		Logger::instance().info("Creating server type: {}", server_type);
+
+		web_server = ServerFactory::createServer(server_type);
+
+		// Initialize and start server
 		web_server->initialize();
 		web_server->start();
 

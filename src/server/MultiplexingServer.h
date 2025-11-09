@@ -15,6 +15,7 @@
 #include <arpa/inet.h>
 
 #include <nlohmann/json.hpp>
+#include <server/IServer.h>
 
 // Forward declarations
 namespace db
@@ -27,20 +28,15 @@ namespace EmotionAI
 	class FileProcessor;
 }
 
-class MultiplexingServer
+class MultiplexingServer : public IServer
 {
 public:
 	explicit MultiplexingServer();
-	~MultiplexingServer();
+	~MultiplexingServer() override;
 
-	MultiplexingServer(const MultiplexingServer &) = delete;
-	MultiplexingServer &operator=(const MultiplexingServer &) = delete;
-	MultiplexingServer(MultiplexingServer &&) = delete;
-	MultiplexingServer &operator=(MultiplexingServer &&) = delete;
-
-	void initialize();
-	void start();
-	void stop() noexcept;
+	void initialize() override;
+	void start() override;
+	void stop() noexcept override;
 
 private:
 	struct ClientContext
@@ -87,7 +83,7 @@ private:
 	void acceptNewConnection();
 	void handleClientData(int client_fd);
 	void closeClient(int client_fd);
-	void processRequest(const std::shared_ptr<ClientContext> &context); // ADD THIS LINE
+	void processRequest(const std::shared_ptr<ClientContext> &context);
 
 	// HTTP processing
 	void parseHttpRequest(const std::shared_ptr<ClientContext> &context);
