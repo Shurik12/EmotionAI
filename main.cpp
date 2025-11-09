@@ -1,47 +1,59 @@
+#include <csignal>
 #include <iostream>
 #include <memory>
-#include <csignal>
+
+#include <config/Config.h>
+#include <logging/Logger.h>
 #include <server/MultiplexingServer.h>
-#include <common/Config.h>
 
 std::unique_ptr<MultiplexingServer> web_server;
 
-// Signal handler for graceful shutdown
 void signal_handler(int signal)
 {
-    std::cout << "Received signal " << signal << ", shutting down gracefully..." << std::endl;
-    if (web_server)
-    {
-        web_server->stop();
-    }
+	Logger::instance().info("Received signal {}, shutting down gracefully...", signal);
+	if (web_server)
+	{
+		web_server->stop();
+	}
 }
 
 int main()
 {
-    try
-    {
-        // Set up signal handlers for graceful shutdown
-        std::signal(SIGINT, signal_handler);
-        std::signal(SIGTERM, signal_handler);
+	try
+	{
+		// Set up signal handlers
+		std::signal(SIGINT, signal_handler);
+		std::signal(SIGTERM, signal_handler);
 
-        std::cout << "Starting EmotionAI Multiplexing Server..." << std::endl;
+		std::cout << "Starting EmotionAI Multiplexing Server..." << std::endl;
 
-        // Create and start the multiplexing server
-        web_server = std::make_unique<MultiplexingServer>();
-        web_server->initialize();
-        web_server->start();
+		// Initialize configuration first
+		auto &config = Common::Config::instance();
+		if (!config.loadFromFile("config.yaml"))
+		{
+			std::cerr << "Warning: Failed to load config, using defaults" << std::endl;
+		}
 
-        std::cout << "Server stopped." << std::endl;
-        return 0;
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Fatal error: " << e.what() << std::endl;
-        return 1;
-    }
-    catch (...)
-    {
-        std::cerr << "Unknown fatal error occurred" << std::endl;
-        return 1;
-    }
+		// Initialize logger
+		Logger::instance().initialize(config.logPath(), "EmotionAI-Server");
+		Logger::instance().info("Logger initialized successfully");
+
+		// Create and start server
+		web_server = std::make_unique<MultiplexingServer>();
+		web_server->initialize();
+		web_server->start();
+
+		Logger::instance().info("Server stopped gracefully");
+		return 0;
+	}
+	catch (const std::exception &e)
+	{
+		Logger::instance().critical("Fatal error: {}", e.what());
+		return 1;
+	}
+	catch (...)
+	{
+		Logger::instance().critical("Unknown fatal error occurred");
+		return 1;
+	}
 }

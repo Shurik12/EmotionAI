@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <common/Logging.h>
-#include <common/Config.h>
+#include <logging/Logger.h>
+#include <config/Config.h>
 #include "../../utils/TestUtils.h"
 
 class LoggingTest : public ::testing::Test

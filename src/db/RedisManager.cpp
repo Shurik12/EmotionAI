@@ -1,6 +1,3 @@
-#include "RedisManager.h"
-#include <spdlog/spdlog.h>
-#include <fmt/format.h>
 #include <fstream>
 #include <filesystem>
 #include <chrono>
@@ -8,8 +5,13 @@
 #include <sstream>
 #include <random>
 #include <cstdarg>
+
+#include <spdlog/spdlog.h>
+#include <fmt/format.h>
+
 #include <common/uuid.h>
-#include <common/Config.h>
+#include <config/Config.h>
+#include "RedisManager.h"
 
 namespace fs = std::filesystem;
 namespace db
