@@ -1,6 +1,6 @@
 
 #include <gtest/gtest.h>
-#include <common/Config.h>
+#include <config/Config.h>
 #include "../../utils/TestUtils.h"
 
 class ConfigTest : public ::testing::Test

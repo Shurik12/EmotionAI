@@ -13,8 +13,8 @@
 #include <nlohmann/json.hpp>
 
 #include <server/MultiplexingServer.h>
-#include <common/Config.h>
-#include <common/Logging.h>
+#include <config/Config.h>
+#include <logging/Logger.h>
 #include <common/uuid.h>
 #include <db/RedisManager.h>
 #include <emotionai/FileProcessor.h>
@@ -60,9 +60,8 @@ MultiplexingServer::~MultiplexingServer()
 
 void MultiplexingServer::initialize()
 {
-	spdlog::info("MultiplexingServer::initialize");
+	LOG_INFO("MultiplexingServer::initialize");
 	loadConfiguration();
-	initializeLogging();
 	ensureDirectoriesExist();
 	initializeComponents();
 	setupRoutes();
@@ -72,15 +71,15 @@ void MultiplexingServer::initialize()
 
 void MultiplexingServer::initializeComponents()
 {
-	spdlog::info("Initializing RedisManager and FileProcessor...");
+	LOG_INFO("Initializing RedisManager and FileProcessor...");
 	try
 	{
 		redis_manager_ = std::make_unique<db::RedisManager>();
 		redis_manager_->initialize();
-		spdlog::info("RedisManager initialized successfully");
+		LOG_INFO("RedisManager initialized successfully");
 
 		file_processor_ = std::make_unique<EmotionAI::FileProcessor>(*redis_manager_);
-		spdlog::info("FileProcessor initialized successfully");
+		LOG_INFO("FileProcessor initialized successfully");
 	}
 	catch (const std::exception &e)
 	{
@@ -95,7 +94,7 @@ void MultiplexingServer::start()
 	std::string host = config.serverHost();
 	int port = config.serverPort();
 
-	spdlog::info("Starting multiplexing server on {}:{}", host, port);
+	LOG_INFO("Starting multiplexing server on {}:{}", host, port);
 
 	running_ = true;
 	handleEvents();
@@ -133,18 +132,6 @@ void MultiplexingServer::loadConfiguration()
 	results_folder_ = config.resultPath();
 }
 
-void MultiplexingServer::initializeLogging()
-{
-	try
-	{
-		Common::multi_sink_example((log_folder_ / "multisink.log").string());
-	}
-	catch (const std::exception &e)
-	{
-		throw std::runtime_error(fmt::format("Failed to initialize logger: {}", e.what()));
-	}
-}
-
 void MultiplexingServer::ensureDirectoriesExist()
 {
 	try
@@ -152,7 +139,7 @@ void MultiplexingServer::ensureDirectoriesExist()
 		fs::create_directories(upload_folder_);
 		fs::create_directories(results_folder_);
 		fs::create_directories(static_files_root_);
-		spdlog::info("Directories ensured: upload={}, results={}, static={}",
+		LOG_INFO("Directories ensured: upload={}, results={}, static={}",
 					 upload_folder_.string(), results_folder_.string(), static_files_root_.string());
 	}
 	catch (const std::exception &e)
@@ -345,52 +332,64 @@ void MultiplexingServer::acceptNewConnection()
 		return;
 	}
 
-	spdlog::info("New client connected: fd={}", client_fd);
+	LOG_INFO("New client connected: fd={}", client_fd);
 }
 
 void MultiplexingServer::handleClientData(int client_fd)
 {
-    auto it = clients_.find(client_fd);
-    if (it == clients_.end()) {
-        return;
-    }
+	auto it = clients_.find(client_fd);
+	if (it == clients_.end())
+	{
+		return;
+	}
 
-    auto context = it->second;
-    char buffer[4096];
-    
-    while (true) {
-        ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
-        
-        if (bytes_read == -1) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                // No more data to read
-                break;
-            } else {
-                spdlog::error("Error reading from client {}: {}", client_fd, strerror(errno));
-                closeClient(client_fd);
-                return;
-            }
-        } else if (bytes_read == 0) {
-            // Client disconnected
-            closeClient(client_fd);
-            return;
-        } else {
-            buffer[bytes_read] = '\0';
-            context->buffer.append(buffer, bytes_read);
-            
-            // Parse HTTP request if headers are not complete
-            if (!context->headers_complete) {
-                parseHttpRequest(context);
-            }
-            
-            // If headers are complete and we have the full body, process the request
-            if (context->headers_complete && context->buffer.length() >= context->content_length) {
-                processRequest(context);
-                // DON'T close client here - let the response be sent first
-                break;
-            }
-        }
-    }
+	auto context = it->second;
+	char buffer[4096];
+
+	while (true)
+	{
+		ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+
+		if (bytes_read == -1)
+		{
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+			{
+				// No more data to read
+				break;
+			}
+			else
+			{
+				spdlog::error("Error reading from client {}: {}", client_fd, strerror(errno));
+				closeClient(client_fd);
+				return;
+			}
+		}
+		else if (bytes_read == 0)
+		{
+			// Client disconnected
+			closeClient(client_fd);
+			return;
+		}
+		else
+		{
+			buffer[bytes_read] = '\0';
+			context->buffer.append(buffer, bytes_read);
+
+			// Parse HTTP request if headers are not complete
+			if (!context->headers_complete)
+			{
+				parseHttpRequest(context);
+			}
+
+			// If headers are complete and we have the full body, process the request
+			if (context->headers_complete && context->buffer.length() >= context->content_length)
+			{
+				processRequest(context);
+				// DON'T close client here - let the response be sent first
+				break;
+			}
+		}
+	}
 }
 
 void MultiplexingServer::parseHttpRequest(const std::shared_ptr<ClientContext> &context)
@@ -553,41 +552,60 @@ void MultiplexingServer::processRequest(const std::shared_ptr<ClientContext> &co
 	}
 }
 
-void MultiplexingServer::sendResponse(int client_fd, int status_code, const std::string& content_type, const std::string& body)
+void MultiplexingServer::sendResponse(int client_fd, int status_code, const std::string &content_type, const std::string &body)
 {
-    std::string status_text;
-    switch (status_code) {
-        case 200: status_text = "OK"; break;
-        case 201: status_text = "Created"; break;
-        case 202: status_text = "Accepted"; break;
-        case 400: status_text = "Bad Request"; break;
-        case 404: status_text = "Not Found"; break;
-        case 405: status_text = "Method Not Allowed"; break;
-        case 500: status_text = "Internal Server Error"; break;
-        default: status_text = "Unknown"; break;
-    }
+	std::string status_text;
+	switch (status_code)
+	{
+	case 200:
+		status_text = "OK";
+		break;
+	case 201:
+		status_text = "Created";
+		break;
+	case 202:
+		status_text = "Accepted";
+		break;
+	case 400:
+		status_text = "Bad Request";
+		break;
+	case 404:
+		status_text = "Not Found";
+		break;
+	case 405:
+		status_text = "Method Not Allowed";
+		break;
+	case 500:
+		status_text = "Internal Server Error";
+		break;
+	default:
+		status_text = "Unknown";
+		break;
+	}
 
-    // For now, we'll always close connections after response
-    // In the future, you could implement keep-alive based on headers
-    std::string response = fmt::format(
-        "HTTP/1.1 {} {}\r\n"
-        "Content-Type: {}\r\n"
-        "Access-Control-Allow-Origin: *\r\n"
-        "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n"
-        "Access-Control-Allow-Headers: Content-Type, Authorization\r\n"
-        "Content-Length: {}\r\n"
-        "Connection: close\r\n"
-        "\r\n"
-        "{}",
-        status_code, status_text, content_type, body.length(), body
-    );
+	// For now, we'll always close connections after response
+	// In the future, you could implement keep-alive based on headers
+	std::string response = fmt::format(
+		"HTTP/1.1 {} {}\r\n"
+		"Content-Type: {}\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n"
+		"Access-Control-Allow-Headers: Content-Type, Authorization\r\n"
+		"Content-Length: {}\r\n"
+		"Connection: close\r\n"
+		"\r\n"
+		"{}",
+		status_code, status_text, content_type, body.length(), body);
 
-    ssize_t bytes_sent = send(client_fd, response.c_str(), response.length(), 0);
-    if (bytes_sent == -1) {
-        spdlog::error("Failed to send response to client {}: {}", client_fd, strerror(errno));
-    } else {
-        spdlog::debug("Sent {} bytes to client {}", bytes_sent, client_fd);
-    }
+	ssize_t bytes_sent = send(client_fd, response.c_str(), response.length(), 0);
+	if (bytes_sent == -1)
+	{
+		spdlog::error("Failed to send response to client {}: {}", client_fd, strerror(errno));
+	}
+	else
+	{
+		spdlog::debug("Sent {} bytes to client {}", bytes_sent, client_fd);
+	}
 }
 
 void MultiplexingServer::sendFileResponse(int client_fd, const std::filesystem::path &file_path)
@@ -657,162 +675,187 @@ void MultiplexingServer::closeClient(int client_fd)
 		epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_fd, nullptr);
 		close(client_fd);
 		clients_.erase(it);
-		spdlog::info("Client disconnected: fd={}", client_fd);
+		LOG_INFO("Client disconnected: fd={}", client_fd);
 	}
 }
 
 // Route handler implementations (adapted from original)
 
-void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext>& context, const std::string& body)
+void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &context, const std::string &body)
 {
-    spdlog::info("Handling file upload, body size: {}", body.size());
-    
-    try {
-        auto content_type_it = context->headers.find("Content-Type");
-        if (content_type_it == context->headers.end()) {
-            spdlog::error("No Content-Type header");
-            sendResponse(context->fd, 400, "application/json", R"({"error": "No Content-Type header"})");
-            closeClient(context->fd);
-            return;
-        }
+	LOG_INFO("Handling file upload, body size: {}", body.size());
 
-        spdlog::info("Content-Type: {}", content_type_it->second);
+	try
+	{
+		auto content_type_it = context->headers.find("Content-Type");
+		if (content_type_it == context->headers.end())
+		{
+			spdlog::error("No Content-Type header");
+			sendResponse(context->fd, 400, "application/json", R"({"error": "No Content-Type header"})");
+			closeClient(context->fd);
+			return;
+		}
 
-        if (content_type_it->second.find("multipart/form-data") == std::string::npos) {
-            spdlog::error("Expected multipart/form-data, got: {}", content_type_it->second);
-            sendResponse(context->fd, 400, "application/json", R"({"error": "Expected multipart form data"})");
-            closeClient(context->fd);
-            return;
-        }
+		LOG_INFO("Content-Type: {}", content_type_it->second);
 
-        std::string boundary = extractBoundary(content_type_it->second);
-        if (boundary.empty()) {
-            spdlog::error("Could not extract boundary from: {}", content_type_it->second);
-            sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid multipart data"})");
-            closeClient(context->fd);
-            return;
-        }
+		if (content_type_it->second.find("multipart/form-data") == std::string::npos)
+		{
+			spdlog::error("Expected multipart/form-data, got: {}", content_type_it->second);
+			sendResponse(context->fd, 400, "application/json", R"({"error": "Expected multipart form data"})");
+			closeClient(context->fd);
+			return;
+		}
 
-        auto form_data = parseMultipartFormData(body, boundary);
-        
-        // Debug: log all form fields
-        for (const auto& [key, value] : form_data) {
-            spdlog::info("Form field: '{}', size: {}", key, value.size());
-        }
+		std::string boundary = extractBoundary(content_type_it->second);
+		if (boundary.empty())
+		{
+			spdlog::error("Could not extract boundary from: {}", content_type_it->second);
+			sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid multipart data"})");
+			closeClient(context->fd);
+			return;
+		}
 
-        auto file_it = form_data.find("file");
-        if (file_it == form_data.end()) {
-            spdlog::error("No 'file' field found in multipart data. Available fields:");
-            for (const auto& [key, value] : form_data) {
-                spdlog::error("  Field: '{}'", key);
-            }
-            sendResponse(context->fd, 400, "application/json", R"({"error": "No file provided"})");
-            closeClient(context->fd);
-            return;
-        }
+		auto form_data = parseMultipartFormData(body, boundary);
 
-        const std::string& file_content = file_it->second;
-        if (file_content.empty()) {
-            spdlog::error("File content is empty");
-            sendResponse(context->fd, 400, "application/json", R"({"error": "No file selected or empty file"})");
-            closeClient(context->fd);
-            return;
-        }
+		// Debug: log all form fields
+		for (const auto &[key, value] : form_data)
+		{
+			LOG_INFO("Form field: '{}', size: {}", key, value.size());
+		}
 
-        // Get filename from multipart data or use a default
-        std::string filename;
-        auto filename_it = form_data.find("filename");
-        if (filename_it != form_data.end() && !filename_it->second.empty()) {
-            filename = filename_it->second;
-            spdlog::info("Using filename from multipart: {}", filename);
-        } else {
-            // Try to extract from Content-Disposition in the body as fallback
-            size_t filename_pos = body.find("filename=\"");
-            if (filename_pos != std::string::npos) {
-                filename_pos += 10;
-                size_t filename_end = body.find("\"", filename_pos);
-                if (filename_end != std::string::npos) {
-                    filename = body.substr(filename_pos, filename_end - filename_pos);
-                    spdlog::info("Extracted filename from body: {}", filename);
-                }
-            }
-        }
+		auto file_it = form_data.find("file");
+		if (file_it == form_data.end())
+		{
+			spdlog::error("No 'file' field found in multipart data. Available fields:");
+			for (const auto &[key, value] : form_data)
+			{
+				spdlog::error("  Field: '{}'", key);
+			}
+			sendResponse(context->fd, 400, "application/json", R"({"error": "No file provided"})");
+			closeClient(context->fd);
+			return;
+		}
 
-        if (filename.empty()) {
-            filename = "uploaded_file";
-            spdlog::warn("No filename found, using default: {}", filename);
-        }
+		const std::string &file_content = file_it->second;
+		if (file_content.empty())
+		{
+			spdlog::error("File content is empty");
+			sendResponse(context->fd, 400, "application/json", R"({"error": "No file selected or empty file"})");
+			closeClient(context->fd);
+			return;
+		}
 
-        spdlog::info("Processing upload: filename='{}', size={} bytes", filename, file_content.size());
+		// Get filename from multipart data or use a default
+		std::string filename;
+		auto filename_it = form_data.find("filename");
+		if (filename_it != form_data.end() && !filename_it->second.empty())
+		{
+			filename = filename_it->second;
+			LOG_INFO("Using filename from multipart: {}", filename);
+		}
+		else
+		{
+			// Try to extract from Content-Disposition in the body as fallback
+			size_t filename_pos = body.find("filename=\"");
+			if (filename_pos != std::string::npos)
+			{
+				filename_pos += 10;
+				size_t filename_end = body.find("\"", filename_pos);
+				if (filename_end != std::string::npos)
+				{
+					filename = body.substr(filename_pos, filename_end - filename_pos);
+					LOG_INFO("Extracted filename from body: {}", filename);
+				}
+			}
+		}
 
-        if (!file_processor_ || !file_processor_->allowed_file(filename)) {
-            spdlog::error("File type not allowed: {}", filename);
-            sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid file type"})");
-            closeClient(context->fd);
-            return;
-        }
+		if (filename.empty())
+		{
+			filename = "uploaded_file";
+			spdlog::warn("No filename found, using default: {}", filename);
+		}
 
-        std::string task_id = db::RedisManager::generate_uuid();
-        fs::path filepath = upload_folder_ / (task_id + "_" + filename);
+		LOG_INFO("Processing upload: filename='{}', size={} bytes", filename, file_content.size());
 
-        // Save the file with better error handling
-        try {
-            spdlog::info("Saving file to: {}", filepath.string());
-            std::ofstream out_file(filepath, std::ios::binary);
-            if (!out_file) {
-                throw std::runtime_error("Failed to create file: " + filepath.string());
-            }
-            out_file.write(file_content.data(), file_content.size());
-            out_file.close();
+		if (!file_processor_ || !file_processor_->allowed_file(filename))
+		{
+			spdlog::error("File type not allowed: {}", filename);
+			sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid file type"})");
+			closeClient(context->fd);
+			return;
+		}
 
-            // Verify file was written
-            if (!fs::exists(filepath)) {
-                throw std::runtime_error("File was not created");
-            }
-            
-            auto file_size = fs::file_size(filepath);
-            if (file_size == 0) {
-                throw std::runtime_error("File is empty");
-            }
+		std::string task_id = db::RedisManager::generate_uuid();
+		fs::path filepath = upload_folder_ / (task_id + "_" + filename);
 
-            spdlog::info("File saved successfully: {}, size: {} bytes", filepath.string(), file_size);
+		// Save the file with better error handling
+		try
+		{
+			LOG_INFO("Saving file to: {}", filepath.string());
+			std::ofstream out_file(filepath, std::ios::binary);
+			if (!out_file)
+			{
+				throw std::runtime_error("Failed to create file: " + filepath.string());
+			}
+			out_file.write(file_content.data(), file_content.size());
+			out_file.close();
 
-        } catch (const std::exception& e) {
-            spdlog::error("Failed to save file {}: {}", filepath.string(), e.what());
-            sendResponse(context->fd, 500, "application/json", R"({"error": "Failed to save uploaded file"})");
-            closeClient(context->fd);
-            return;
-        }
+			// Verify file was written
+			if (!fs::exists(filepath))
+			{
+				throw std::runtime_error("File was not created");
+			}
 
-        // Process file in background thread
-        std::lock_guard<std::mutex> lock(task_mutex_);
-        background_threads_[task_id] = std::thread(
-            [this, task_id, filepath, filename]() {
-                try {
-                    spdlog::info("Starting background processing for task: {}", task_id);
-                    file_processor_->process_file(task_id, filepath.string(), filename);
-                    spdlog::info("Background processing completed for task: {}", task_id);
-                } catch (const std::exception& e) {
-                    spdlog::error("Background processing failed for task {}: {}", task_id, e.what());
-                }
-                // Remove thread from map when done
-                std::lock_guard<std::mutex> lock(task_mutex_);
-                background_threads_.erase(task_id);
-            });
-        background_threads_[task_id].detach();
+			auto file_size = fs::file_size(filepath);
+			if (file_size == 0)
+			{
+				throw std::runtime_error("File is empty");
+			}
 
-        spdlog::info("Upload accepted, task_id: {}", task_id);
-        sendResponse(context->fd, 202, "application/json", 
-                    fmt::format(R"({{"task_id": "{}"}})", task_id));
-        
-        // Close connection after sending response
-        closeClient(context->fd);
+			LOG_INFO("File saved successfully: {}, size: {} bytes", filepath.string(), file_size);
+		}
+		catch (const std::exception &e)
+		{
+			spdlog::error("Failed to save file {}: {}", filepath.string(), e.what());
+			sendResponse(context->fd, 500, "application/json", R"({"error": "Failed to save uploaded file"})");
+			closeClient(context->fd);
+			return;
+		}
 
-    } catch (const std::exception& e) {
-        spdlog::error("Exception in handleUpload: {}", e.what());
-        sendResponse(context->fd, 500, "application/json", R"({"error": "Internal server error"})");
-        closeClient(context->fd);
-    }
+		// Process file in background thread
+		std::lock_guard<std::mutex> lock(task_mutex_);
+		background_threads_[task_id] = std::thread(
+			[this, task_id, filepath, filename]()
+			{
+				try
+				{
+					LOG_INFO("Starting background processing for task: {}", task_id);
+					file_processor_->process_file(task_id, filepath.string(), filename);
+					LOG_INFO("Background processing completed for task: {}", task_id);
+				}
+				catch (const std::exception &e)
+				{
+					spdlog::error("Background processing failed for task {}: {}", task_id, e.what());
+				}
+				// Remove thread from map when done
+				std::lock_guard<std::mutex> lock(task_mutex_);
+				background_threads_.erase(task_id);
+			});
+		background_threads_[task_id].detach();
+
+		LOG_INFO("Upload accepted, task_id: {}", task_id);
+		sendResponse(context->fd, 202, "application/json",
+					 fmt::format(R"({{"task_id": "{}"}})", task_id));
+
+		// Close connection after sending response
+		closeClient(context->fd);
+	}
+	catch (const std::exception &e)
+	{
+		spdlog::error("Exception in handleUpload: {}", e.what());
+		sendResponse(context->fd, 500, "application/json", R"({"error": "Internal server error"})");
+		closeClient(context->fd);
+	}
 }
 
 void MultiplexingServer::handleUploadRealtime(const std::shared_ptr<ClientContext> &context, const std::string &body)
@@ -1043,171 +1086,204 @@ void MultiplexingServer::cleanupFinishedThreads()
 	}
 }
 
-std::string MultiplexingServer::extractBoundary(const std::string& content_type)
+std::string MultiplexingServer::extractBoundary(const std::string &content_type)
 {
-    size_t boundary_pos = content_type.find("boundary=");
-    if (boundary_pos == std::string::npos) {
-        spdlog::error("No boundary found in Content-Type: {}", content_type);
-        return "";
-    }
-    
-    boundary_pos += 9; // Length of "boundary="
-    
-    // Extract the boundary value
-    std::string boundary;
-    if (boundary_pos < content_type.length()) {
-        if (content_type[boundary_pos] == '"') {
-            // Quoted boundary
-            boundary_pos++;
-            size_t end_quote = content_type.find('"', boundary_pos);
-            if (end_quote != std::string::npos) {
-                boundary = content_type.substr(boundary_pos, end_quote - boundary_pos);
-            }
-        } else {
-            // Unquoted boundary
-            size_t end_pos = content_type.find(';', boundary_pos);
-            if (end_pos == std::string::npos) {
-                boundary = content_type.substr(boundary_pos);
-            } else {
-                boundary = content_type.substr(boundary_pos, end_pos - boundary_pos);
-            }
-        }
-    }
-    
-    // Trim whitespace
-    boundary.erase(0, boundary.find_first_not_of(" \t"));
-    boundary.erase(boundary.find_last_not_of(" \t") + 1);
-    
-    spdlog::debug("Extracted boundary: '{}'", boundary);
-    return "--" + boundary;
+	size_t boundary_pos = content_type.find("boundary=");
+	if (boundary_pos == std::string::npos)
+	{
+		spdlog::error("No boundary found in Content-Type: {}", content_type);
+		return "";
+	}
+
+	boundary_pos += 9; // Length of "boundary="
+
+	// Extract the boundary value
+	std::string boundary;
+	if (boundary_pos < content_type.length())
+	{
+		if (content_type[boundary_pos] == '"')
+		{
+			// Quoted boundary
+			boundary_pos++;
+			size_t end_quote = content_type.find('"', boundary_pos);
+			if (end_quote != std::string::npos)
+			{
+				boundary = content_type.substr(boundary_pos, end_quote - boundary_pos);
+			}
+		}
+		else
+		{
+			// Unquoted boundary
+			size_t end_pos = content_type.find(';', boundary_pos);
+			if (end_pos == std::string::npos)
+			{
+				boundary = content_type.substr(boundary_pos);
+			}
+			else
+			{
+				boundary = content_type.substr(boundary_pos, end_pos - boundary_pos);
+			}
+		}
+	}
+
+	// Trim whitespace
+	boundary.erase(0, boundary.find_first_not_of(" \t"));
+	boundary.erase(boundary.find_last_not_of(" \t") + 1);
+
+	spdlog::debug("Extracted boundary: '{}'", boundary);
+	return "--" + boundary;
 }
 
-std::map<std::string, std::string> MultiplexingServer::parseMultipartFormData(const std::string& body, const std::string& boundary)
+std::map<std::string, std::string> MultiplexingServer::parseMultipartFormData(const std::string &body, const std::string &boundary)
 {
-    std::map<std::string, std::string> result;
-    
-    if (body.empty() || boundary.empty()) {
-        spdlog::error("Empty body or boundary in multipart data");
-        return result;
-    }
+	std::map<std::string, std::string> result;
 
-    spdlog::debug("Parsing multipart data, body size: {}, boundary: '{}'", body.size(), boundary);
+	if (body.empty() || boundary.empty())
+	{
+		spdlog::error("Empty body or boundary in multipart data");
+		return result;
+	}
 
-    size_t pos = 0;
-    
-    // Find first boundary
-    size_t boundary_pos = body.find(boundary);
-    if (boundary_pos == std::string::npos) {
-        spdlog::error("First boundary not found");
-        return result;
-    }
+	spdlog::debug("Parsing multipart data, body size: {}, boundary: '{}'", body.size(), boundary);
 
-    pos = boundary_pos + boundary.length();
+	size_t pos = 0;
 
-    while (pos < body.length()) {
-        // Skip CRLF after boundary
-        if (pos + 2 <= body.length() && body.substr(pos, 2) == "\r\n") {
-            pos += 2;
-        } else if (pos + 2 <= body.length() && body.substr(pos, 2) == "--") {
-            // End of multipart data
-            break;
-        }
+	// Find first boundary
+	size_t boundary_pos = body.find(boundary);
+	if (boundary_pos == std::string::npos)
+	{
+		spdlog::error("First boundary not found");
+		return result;
+	}
 
-        // Parse headers
-        size_t headers_end = body.find("\r\n\r\n", pos);
-        if (headers_end == std::string::npos) {
-            spdlog::error("Headers end not found");
-            break;
-        }
+	pos = boundary_pos + boundary.length();
 
-        std::string headers_str = body.substr(pos, headers_end - pos);
-        pos = headers_end + 4; // Skip \r\n\r\n
+	while (pos < body.length())
+	{
+		// Skip CRLF after boundary
+		if (pos + 2 <= body.length() && body.substr(pos, 2) == "\r\n")
+		{
+			pos += 2;
+		}
+		else if (pos + 2 <= body.length() && body.substr(pos, 2) == "--")
+		{
+			// End of multipart data
+			break;
+		}
 
-        // Parse headers to get field name and filename
-        std::string field_name;
-        std::string filename;
-        
-        std::istringstream headers_stream(headers_str);
-        std::string header_line;
-        while (std::getline(headers_stream, header_line)) {
-            if (header_line.back() == '\r') header_line.pop_back();
-            
-            if (header_line.find("Content-Disposition:") == 0) {
-                // Parse Content-Disposition header
-                size_t name_pos = header_line.find("name=\"");
-                if (name_pos != std::string::npos) {
-                    name_pos += 6;
-                    size_t name_end = header_line.find("\"", name_pos);
-                    if (name_end != std::string::npos) {
-                        field_name = header_line.substr(name_pos, name_end - name_pos);
-                    }
-                }
-                
-                size_t filename_pos = header_line.find("filename=\"");
-                if (filename_pos != std::string::npos) {
-                    filename_pos += 10;
-                    size_t filename_end = header_line.find("\"", filename_pos);
-                    if (filename_end != std::string::npos) {
-                        filename = header_line.substr(filename_pos, filename_end - filename_pos);
-                    }
-                }
-            }
-        }
+		// Parse headers
+		size_t headers_end = body.find("\r\n\r\n", pos);
+		if (headers_end == std::string::npos)
+		{
+			spdlog::error("Headers end not found");
+			break;
+		}
 
-        // Find next boundary
-        size_t next_boundary = body.find(boundary, pos);
-        if (next_boundary == std::string::npos) {
-            // Last part - read until end (but remove trailing -- if present)
-            size_t data_end = body.length();
-            if (data_end >= 2 && body.substr(data_end - 2) == "--") {
-                data_end -= 2;
-            }
-            // Also remove trailing CRLF if present
-            if (data_end >= 2 && body.substr(data_end - 2, 2) == "\r\n") {
-                data_end -= 2;
-            }
-            
-            if (!field_name.empty() && data_end > pos) {
-                std::string field_data = body.substr(pos, data_end - pos);
-                result[field_name] = field_data;
-                if (!filename.empty()) {
-                    result["filename"] = filename;
-                }
-                spdlog::debug("Found field '{}' with data size: {}", field_name, field_data.size());
-            }
-            break;
-        }
+		std::string headers_str = body.substr(pos, headers_end - pos);
+		pos = headers_end + 4; // Skip \r\n\r\n
 
-        // Extract data between current position and next boundary
-        // Remove trailing CRLF before the boundary
-        size_t data_end = next_boundary;
-        if (data_end >= 2 && body.substr(data_end - 2, 2) == "\r\n") {
-            data_end -= 2;
-        }
+		// Parse headers to get field name and filename
+		std::string field_name;
+		std::string filename;
 
-        if (!field_name.empty() && data_end > pos) {
-            std::string field_data = body.substr(pos, data_end - pos);
-            result[field_name] = field_data;
-            if (!filename.empty()) {
-                result["filename"] = filename;
-            }
-            spdlog::debug("Found field '{}' with data size: {}", field_name, field_data.size());
-        }
+		std::istringstream headers_stream(headers_str);
+		std::string header_line;
+		while (std::getline(headers_stream, header_line))
+		{
+			if (header_line.back() == '\r')
+				header_line.pop_back();
 
-        pos = next_boundary + boundary.length();
-        
-        // Check for final boundary
-        if (pos + 2 <= body.length() && body.substr(pos, 2) == "--") {
-            break;
-        }
-    }
+			if (header_line.find("Content-Disposition:") == 0)
+			{
+				// Parse Content-Disposition header
+				size_t name_pos = header_line.find("name=\"");
+				if (name_pos != std::string::npos)
+				{
+					name_pos += 6;
+					size_t name_end = header_line.find("\"", name_pos);
+					if (name_end != std::string::npos)
+					{
+						field_name = header_line.substr(name_pos, name_end - name_pos);
+					}
+				}
 
-    spdlog::info("Parsed {} multipart fields", result.size());
-    for (const auto& [key, value] : result) {
-        spdlog::info("  Field: '{}', data size: {}", key, value.size());
-    }
-    
-    return result;
+				size_t filename_pos = header_line.find("filename=\"");
+				if (filename_pos != std::string::npos)
+				{
+					filename_pos += 10;
+					size_t filename_end = header_line.find("\"", filename_pos);
+					if (filename_end != std::string::npos)
+					{
+						filename = header_line.substr(filename_pos, filename_end - filename_pos);
+					}
+				}
+			}
+		}
+
+		// Find next boundary
+		size_t next_boundary = body.find(boundary, pos);
+		if (next_boundary == std::string::npos)
+		{
+			// Last part - read until end (but remove trailing -- if present)
+			size_t data_end = body.length();
+			if (data_end >= 2 && body.substr(data_end - 2) == "--")
+			{
+				data_end -= 2;
+			}
+			// Also remove trailing CRLF if present
+			if (data_end >= 2 && body.substr(data_end - 2, 2) == "\r\n")
+			{
+				data_end -= 2;
+			}
+
+			if (!field_name.empty() && data_end > pos)
+			{
+				std::string field_data = body.substr(pos, data_end - pos);
+				result[field_name] = field_data;
+				if (!filename.empty())
+				{
+					result["filename"] = filename;
+				}
+				spdlog::debug("Found field '{}' with data size: {}", field_name, field_data.size());
+			}
+			break;
+		}
+
+		// Extract data between current position and next boundary
+		// Remove trailing CRLF before the boundary
+		size_t data_end = next_boundary;
+		if (data_end >= 2 && body.substr(data_end - 2, 2) == "\r\n")
+		{
+			data_end -= 2;
+		}
+
+		if (!field_name.empty() && data_end > pos)
+		{
+			std::string field_data = body.substr(pos, data_end - pos);
+			result[field_name] = field_data;
+			if (!filename.empty())
+			{
+				result["filename"] = filename;
+			}
+			spdlog::debug("Found field '{}' with data size: {}", field_name, field_data.size());
+		}
+
+		pos = next_boundary + boundary.length();
+
+		// Check for final boundary
+		if (pos + 2 <= body.length() && body.substr(pos, 2) == "--")
+		{
+			break;
+		}
+	}
+
+	LOG_INFO("Parsed {} multipart fields", result.size());
+	for (const auto &[key, value] : result)
+	{
+		LOG_INFO("  Field: '{}', data size: {}", key, value.size());
+	}
+
+	return result;
 }
 
 void MultiplexingServer::validateJsonDocument(const nlohmann::json &json)

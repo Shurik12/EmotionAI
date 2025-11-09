@@ -50,7 +50,6 @@ private:
 	std::map<std::string, std::thread> background_threads_;
 
 	void loadConfiguration();
-	void initializeLogging();
 	void setupRoutes();
 	void ensureDirectoriesExist();
 	void initializeComponents();
