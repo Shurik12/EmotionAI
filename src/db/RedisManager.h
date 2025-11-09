@@ -5,8 +5,10 @@
 #include <memory>
 #include <mutex>
 #include <atomic>
+
 #include <hiredis/hiredis.h>
 #include <nlohmann/json.hpp>
+
 #include <common/uuid.h>
 
 namespace db

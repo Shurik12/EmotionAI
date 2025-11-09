@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <fmt/format.h>
 #include <emotiefflib/facial_analysis.h>
-#include <common/Config.h>
+#include <config/Config.h>
 #include <mtcnn/detector.h>
 
 namespace fs = std::filesystem;

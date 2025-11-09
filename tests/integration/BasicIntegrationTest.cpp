@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <server/WebServer.h>
-#include <common/Config.h>
+#include <config/Config.h>
 #include <db/RedisManager.h>
 #include <emotionai/FileProcessor.h>
 #include "../utils/TestUtils.h"

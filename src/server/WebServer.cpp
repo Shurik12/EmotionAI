@@ -10,8 +10,8 @@
 #include <nlohmann/json.hpp>
 
 #include <server/WebServer.h>
-#include <common/Config.h>
-#include <common/Logging.h>
+#include <config/Config.h>
+#include <logging/Logger.h>
 #include <common/uuid.h>
 #include <db/RedisManager.h>
 #include <emotionai/FileProcessor.h>
@@ -42,15 +42,14 @@ WebServer::~WebServer()
 	}
 	catch (...)
 	{
-		spdlog::error("Exception during server shutdown");
+		LOG_ERROR("Exception during server shutdown");
 	}
 }
 
 void WebServer::initialize()
 {
-	spdlog::info("WebServer::initialize");
+	LOG_INFO("WebServer::initialize");
 	loadConfiguration();
-	initializeLogging();
 	ensureDirectoriesExist();
 	initializeComponents(); // Initialize RedisManager and FileProcessor after config is loaded
 	setupRoutes();
@@ -58,21 +57,21 @@ void WebServer::initialize()
 
 void WebServer::initializeComponents()
 {
-	spdlog::info("Initializing RedisManager and FileProcessor...");
+	LOG_INFO("Initializing RedisManager and FileProcessor...");
 	try
 	{
 		// Create RedisManager first
 		redis_manager_ = std::make_unique<db::RedisManager>();
 		redis_manager_->initialize();
-		spdlog::info("RedisManager initialized successfully");
+		LOG_INFO("RedisManager initialized successfully");
 
 		// Create FileProcessor with the RedisManager reference
 		file_processor_ = std::make_unique<EmotionAI::FileProcessor>(*redis_manager_);
-		spdlog::info("FileProcessor initialized successfully");
+		LOG_INFO("FileProcessor initialized successfully");
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Failed to initialize components: {}", e.what());
+		LOG_ERROR("Failed to initialize components: {}", e.what());
 		throw;
 	}
 }
@@ -83,10 +82,11 @@ void WebServer::start()
 	std::string host = config.serverHost();
 	int port = config.serverPort();
 
-	svr_.set_logger([](const auto &req, const auto &res)
-					{ Common::log_request_response(req, res); });
+	svr_.set_logger([](const auto &req, const auto &res) {
+        LOG_INFO("{} {} -> {} {}", req.method, req.path, res.status, req.remote_addr);
+    });
 
-	spdlog::info("Starting server on {}:{}", host, port);
+	LOG_INFO("Starting server on {}:{}", host, port);
 	if (!svr_.listen(host.c_str(), port))
 	{
 		throw std::runtime_error(fmt::format("Failed to start server on {}:{}", host, port));
@@ -101,7 +101,7 @@ void WebServer::stop() noexcept
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Error stopping server: {}", e.what());
+		LOG_ERROR("Error stopping server: {}", e.what());
 	}
 }
 
@@ -113,7 +113,7 @@ void WebServer::loadConfiguration()
 	// Load configuration from file
 	if (!config.loadFromFile("config.yaml"))
 	{
-		spdlog::warn("Failed to load configuration file, using defaults");
+		LOG_WARN("Failed to load configuration file, using defaults");
 	}
 
 	// Setup application environment
@@ -129,18 +129,6 @@ void WebServer::loadConfiguration()
 	results_folder_ = config.resultPath();
 }
 
-void WebServer::initializeLogging()
-{
-	try
-	{
-		Common::multi_sink_example((log_folder_ / "multisink.log").string());
-	}
-	catch (const std::exception &e)
-	{
-		throw std::runtime_error(fmt::format("Failed to initialize logger: {}", e.what()));
-	}
-}
-
 void WebServer::ensureDirectoriesExist()
 {
 	try
@@ -148,12 +136,12 @@ void WebServer::ensureDirectoriesExist()
 		fs::create_directories(upload_folder_);
 		fs::create_directories(results_folder_);
 		fs::create_directories(static_files_root_);
-		spdlog::info("Directories ensured: upload={}, results={}, static={}",
+		LOG_INFO("Directories ensured: upload={}, results={}, static={}",
 					 upload_folder_.string(), results_folder_.string(), static_files_root_.string());
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Failed to create directories: {}", e.what());
+		LOG_ERROR("Failed to create directories: {}", e.what());
 		throw;
 	}
 }
@@ -206,7 +194,7 @@ void WebServer::setupRoutes()
 			res.set_content(fmt::format(R"({{"task_id": "{}", "mode": "realtime"}})", task_id), "application/json");
 
 		} catch (const std::exception &e) {
-			spdlog::error("Exception in real-time upload: {}", e.what());
+			LOG_ERROR("Exception in real-time upload: {}", e.what());
 			res.status = 500;
 			res.set_content(R"({"error": "Internal server error"})", "application/json");
 		}
@@ -313,7 +301,7 @@ void WebServer::handleUpload(const httplib::Request &req, httplib::Response &res
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Exception in handleUpload: {}", e.what());
+		LOG_ERROR("Exception in handleUpload: {}", e.what());
 		res.status = 500;
 		res.set_content(R"({"error": "Internal server error"})", "application/json");
 	}
@@ -343,7 +331,7 @@ void WebServer::handleProgress(const httplib::Request &req, httplib::Response &r
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Exception in handleProgress for task {}: {}", task_id, e.what());
+		LOG_ERROR("Exception in handleProgress for task {}: {}", task_id, e.what());
 		res.status = 500;
 		res.set_content(R"({"error": "Internal server error"})", "application/json");
 	}
@@ -388,7 +376,7 @@ void WebServer::handleSubmitApplication(const httplib::Request &req, httplib::Re
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Error submitting application: {}", e.what());
+		LOG_ERROR("Error submitting application: {}", e.what());
 		res.status = 500;
 		res.set_content(R"({"error": "Internal server error"})", "application/json");
 	}
@@ -410,7 +398,7 @@ void WebServer::handleServeResult(const httplib::Request &req, httplib::Response
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Exception serving result file {}: {}", filename, e.what());
+		LOG_ERROR("Exception serving result file {}: {}", filename, e.what());
 		res.status = 500;
 		res.set_content("Internal server error", "text/plain");
 	}
@@ -425,7 +413,7 @@ void WebServer::handleHealthCheck(const httplib::Request &req, httplib::Response
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Health check failed: {}", e.what());
+		LOG_ERROR("Health check failed: {}", e.what());
 		res.status = 500;
 		res.set_content(fmt::format(R"({{"status": "unhealthy", "error": "{}"}})", e.what()), "application/json");
 	}
@@ -448,7 +436,7 @@ void WebServer::handleServeStatic(const httplib::Request &req, httplib::Response
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Exception serving static file {}: {}", filename, e.what());
+		LOG_ERROR("Exception serving static file {}: {}", filename, e.what());
 		res.status = 500;
 		res.set_content("Internal server error", "text/plain");
 	}
@@ -480,7 +468,7 @@ void WebServer::handleServeReactFile(const httplib::Request &req, httplib::Respo
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Exception serving React file {}: {}", filename, e.what());
+		LOG_ERROR("Exception serving React file {}: {}", filename, e.what());
 		res.status = 500;
 		res.set_content("Internal server error", "text/plain");
 	}
@@ -494,7 +482,7 @@ void WebServer::handleRoot(const httplib::Request &req, httplib::Response &res)
 
 		if (!fs::exists(index_path))
 		{
-			spdlog::error("Index file not found: {}", index_path.string());
+			LOG_ERROR("Index file not found: {}", index_path.string());
 			res.status = 404;
 			res.set_content("Page not found", "text/plain");
 			return;
@@ -504,7 +492,7 @@ void WebServer::handleRoot(const httplib::Request &req, httplib::Response &res)
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Exception serving root: {}", e.what());
+		LOG_ERROR("Exception serving root: {}", e.what());
 		res.status = 500;
 		res.set_content("Internal server error", "text/plain");
 	}

@@ -5,7 +5,7 @@
 #include <nlohmann/json.hpp>
 #include <db/RedisManager.h>
 #include <emotionai/Image.h>
-#include <common/Config.h>
+#include <config/Config.h>
 
 namespace fs = std::filesystem;
 namespace EmotionAI

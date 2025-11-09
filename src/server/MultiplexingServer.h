@@ -76,7 +76,6 @@ private:
 	std::map<std::string, std::function<void(const std::shared_ptr<ClientContext> &)>> options_routes_;
 
 	void loadConfiguration();
-	void initializeLogging();
 	void setupRoutes();
 	void ensureDirectoriesExist();
 	void initializeComponents();
