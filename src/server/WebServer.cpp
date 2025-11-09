@@ -79,8 +79,8 @@ void WebServer::initializeComponents()
 void WebServer::start()
 {
 	auto &config = Common::Config::instance();
-	std::string host = config.serverHost();
-	int port = config.serverPort();
+	std::string host = config.server().host;
+	int port = config.server().port;
 
 	svr_.set_logger([](const auto &req, const auto &res) {
         LOG_INFO("{} {} -> {} {}", req.method, req.path, res.status, req.remote_addr);
@@ -105,28 +105,14 @@ void WebServer::stop() noexcept
 	}
 }
 
+// duplication
 void WebServer::loadConfiguration()
 {
-	// Get the config instance
 	auto &config = Common::Config::instance();
-
-	// Load configuration from file
-	if (!config.loadFromFile("config.yaml"))
-	{
-		LOG_WARN("Failed to load configuration file, using defaults");
-	}
-
-	// Setup application environment
-	if (!config.setupApplicationEnvironment())
-	{
-		throw std::runtime_error("Failed to setup application environment");
-	}
-
-	// Get the configured paths from config
-	log_folder_ = config.logPath();
-	static_files_root_ = config.frontendBuildPath();
-	upload_folder_ = config.uploadPath();
-	results_folder_ = config.resultPath();
+	log_folder_ = config.paths().logs;
+	static_files_root_ = config.paths().frontend;
+	upload_folder_ = config.paths().upload;
+	results_folder_ = config.paths().results;
 }
 
 void WebServer::ensureDirectoriesExist()

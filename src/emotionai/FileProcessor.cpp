@@ -1,11 +1,14 @@
-#include "FileProcessor.h"
-#include <spdlog/spdlog.h>
-#include <fmt/format.h>
 #include <filesystem>
+
+#include <fmt/format.h>
 #include <nlohmann/json.hpp>
+#include <spdlog/spdlog.h>
+
 #include <db/RedisManager.h>
 #include <emotionai/Image.h>
 #include <config/Config.h>
+#include <logging/Logger.h>
+#include "FileProcessor.h"
 
 namespace fs = std::filesystem;
 namespace EmotionAI
@@ -19,7 +22,7 @@ namespace EmotionAI
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Failed to initialize models: {}", e.what());
+			LOG_ERROR("Failed to initialize models: {}", e.what());
 		}
 	}
 
@@ -40,7 +43,7 @@ namespace EmotionAI
 		std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 
 		auto &config = Common::Config::instance();
-		std::vector<std::string> allowed_extensions = config.allowedExtensions();
+		std::vector<std::string> allowed_extensions = config.app().allowed_extensions;
 
 		return std::find(allowed_extensions.begin(), allowed_extensions.end(), extension) != allowed_extensions.end();
 	}
@@ -52,12 +55,12 @@ namespace EmotionAI
 			if (fs::exists(filepath))
 			{
 				fs::remove(filepath);
-				spdlog::info("Cleaned up file: {}", filepath);
+				LOG_INFO("Cleaned up file: {}", filepath);
 			}
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Error cleaning up file {}: {}", filepath, e.what());
+			LOG_ERROR("Error cleaning up file {}: {}", filepath, e.what());
 		}
 	}
 
@@ -65,12 +68,12 @@ namespace EmotionAI
 	{
 		try
 		{
-			spdlog::info("Initializing emotion recognition models...");
+			LOG_INFO("Initializing emotion recognition models...");
 
 			// Get model paths from configuration
 			auto &config = Common::Config::instance();
-			std::string model_backend = config.modelBackend();
-			std::string emotion_model_path = config.emotionModelPath();
+			std::string model_backend = config.model().backend;
+			std::string emotion_model_path = config.model().emotion_model_path;
 
 			// Try to load emotion model
 			try
@@ -79,11 +82,11 @@ namespace EmotionAI
 				{
 					fer_ = EmotiEffLib::EmotiEffLibRecognizer::createInstance(model_backend, emotion_model_path);
 					model_loaded_ = true;
-					spdlog::info("Emotion model loaded successfully: {}", emotion_model_path);
+					LOG_INFO("Emotion model loaded successfully: {}", emotion_model_path);
 				}
 				else
 				{
-					spdlog::warn("Emotion model file not found: {}", emotion_model_path);
+					LOG_WARN("Emotion model file not found: {}", emotion_model_path);
 					// Try to find the model in different locations
 					std::vector<std::string> possible_paths = {
 						emotion_model_path,
@@ -96,25 +99,25 @@ namespace EmotionAI
 						{
 							fer_ = EmotiEffLib::EmotiEffLibRecognizer::createInstance(model_backend, path);
 							model_loaded_ = true;
-							spdlog::info("Emotion model loaded from alternative path: {}", path);
+							LOG_INFO("Emotion model loaded from alternative path: {}", path);
 							break;
 						}
 					}
 
 					if (!model_loaded_)
 					{
-						spdlog::error("Could not find emotion model in any known location");
+						LOG_ERROR("Could not find emotion model in any known location");
 					}
 				}
 			}
 			catch (const std::exception &e)
 			{
-				spdlog::error("Failed to load emotion model: {}", e.what());
+				LOG_ERROR("Failed to load emotion model: {}", e.what());
 			}
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Error initializing models: {}", e.what());
+			LOG_ERROR("Error initializing models: {}", e.what());
 			throw;
 		}
 	}
@@ -138,9 +141,9 @@ namespace EmotionAI
 			std::string result_filename = "result_" + filename;
 			std::string result_path = (fs::path("result") / result_filename).string();
 			if (cv::imwrite(result_path, image))
-				spdlog::info("Image saved successfully to {}", result_path);
+				LOG_INFO("Image saved successfully to {}", result_path);
 			else
-				spdlog::error("Error: Could not save image to {}", result_path);
+				LOG_ERROR("Error: Could not save image to {}", result_path);
 
 			if (image.empty())
 			{
@@ -195,7 +198,7 @@ namespace EmotionAI
 			double fps = cap.get(cv::CAP_PROP_FPS);
 			double duration = (fps > 0) ? total_frames / fps : 0;
 
-			spdlog::info("Processing video: {}, Frames: {}, FPS: {:.2f}, Duration: {:.2f}s",
+			LOG_INFO("Processing video: {}, Frames: {}, FPS: {:.2f}, Duration: {:.2f}s",
 						 filename, total_frames, fps, duration);
 
 			int frame_count = 0;
@@ -229,9 +232,9 @@ namespace EmotionAI
 						std::string frame_path = (fs::path("result") / frame_filename).string();
 
 						if (cv::imwrite(frame_path, frame))
-							spdlog::info("Image saved successfully to {}", frame_path);
+							LOG_INFO("Image saved successfully to {}", frame_path);
 						else
-							spdlog::error("Error: Could not save image to {}", frame_path);
+							LOG_ERROR("Error: Could not save image to {}", frame_path);
 
 						nlohmann::json frame_result;
 						frame_result["frame"] = frame_count;
@@ -248,7 +251,7 @@ namespace EmotionAI
 					}
 					catch (const std::exception &e)
 					{
-						spdlog::warn("Error processing frame {}: {}", frame_count, e.what());
+						LOG_WARN("Error processing frame {}: {}", frame_count, e.what());
 						continue;
 					}
 				}
@@ -298,7 +301,7 @@ namespace EmotionAI
 			int total_frames = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_COUNT));
 			double fps = cap.get(cv::CAP_PROP_FPS);
 
-			spdlog::info("Real-time video analysis: {}, Frames: {}, FPS: {:.2f}",
+			LOG_INFO("Real-time video analysis: {}, Frames: {}, FPS: {:.2f}",
 						 filename, total_frames, fps);
 
 			int frame_count = 0;
@@ -349,11 +352,11 @@ namespace EmotionAI
 
 					if (cv::imwrite(frame_path, frame))
 					{
-						spdlog::info("Real-time frame saved: {}", frame_path);
+						LOG_INFO("Real-time frame saved: {}", frame_path);
 					}
 					else
 					{
-						spdlog::warn("Failed to save real-time frame: {}", frame_path);
+						LOG_WARN("Failed to save real-time frame: {}", frame_path);
 					}
 
 					// Store frame result with timestamp and image URL
@@ -399,7 +402,7 @@ namespace EmotionAI
 				}
 				catch (const std::exception &e)
 				{
-					spdlog::warn("Error processing frame {}: {}", frame_count, e.what());
+					LOG_WARN("Error processing frame {}: {}", frame_count, e.what());
 				}
 
 				frame_count++;
@@ -511,7 +514,7 @@ namespace EmotionAI
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Error processing file {}: {}", filename, e.what());
+			LOG_ERROR("Error processing file {}: {}", filename, e.what());
 
 			// Try to update status even if Redis might be having issues
 			try
@@ -522,7 +525,7 @@ namespace EmotionAI
 			}
 			catch (const std::exception &redis_error)
 			{
-				spdlog::error("Failed to update Redis status for task {}: {}", task_id, redis_error.what());
+				LOG_ERROR("Failed to update Redis status for task {}: {}", task_id, redis_error.what());
 			}
 		}
 

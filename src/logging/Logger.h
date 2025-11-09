@@ -15,7 +15,7 @@ public:
 
 	void initialize(const std::string &log_dir,
 					const std::string &app_name = "EmotionAI",
-					spdlog::level::level_enum level = spdlog::level::info);
+					spdlog::level::level_enum level = spdlog::level::debug);
 
 	std::shared_ptr<spdlog::logger> getLogger() { return logger_; }
 

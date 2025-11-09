@@ -1,10 +1,12 @@
-#include "Image.h"
-#include <common/base64.h>
 #include <spdlog/spdlog.h>
 #include <fmt/format.h>
 #include <emotiefflib/facial_analysis.h>
+
+#include <common/base64.h>
 #include <config/Config.h>
+#include <logging/Logger.h>
 #include <mtcnn/detector.h>
+#include "Image.h"
 
 namespace fs = std::filesystem;
 
@@ -54,7 +56,7 @@ namespace EmotionAI
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Error in mime_bundle_repr: {}", e.what());
+			LOG_ERROR("Error in mime_bundle_repr: {}", e.what());
 		}
 		return bundle;
 	}
@@ -76,7 +78,7 @@ namespace EmotionAI
 	{
 		if (img.empty())
 		{
-			spdlog::error("Error: Image is empty!");
+			LOG_ERROR("Error: Image is empty!");
 			return cv::Mat();
 		}
 
@@ -140,7 +142,7 @@ namespace EmotionAI
 		auto &config = Common::Config::instance();
 
 		// Get MTCNN configuration from config
-		std::string models_dir = config.faceDetectionModelsPath();
+		std::string models_dir = config.model().face_detection_models_path;
 
 		ProposalNetwork::Config pConfig;
 		pConfig.protoText = (fs::path(models_dir) / "det1.prototxt").string();
@@ -208,7 +210,7 @@ namespace EmotionAI
 
 			// Get model from configuration
 			auto &config = Common::Config::instance();
-			std::string emotion_model_path = config.emotionModelPath();
+			std::string emotion_model_path = config.model().emotion_model_path;
 			std::string model = fs::path(emotion_model_path).filename().string();
 			std::vector<std::string> emotions;
 			if (model == "enet_b2_7.pt")
@@ -252,7 +254,7 @@ namespace EmotionAI
 			nlohmann::json result;
 
 			// Main prediction
-			spdlog::info("main_emotion_idx: {}", main_emotion_idx);
+			LOG_INFO("main_emotion_idx: {}", main_emotion_idx);
 			auto &main_pred = result["main_prediction"];
 			main_pred["index"] = main_emotion_idx;
 			main_pred["label"] = emotions[main_emotion_idx];
@@ -284,7 +286,7 @@ namespace EmotionAI
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Error processing image: {}", e.what());
+			LOG_ERROR("Error processing image: {}", e.what());
 			throw;
 		}
 	}
