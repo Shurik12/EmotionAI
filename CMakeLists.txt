@@ -100,3 +100,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     SPDLOG_COMPILED_LIB
     FMT_HEADER_ONLY=0
 )
+
+enable_testing()
+option(BUILD_TESTS "Build tests" ON)
+if(BUILD_TESTS)
+    find_package(GTest REQUIRED)
+    add_subdirectory(tests)
+endif()
