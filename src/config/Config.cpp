@@ -9,8 +9,9 @@ namespace fs = std::filesystem;
 namespace Common
 {
 
-	Config::Config() : config_file_path_("config.yaml")
+	Config::Config()
 	{
+		// All initialization is done in ConfigData struct with default values
 	}
 
 	Config &Config::instance()
@@ -34,23 +35,103 @@ namespace Common
 				return false;
 			}
 
-			config_ = YAML::LoadFile(config_path);
+			YAML::Node root = YAML::LoadFile(config_path);
+			ConfigData new_data;
+
+			// Parse server configuration
+			if (root["server"])
+			{
+				const auto &server = root["server"];
+				new_data.server.host = server["host"].as<std::string>(new_data.server.host);
+				new_data.server.port = server["port"].as<int>(new_data.server.port);
+				new_data.server.type = server["type"].as<std::string>(new_data.server.type);
+			}
+
+			// Parse paths configuration
+			if (root["paths"])
+			{
+				const auto &paths = root["paths"];
+				new_data.paths.upload = paths["upload"].as<std::string>(new_data.paths.upload);
+				new_data.paths.results = paths["results"].as<std::string>(new_data.paths.results);
+				new_data.paths.logs = paths["logs"].as<std::string>(new_data.paths.logs);
+				new_data.paths.frontend = paths["frontend"].as<std::string>(new_data.paths.frontend);
+			}
+
+			// Parse application configuration
+			if (root["app"])
+			{
+				const auto &app = root["app"];
+				new_data.app.max_content_length = app["max_content_length"].as<int>(new_data.app.max_content_length);
+				new_data.app.task_expiration = app["task_expiration"].as<int>(new_data.app.task_expiration);
+				new_data.app.application_expiration = app["application_expiration"].as<int>(new_data.app.application_expiration);
+
+				if (app["allowed_extensions"])
+				{
+					new_data.app.allowed_extensions = app["allowed_extensions"].as<std::vector<std::string>>();
+				}
+				if (app["emotion_categories"])
+				{
+					new_data.app.emotion_categories = app["emotion_categories"].as<std::vector<std::string>>();
+				}
+			}
+
+			// Parse Redis configuration
+			if (root["redis"])
+			{
+				const auto &redis = root["redis"];
+				new_data.redis.host = redis["host"].as<std::string>(new_data.redis.host);
+				new_data.redis.port = redis["port"].as<int>(new_data.redis.port);
+				new_data.redis.db = redis["db"].as<int>(new_data.redis.db);
+				new_data.redis.password = redis["password"].as<std::string>(new_data.redis.password);
+			}
+
+			// Parse MTCNN configuration
+			if (root["mtcnn"])
+			{
+				const auto &mtcnn = root["mtcnn"];
+				new_data.mtcnn.keep_all = mtcnn["keep_all"].as<bool>(new_data.mtcnn.keep_all);
+				new_data.mtcnn.post_process = mtcnn["post_process"].as<bool>(new_data.mtcnn.post_process);
+				new_data.mtcnn.min_face_size = mtcnn["min_face_size"].as<int>(new_data.mtcnn.min_face_size);
+				new_data.mtcnn.device = mtcnn["device"].as<std::string>(new_data.mtcnn.device);
+			}
+
+			// Parse model configuration
+			if (root["model"])
+			{
+				const auto &model = root["model"];
+				new_data.model.backend = model["backend"].as<std::string>(new_data.model.backend);
+				new_data.model.emotion_model_path = model["emotion_model_path"].as<std::string>(new_data.model.emotion_model_path);
+				new_data.model.face_detection_models_path = model["face_detection_models_path"].as<std::string>(new_data.model.face_detection_models_path);
+			}
+
+			// Atomically update the configuration data
+			data_ = std::move(new_data);
 			loaded_.store(true);
 
 			spdlog::info("Configuration loaded successfully from: {}", config_path);
 
 			// Log important configuration values
 			spdlog::info("Server configuration:");
-			spdlog::info("  Host: {}", serverHost());
-			spdlog::info("  Port: {}", serverPort());
+			spdlog::info("  Host: {}", data_.server.host);
+			spdlog::info("  Port: {}", data_.server.port);
+			spdlog::info("  Type: {}", data_.server.type);
+
+			spdlog::info("Paths configuration:");
+			spdlog::info("  Upload: {}", data_.paths.upload);
+			spdlog::info("  Results: {}", data_.paths.results);
+			spdlog::info("  Logs: {}", data_.paths.logs);
+			spdlog::info("  Frontend: {}", data_.paths.frontend);
 
 			spdlog::info("Redis configuration:");
-			spdlog::info("  Host: {}", redisHost());
-			spdlog::info("  Port: {}", redisPort());
-			spdlog::info("  DB: {}", redisDb());
-			spdlog::info("  Password : {}", redisPassword());
+			spdlog::info("  Host: {}", data_.redis.host);
+			spdlog::info("  Port: {}", data_.redis.port);
+			spdlog::info("  DB: {}", data_.redis.db);
+			spdlog::info("  Password: {}", data_.redis.password.empty() ? "<empty>" : "***");
 
 			spdlog::info("Model configuration:");
+			spdlog::info("  Backend: {}", data_.model.backend);
+			spdlog::info("  Emotion Model: {}", data_.model.emotion_model_path);
+			spdlog::info("  Face Detection Models: {}", data_.model.face_detection_models_path);
 
 			return true;
 		}
@@ -78,14 +159,16 @@ namespace Common
 		try
 		{
 			// Create necessary directories
-			fs::create_directories(uploadPath());
-			fs::create_directories(resultPath());
-			fs::create_directories(logPath());
+			fs::create_directories(data_.paths.upload);
+			fs::create_directories(data_.paths.results);
+			fs::create_directories(data_.paths.logs);
+			fs::create_directories(data_.paths.frontend);
 
 			spdlog::info("Application environment setup completed");
-			spdlog::info("Upload folder: {}", uploadPath());
-			spdlog::info("Results folder: {}", resultPath());
-			spdlog::info("Log folder: {}", logPath());
+			spdlog::info("Upload folder: {}", data_.paths.upload);
+			spdlog::info("Results folder: {}", data_.paths.results);
+			spdlog::info("Log folder: {}", data_.paths.logs);
+			spdlog::info("Frontend folder: {}", data_.paths.frontend);
 
 			return true;
 		}
@@ -96,118 +179,43 @@ namespace Common
 		}
 	}
 
-	// server
-	std::string Config::serverHost() const
+	bool Config::validate() const
 	{
-		return config_["server"]["host"].as<std::string>();
-	}
+		if (!loaded_.load())
+		{
+			spdlog::error("Configuration not loaded");
+			return false;
+		}
 
-	int Config::serverPort() const
-	{
-		return config_["server"]["port"].as<int>();
-	}
+		// Validate required paths
+		if (data_.model.emotion_model_path.empty())
+		{
+			spdlog::error("Emotion model path is required");
+			return false;
+		}
 
-	// app
-	std::string Config::uploadPath() const
-	{
-		return config_["app"]["uploadPath"].as<std::string>();
-	}
+		if (data_.model.face_detection_models_path.empty())
+		{
+			spdlog::error("Face detection models path is required");
+			return false;
+		}
 
-	std::string Config::resultPath() const
-	{
-		return config_["app"]["resultPath"].as<std::string>();
-	}
+		// Validate server configuration
+		if (data_.server.port <= 0 || data_.server.port > 65535)
+		{
+			spdlog::error("Invalid server port: {}", data_.server.port);
+			return false;
+		}
 
-	std::string Config::frontendBuildPath() const
-	{
-		return config_["app"]["frontendBuildPath"].as<std::string>();
-	}
+		// Validate Redis configuration
+		if (data_.redis.port <= 0 || data_.redis.port > 65535)
+		{
+			spdlog::error("Invalid Redis port: {}", data_.redis.port);
+			return false;
+		}
 
-	std::string Config::logPath() const
-	{
-		return config_["app"]["logPath"].as<std::string>();
-	}
-
-	int Config::maxContentLength() const
-	{
-		return config_["app"]["max_content_length"].as<int>();
-	}
-
-	std::vector<std::string> Config::allowedExtensions() const
-	{
-		return config_["app"]["allowed_extensions"].as<std::vector<std::string>>();
-	}
-
-	int Config::taskExpiration() const
-	{
-		return config_["app"]["task_expiration"].as<int>();
-	}
-
-	int Config::applicationExpiration() const
-	{
-		return config_["app"]["task_expiration"].as<int>();
-	}
-
-	std::vector<std::string> Config::emotionCategories() const
-	{
-		return config_["app"]["emotion_categories"].as<std::vector<std::string>>();
-	}
-
-	// redis
-	std::string Config::redisHost() const
-	{
-		return config_["redis"]["host"].as<std::string>();
-	}
-
-	int Config::redisPort() const
-	{
-		return config_["redis"]["port"].as<int>();
-	}
-
-	int Config::redisDb() const
-	{
-		return config_["redis"]["db"].as<int>();
-	}
-
-	std::string Config::redisPassword() const
-	{
-		return config_["redis"]["password"].as<std::string>();
-	}
-
-	// mtcnn
-	bool Config::mtcnnKeepAll() const
-	{
-		return config_["mtcnn"]["keep_all"].as<bool>();
-	}
-
-	bool Config::mtcnnPostProcess() const
-	{
-		return config_["mtcnn"]["post_process"].as<bool>();
-	}
-
-	int Config::mtcnnMinFaceSize() const
-	{
-		return config_["mtcnn"]["min_face_size"].as<int>();
-	}
-
-	std::string Config::mtcnnDevice() const
-	{
-		return config_["mtcnn"]["device"].as<std::string>();
-	}
-
-	std::string Config::modelBackend() const
-	{
-		return config_["model"]["backend"].as<std::string>();
-	}
-
-	std::string Config::emotionModelPath() const
-	{
-		return config_["model"]["emotion_model_path"].as<std::string>();
-	}
-
-	std::string Config::faceDetectionModelsPath() const
-	{
-		return config_["model"]["face_detection_models_path"].as<std::string>();
+		spdlog::info("Configuration validation passed");
+		return true;
 	}
 
 } // namespace Common

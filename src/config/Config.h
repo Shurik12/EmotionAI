@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <atomic>
 #include <mutex>
+#include <spdlog/spdlog.h>
 
 namespace Common
 {
@@ -31,33 +32,42 @@ namespace Common
 		bool setupApplicationEnvironment();
 
 		// Getters for configuration values
-		std::string uploadPath() const;
-		std::string resultPath() const;
-		std::string frontendBuildPath() const;
-		std::string logPath() const;
-		int maxContentLength() const;
-		std::vector<std::string> allowedExtensions() const;
-		int taskExpiration() const;
-		int applicationExpiration() const;
-		std::vector<std::string> emotionCategories() const;
+		std::string uploadPath() const { return data_.paths.upload; }
+		std::string resultPath() const { return data_.paths.results; }
+		std::string frontendBuildPath() const { return data_.paths.frontend; }
+		std::string logPath() const { return data_.paths.logs; }
+		int maxContentLength() const { return data_.app.max_content_length; }
+		std::vector<std::string> allowedExtensions() const { return data_.app.allowed_extensions; }
+		int taskExpiration() const { return data_.app.task_expiration; }
+		int applicationExpiration() const { return data_.app.application_expiration; }
+		std::vector<std::string> emotionCategories() const { return data_.app.emotion_categories; }
 
-		std::string redisHost() const;
-		int redisPort() const;
-		int redisDb() const;
-		std::string redisPassword() const;
+		std::string redisHost() const { return data_.redis.host; }
+		int redisPort() const { return data_.redis.port; }
+		int redisDb() const { return data_.redis.db; }
+		std::string redisPassword() const { return data_.redis.password; }
 
-		bool mtcnnKeepAll() const;
-		bool mtcnnPostProcess() const;
-		int mtcnnMinFaceSize() const;
-		std::string mtcnnDevice() const;
+		bool mtcnnKeepAll() const { return data_.mtcnn.keep_all; }
+		bool mtcnnPostProcess() const { return data_.mtcnn.post_process; }
+		int mtcnnMinFaceSize() const { return data_.mtcnn.min_face_size; }
+		std::string mtcnnDevice() const { return data_.mtcnn.device; }
 
-		std::string modelBackend() const;
-		std::string emotionModelPath() const;
-		std::string faceDetectionModelsPath() const;
+		std::string modelBackend() const { return data_.model.backend; }
+		std::string emotionModelPath() const { return data_.model.emotion_model_path; }
+		std::string faceDetectionModelsPath() const { return data_.model.face_detection_models_path; }
 
 		// Server configuration
-		std::string serverHost() const;
-		int serverPort() const;
+		std::string serverHost() const { return data_.server.host; }
+		int serverPort() const { return data_.server.port; }
+		std::string serverType() const { return data_.server.type; }
+
+		// Direct access to nested structures (optional)
+		const auto &server() const { return data_.server; }
+		const auto &paths() const { return data_.paths; }
+		const auto &app() const { return data_.app; }
+		const auto &redis() const { return data_.redis; }
+		const auto &mtcnn() const { return data_.mtcnn; }
+		const auto &model() const { return data_.model; }
 
 		// Check if config is loaded
 		bool isLoaded() const { return loaded_.load(); }
@@ -69,7 +79,64 @@ namespace Common
 		Config();
 		~Config() = default;
 
-		YAML::Node config_;
+		struct ServerConfig
+		{
+			std::string host = "0.0.0.0";
+			int port = 8080;
+			std::string type = "non-blocking";
+		};
+
+		struct PathsConfig
+		{
+			std::string upload = "./uploads";
+			std::string results = "./results";
+			std::string frontend = "../frontend/build";
+			std::string logs = "./logs";
+		};
+
+		struct AppConfig
+		{
+			int max_content_length = 52428800; // 50MB
+			std::vector<std::string> allowed_extensions = {"png", "jpg", "jpeg", "mp4", "avi", "webm", "mp3"};
+			int task_expiration = 3600;			  // 1 hour in seconds
+			int application_expiration = 2592000; // 30 days in seconds
+			std::vector<std::string> emotion_categories = {"anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"};
+		};
+
+		struct RedisConfig
+		{
+			std::string host = "localhost";
+			int port = 6379;
+			int db = 0;
+			std::string password = "";
+		};
+
+		struct MtcnnConfig
+		{
+			bool keep_all = false;
+			bool post_process = false;
+			int min_face_size = 40;
+			std::string device = "cpu";
+		};
+
+		struct ModelConfig
+		{
+			std::string backend = "torch";
+			std::string emotion_model_path = "";
+			std::string face_detection_models_path = "";
+		};
+
+		struct ConfigData
+		{
+			ServerConfig server;
+			PathsConfig paths;
+			AppConfig app;
+			RedisConfig redis;
+			MtcnnConfig mtcnn;
+			ModelConfig model;
+		};
+
+		ConfigData data_;
 		mutable std::mutex config_mutex_;
 		std::atomic<bool> loaded_{false};
 		std::string config_file_path_;

@@ -6,11 +6,12 @@
 #include <random>
 #include <cstdarg>
 
-#include <spdlog/spdlog.h>
 #include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 #include <common/uuid.h>
 #include <config/Config.h>
+#include <logging/Logger.h>
 #include "RedisManager.h"
 
 namespace fs = std::filesystem;
@@ -36,23 +37,21 @@ namespace db
 		std::lock_guard<std::mutex> lock(connection_mutex_);
 		connection_ = create_connection();
 		initialized_.store(true);
-		spdlog::info("Successfully connected to Redis");
+		LOG_INFO("Successfully connected to Redis");
 	}
 
 	void RedisManager::loadConfiguration()
 	{
 		auto &config = Common::Config::instance();
 
-		// Load configuration with proper defaults from config
-		redis_host_ = config.redisHost();
-		redis_port_ = config.redisPort();
-		redis_db_ = config.redisDb();
-		redis_password_ = config.redisPassword();
-		upload_folder_ = config.uploadPath();
-		task_expiration_ = config.taskExpiration();
+		redis_host_ = config.redis().host;
+		redis_port_ = config.redis().port;
+		redis_db_ = config.redis().db;
+		redis_password_ = config.redis().password;
+		upload_folder_ = config.paths().upload;
+		task_expiration_ = config.app().task_expiration;
 
-		spdlog::info("Redis configuration loaded: {}:{} (DB: {})",
-					 redis_host_, redis_port_, redis_db_);
+		LOG_INFO("Redis configuration loaded: {}:{} (DB: {})", redis_host_, redis_port_, redis_db_);
 	}
 	bool RedisManager::ensure_connection()
 	{
@@ -68,12 +67,12 @@ namespace db
 			{
 				connection_ = create_connection();
 				initialized_.store(true);
-				spdlog::info("Reconnected to Redis successfully");
+				LOG_INFO("Reconnected to Redis successfully");
 				return true;
 			}
 			catch (const std::exception &e)
 			{
-				spdlog::error("Failed to reconnect to Redis: {}", e.what());
+				LOG_ERROR("Failed to reconnect to Redis: {}", e.what());
 				return false;
 			}
 		}
@@ -94,12 +93,12 @@ namespace db
 			connection_.reset(); // Reset the current connection
 			connection_ = create_connection();
 			initialized_.store(true);
-			spdlog::info("Reconnected to Redis after connection loss");
+			LOG_INFO("Reconnected to Redis after connection loss");
 			return true;
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Failed to reconnect to Redis: {}", e.what());
+			LOG_ERROR("Failed to reconnect to Redis: {}", e.what());
 			connection_.reset();
 			initialized_.store(false);
 			return false;
@@ -110,7 +109,7 @@ namespace db
 	{
 		try
 		{
-			spdlog::info("Connecting to Redis: {}:{} (DB: {})", redis_host_, redis_port_, redis_db_);
+			LOG_INFO("Connecting to Redis: {}:{} (DB: {})", redis_host_, redis_port_, redis_db_);
 
 			// Set connection timeout
 			struct timeval timeout = {1, 500000}; // 1.5 seconds
@@ -136,7 +135,7 @@ namespace db
 					throw std::runtime_error("Redis authentication failed: " + error_msg);
 				}
 				freeReplyObject(reply);
-				spdlog::info("Redis authentication successful");
+				LOG_INFO("Redis authentication successful");
 			}
 
 			// Select database if not default
@@ -151,7 +150,7 @@ namespace db
 					throw std::runtime_error("Redis database selection failed: " + error_msg);
 				}
 				freeReplyObject(reply);
-				spdlog::info("Selected Redis database: {}", redis_db_);
+				LOG_INFO("Selected Redis database: {}", redis_db_);
 			}
 
 			// Test connection
@@ -166,14 +165,14 @@ namespace db
 			}
 			freeReplyObject(reply);
 
-			spdlog::info("Redis connection test successful");
+			LOG_INFO("Redis connection test successful");
 
 			// Return as unique_ptr with custom deleter
 			return std::unique_ptr<redisContext, RedisContextDeleter>(conn);
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Failed to connect to Redis: {}", e.what());
+			LOG_ERROR("Failed to connect to Redis: {}", e.what());
 			throw;
 		}
 	}
@@ -237,11 +236,11 @@ namespace db
 												status_data.size());
 
 			free_reply(reply);
-			spdlog::debug("Set task status for task_id: {}", task_id);
+			LOG_DEBUG("Set task status for task_id: {}", task_id);
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Error updating task status for task_id {}: {}", task_id, e.what());
+			LOG_ERROR("Error updating task status for task_id {}: {}", task_id, e.what());
 			// Don't throw here to avoid crashing the application
 			// The error will be stored in the task status itself
 		}
@@ -262,7 +261,7 @@ namespace db
 			if (reply->type == REDIS_REPLY_NIL)
 			{
 				free_reply(reply);
-				spdlog::debug("Task status not found for task_id: {}", task_id);
+				LOG_DEBUG("Task status not found for task_id: {}", task_id);
 				return std::nullopt;
 			}
 
@@ -270,17 +269,17 @@ namespace db
 			{
 				std::string result(reply->str, reply->len);
 				free_reply(reply);
-				spdlog::debug("Retrieved task status for task_id: {}", task_id);
+				LOG_DEBUG("Retrieved task status for task_id: {}", task_id);
 				return result;
 			}
 
 			free_reply(reply);
-			spdlog::debug("Unexpected reply type for task_id: {}", task_id);
+			LOG_DEBUG("Unexpected reply type for task_id: {}", task_id);
 			return std::nullopt;
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Error getting task status for task_id {}: {}", task_id, e.what());
+			LOG_ERROR("Error getting task status for task_id {}: {}", task_id, e.what());
 			return std::nullopt;
 		}
 	}
@@ -298,12 +297,12 @@ namespace db
 		}
 		catch (const nlohmann::json::parse_error &e)
 		{
-			spdlog::error("JSON parse error for task_id {}: {}", task_id, e.what());
+			LOG_ERROR("JSON parse error for task_id {}: {}", task_id, e.what());
 			return std::nullopt;
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Error parsing task status JSON for task_id {}: {}", task_id, e.what());
+			LOG_ERROR("Error parsing task status JSON for task_id {}: {}", task_id, e.what());
 			return std::nullopt;
 		}
 	}
@@ -320,7 +319,7 @@ namespace db
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Error generating UUID: {}", e.what());
+			LOG_ERROR("Error generating UUID: {}", e.what());
 			// Fallback implementation
 			std::random_device rd;
 			std::mt19937 gen(rd());
@@ -361,7 +360,7 @@ namespace db
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Error saving application: {}", e.what());
+			LOG_ERROR("Error saving application: {}", e.what());
 			throw;
 		}
 	}
@@ -392,12 +391,12 @@ namespace db
 			out_file << application_with_meta.dump() << std::endl;
 			out_file.close();
 
-			spdlog::info("Saved application with ID: {}", application_id);
+			LOG_INFO("Saved application with ID: {}", application_id);
 			return application_id;
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Error saving application: {}", e.what());
+			LOG_ERROR("Error saving application: {}", e.what());
 			throw;
 		}
 	}

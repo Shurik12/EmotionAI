@@ -91,8 +91,8 @@ void MultiplexingServer::initializeComponents()
 void MultiplexingServer::start()
 {
 	auto &config = Common::Config::instance();
-	std::string host = config.serverHost();
-	int port = config.serverPort();
+	std::string host = config.server().host;
+	int port = config.server().port;
 
 	LOG_INFO("Starting multiplexing server on {}:{}", host, port);
 
@@ -112,24 +112,14 @@ void MultiplexingServer::stop() noexcept
 	}
 }
 
+// duplication
 void MultiplexingServer::loadConfiguration()
 {
 	auto &config = Common::Config::instance();
-
-	if (!config.loadFromFile("config.yaml"))
-	{
-		spdlog::warn("Failed to load configuration file, using defaults");
-	}
-
-	if (!config.setupApplicationEnvironment())
-	{
-		throw std::runtime_error("Failed to setup application environment");
-	}
-
-	log_folder_ = config.logPath();
-	static_files_root_ = config.frontendBuildPath();
-	upload_folder_ = config.uploadPath();
-	results_folder_ = config.resultPath();
+	log_folder_ = config.paths().logs;
+	static_files_root_ = config.paths().frontend;
+	upload_folder_ = config.paths().upload;
+	results_folder_ = config.paths().results;
 }
 
 void MultiplexingServer::ensureDirectoriesExist()
@@ -231,8 +221,8 @@ void MultiplexingServer::createSocket()
 	}
 
 	auto &config = Common::Config::instance();
-	std::string host = config.serverHost();
-	int port = config.serverPort();
+	std::string host = config.server().host;
+	int port = config.server().port;
 
 	struct sockaddr_in address;
 	address.sin_family = AF_INET;
