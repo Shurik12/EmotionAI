@@ -1,21 +1,24 @@
 cmake_minimum_required(VERSION 3.12)
-project(EmotionAI)
+project(emotionai)
+
+option(BUILD_TESTS "Build tests" ON)
+option(BUILD_BENCHMARKS "Build benchmarks" ON)
 
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
 
-set(CMAKE_CXX_STANDARD 20)
+if(POLICY CMP0077)
+    cmake_policy(SET CMP0077 NEW)
+endif()
+
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-# Enable folder organization in IDEs
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
-# Find required packages
 find_package(OpenCV REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(spdlog REQUIRED)
@@ -25,27 +28,22 @@ find_package(nlohmann_json REQUIRED)
 find_path(HIREDIS_INCLUDE_DIR hiredis/hiredis.h)
 find_library(HIREDIS_LIBRARY NAMES hiredis)
 
-# Set paths for optional dependencies
+# TORCH + ONNX
 set(WITH_TORCH "${CMAKE_CURRENT_SOURCE_DIR}/contrib/libtorch" CACHE PATH "Path to LibTorch")
 set(WITH_ONNX "${CMAKE_CURRENT_SOURCE_DIR}/contrib/onnxruntime" CACHE PATH "Path to onnxruntime")
-
-# Check for LibTorch
 if(EXISTS ${WITH_TORCH})
     find_package(Torch REQUIRED PATHS ${WITH_TORCH})
     message(STATUS "LibTorch found at: ${WITH_TORCH}")
     add_definitions(-DHAVE_TORCH)
 endif()
-
-# Check for ONNX Runtime
 if(EXISTS ${WITH_ONNX})
     find_package(ONNXRuntime REQUIRED PATHS ${WITH_ONNX})
     message(STATUS "ONNX Runtime found at: ${WITH_ONNX}")
     add_definitions(-DHAVE_ONNX)
 endif()
 
-# Add subdirectories
-add_subdirectory("${PROJECT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib")
 
+add_subdirectory("${PROJECT_SOURCE_DIR}/contrib/emotiefflib/emotieffcpplib")
 get_target_property(EMOTIEFFLIB_INCLUDE_DIRS emotiefflib INTERFACE_INCLUDE_DIRECTORIES)
 if(NOT EMOTIEFFLIB_INCLUDE_DIRS)
     # If the property is not set, manually set the include directory
@@ -74,15 +72,15 @@ foreach(DIR ${SRC_DIRS})
     list(APPEND src_sources ${SOURCES})
 endforeach()
 
-# Add main executable
-add_executable(${PROJECT_NAME} main.cpp)
-target_sources(${PROJECT_NAME} PRIVATE ${src_sources})
-target_include_directories(${PROJECT_NAME} PRIVATE
+
+# Create a library with all common code for reuse in tests/benchmarks
+add_library(emotionai_lib STATIC ${src_sources})
+target_include_directories(emotionai_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${EMOTIEFFLIB_INCLUDE_DIRS}
     ${HIREDIS_INCLUDE_DIR}
 )
-target_link_libraries(${PROJECT_NAME} PRIVATE
+target_link_libraries(emotionai_lib PUBLIC
     ${OpenCV_LIBS}
     yaml-cpp
     spdlog::spdlog
@@ -91,19 +89,26 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     emotiefflib
     ${HIREDIS_LIBRARY}
 )
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    CXX_STANDARD 20
-    CXX_STANDARD_REQUIRED ON
-    CXX_EXTENSIONS OFF
-)
-target_compile_definitions(${PROJECT_NAME} PRIVATE
+target_compile_definitions(emotionai_lib PUBLIC
     SPDLOG_COMPILED_LIB
     FMT_HEADER_ONLY=0
 )
 
+add_executable(${PROJECT_NAME} main.cpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE emotionai_lib)
+
 enable_testing()
-option(BUILD_TESTS "Build tests" ON)
+
 if(BUILD_TESTS)
     find_package(GTest REQUIRED)
     add_subdirectory(tests)
+endif()
+
+if(BUILD_BENCHMARKS)
+    find_package(benchmark)
+    if(benchmark_FOUND)
+        add_subdirectory(tests/benchmark)
+    else()
+        message(WARNING "Google Benchmark not found, benchmarks will not be built")
+    endif()
 endif()
