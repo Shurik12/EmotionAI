@@ -75,6 +75,20 @@ namespace Common
 				}
 			}
 
+			// Parse logging configuration
+			if (root["logging"])
+			{
+				const auto &logging = root["logging"];
+				new_data.logging.level = logging["level"].as<std::string>(new_data.logging.level);
+				new_data.logging.max_file_size = logging["max_file_size"].as<int>(new_data.logging.max_file_size);
+				new_data.logging.max_files = logging["max_files"].as<int>(new_data.logging.max_files);
+				new_data.logging.console_enabled = logging["console_enabled"].as<bool>(new_data.logging.console_enabled);
+				new_data.logging.file_enabled = logging["file_enabled"].as<bool>(new_data.logging.file_enabled);
+				new_data.logging.pattern = logging["pattern"].as<std::string>(new_data.logging.pattern);
+				new_data.logging.file_pattern = logging["file_pattern"].as<std::string>(new_data.logging.file_pattern);
+				new_data.logging.flush_on_level = logging["flush_on_level"].as<std::string>(new_data.logging.flush_on_level);
+			}
+
 			// Parse Redis configuration
 			if (root["redis"])
 			{
@@ -121,6 +135,14 @@ namespace Common
 			spdlog::info("  Results: {}", data_.paths.results);
 			spdlog::info("  Logs: {}", data_.paths.logs);
 			spdlog::info("  Frontend: {}", data_.paths.frontend);
+
+			spdlog::info("Logging configuration:");
+			spdlog::info("  Level: {}", data_.logging.level);
+			spdlog::info("  Max File Size: {} bytes", data_.logging.max_file_size);
+			spdlog::info("  Max Files: {}", data_.logging.max_files);
+			spdlog::info("  Console Enabled: {}", data_.logging.console_enabled);
+			spdlog::info("  File Enabled: {}", data_.logging.file_enabled);
+			spdlog::info("  Flush On Level: {}", data_.logging.flush_on_level);
 
 			spdlog::info("Redis configuration:");
 			spdlog::info("  Host: {}", data_.redis.host);
@@ -179,6 +201,38 @@ namespace Common
 		}
 	}
 
+	spdlog::level::level_enum Config::getSpdLogLevel() const
+	{
+		static const std::unordered_map<std::string, spdlog::level::level_enum> level_map = {
+			{"trace", spdlog::level::trace},
+			{"debug", spdlog::level::debug},
+			{"info", spdlog::level::info},
+			{"warn", spdlog::level::warn},
+			{"error", spdlog::level::err},
+			{"critical", spdlog::level::critical},
+			{"off", spdlog::level::off}
+		};
+
+		auto it = level_map.find(data_.logging.level);
+		return it != level_map.end() ? it->second : spdlog::level::info;
+	}
+
+	spdlog::level::level_enum Config::getSpdLogFlushLevel() const
+	{
+		static const std::unordered_map<std::string, spdlog::level::level_enum> level_map = {
+			{"trace", spdlog::level::trace},
+			{"debug", spdlog::level::debug},
+			{"info", spdlog::level::info},
+			{"warn", spdlog::level::warn},
+			{"error", spdlog::level::err},
+			{"critical", spdlog::level::critical},
+			{"off", spdlog::level::off}
+		};
+
+		auto it = level_map.find(data_.logging.flush_on_level);
+		return it != level_map.end() ? it->second : spdlog::level::info;
+	}
+
 	bool Config::validate() const
 	{
 		if (!loaded_.load())
@@ -211,6 +265,32 @@ namespace Common
 		if (data_.redis.port <= 0 || data_.redis.port > 65535)
 		{
 			spdlog::error("Invalid Redis port: {}", data_.redis.port);
+			return false;
+		}
+
+		// Validate logging configuration
+		static const std::vector<std::string> valid_levels = {"trace", "debug", "info", "warn", "error", "critical", "off"};
+		if (std::find(valid_levels.begin(), valid_levels.end(), data_.logging.level) == valid_levels.end())
+		{
+			spdlog::error("Invalid log level: {}", data_.logging.level);
+			return false;
+		}
+
+		if (std::find(valid_levels.begin(), valid_levels.end(), data_.logging.flush_on_level) == valid_levels.end())
+		{
+			spdlog::error("Invalid flush on level: {}", data_.logging.flush_on_level);
+			return false;
+		}
+
+		if (data_.logging.max_file_size <= 0)
+		{
+			spdlog::error("Invalid max file size: {}", data_.logging.max_file_size);
+			return false;
+		}
+
+		if (data_.logging.max_files <= 0)
+		{
+			spdlog::error("Invalid max files: {}", data_.logging.max_files);
 			return false;
 		}
 
