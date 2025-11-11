@@ -322,7 +322,7 @@ void MultiplexingServer::acceptNewConnection()
 		return;
 	}
 
-	LOG_INFO("New client connected: fd={}", client_fd);
+	LOG_DEBUG("New client connected: fd={}", client_fd);
 }
 
 void MultiplexingServer::handleClientData(int client_fd)
@@ -665,7 +665,7 @@ void MultiplexingServer::closeClient(int client_fd)
 		epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_fd, nullptr);
 		close(client_fd);
 		clients_.erase(it);
-		LOG_INFO("Client disconnected: fd={}", client_fd);
+		LOG_DEBUG("Client disconnected: fd={}", client_fd);
 	}
 }
 
