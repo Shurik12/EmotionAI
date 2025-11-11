@@ -61,6 +61,20 @@ namespace Common
 		int serverPort() const { return data_.server.port; }
 		std::string serverType() const { return data_.server.type; }
 
+		// Logging configuration
+		std::string logLevel() const { return data_.logging.level; }
+		int logMaxFileSize() const { return data_.logging.max_file_size; }
+		int logMaxFiles() const { return data_.logging.max_files; }
+		bool logConsoleEnabled() const { return data_.logging.console_enabled; }
+		bool logFileEnabled() const { return data_.logging.file_enabled; }
+		std::string logPattern() const { return data_.logging.pattern; }
+		std::string logFilePattern() const { return data_.logging.file_pattern; }
+		std::string logFlushOnLevel() const { return data_.logging.flush_on_level; }
+
+		// Convert log level string to spdlog level
+		spdlog::level::level_enum getSpdLogLevel() const;
+		spdlog::level::level_enum getSpdLogFlushLevel() const;
+
 		// Direct access to nested structures (optional)
 		const auto &server() const { return data_.server; }
 		const auto &paths() const { return data_.paths; }
@@ -68,6 +82,7 @@ namespace Common
 		const auto &redis() const { return data_.redis; }
 		const auto &mtcnn() const { return data_.mtcnn; }
 		const auto &model() const { return data_.model; }
+		const auto &logging() const { return data_.logging; }
 
 		// Check if config is loaded
 		bool isLoaded() const { return loaded_.load(); }
@@ -103,6 +118,18 @@ namespace Common
 			std::vector<std::string> emotion_categories = {"anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"};
 		};
 
+		struct LoggingConfig
+		{
+			std::string level = "info";
+			int max_file_size = 20971520; // 20MB
+			int max_files = 5;
+			bool console_enabled = true;
+			bool file_enabled = true;
+			std::string pattern = "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%n] %v";
+			std::string file_pattern = "[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] %v";
+			std::string flush_on_level = "info";
+		};
+
 		struct RedisConfig
 		{
 			std::string host = "localhost";
@@ -131,6 +158,7 @@ namespace Common
 			ServerConfig server;
 			PathsConfig paths;
 			AppConfig app;
+			LoggingConfig logging;
 			RedisConfig redis;
 			MtcnnConfig mtcnn;
 			ModelConfig model;

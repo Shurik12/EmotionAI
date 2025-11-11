@@ -391,7 +391,7 @@ namespace db
 			out_file << application_with_meta.dump() << std::endl;
 			out_file.close();
 
-			LOG_INFO("Saved application with ID: {}", application_id);
+			LOG_DEBUG("Saved application with ID: {}", application_id);
 			return application_id;
 		}
 		catch (const std::exception &e)
