@@ -5,8 +5,11 @@
 #include <memory>
 #include <mutex>
 #include <atomic>
+#include <unordered_map>
+#include <thread>
 
 #include <hiredis/hiredis.h>
+#include <hiredis/async.h>
 #include <nlohmann/json.hpp>
 
 #include <common/uuid.h>
@@ -26,11 +29,10 @@ namespace db
 		RedisManager &operator=(RedisManager &&) = delete;
 
 		void initialize();
-
 		void loadConfiguration();
-
 		bool is_initialized() const { return initialized_.load(); }
 
+		// Thread-safe operations
 		void set_task_status(const std::string &task_id, const std::string &status_data);
 		void set_task_status(const std::string &task_id, const nlohmann::json &status_data);
 
@@ -42,8 +44,11 @@ namespace db
 
 		static std::string generate_uuid();
 
+		// Connection management for thread-local usage
+		redisContext *get_connection();
+		void return_connection(redisContext *conn);
+
 	private:
-		// Custom deleter for redisContext
 		struct RedisContextDeleter
 		{
 			void operator()(redisContext *ctx) const
@@ -55,24 +60,37 @@ namespace db
 			}
 		};
 
+		// Connection pool
+		struct ConnectionPool
+		{
+			std::mutex mutex;
+			std::vector<std::unique_ptr<redisContext, RedisContextDeleter>> connections;
+			std::condition_variable cv;
+			size_t in_use = 0;
+			const size_t max_pool_size = 20;
+		};
+
 		std::unique_ptr<redisContext, RedisContextDeleter> create_connection();
 		void free_reply(redisReply *reply);
 
-		redisReply *execute_command(const char *format, ...);
+		// Thread-safe command execution
+		redisReply *execute_command(redisContext *conn, const char *format, ...);
+		bool test_connection(redisContext *conn);
 
-		bool ensure_connection();
-
-		// Cached configuration
+		// Configuration
 		std::string redis_host_;
 		int redis_port_;
 		int redis_db_;
 		std::string redis_password_;
+		int task_expiration_;
 
-		std::unique_ptr<redisContext, RedisContextDeleter> connection_;
-		std::mutex connection_mutex_;
+		// Connection pool
+		std::unique_ptr<ConnectionPool> connection_pool_;
 		std::atomic<bool> initialized_{false};
 		std::string upload_folder_;
-		int task_expiration_;
+
+		// Thread-local storage for connections
+		static thread_local std::unique_ptr<redisContext, RedisContextDeleter> thread_connection_;
 	};
 
 } // namespace db

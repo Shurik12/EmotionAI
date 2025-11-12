@@ -36,7 +36,7 @@ public:
 
 private:
 	httplib::Server svr_;
-	std::unique_ptr<db::RedisManager> redis_manager_;
+	std::shared_ptr<db::RedisManager> redis_manager_;
 	std::unique_ptr<EmotionAI::FileProcessor> file_processor_;
 	std::filesystem::path static_files_root_;
 	std::filesystem::path upload_folder_;
@@ -44,6 +44,9 @@ private:
 	std::filesystem::path log_folder_;
 	std::mutex task_mutex_;
 	std::map<std::string, std::thread> background_threads_;
+	std::condition_variable completion_cv_;
+    
+    void waitForCompletion();
 
 	void loadConfiguration();
 	void setupRoutes();
@@ -52,6 +55,7 @@ private:
 
 	// Route handlers
 	void handleUpload(const httplib::Request &req, httplib::Response &res);
+	void removeBackgroundThread(const std::string& task_id);
 	void handleProgress(const httplib::Request &req, httplib::Response &res, const std::string &task_id);
 	void handleSubmitApplication(const httplib::Request &req, httplib::Response &res);
 	void handleServeResult(const httplib::Request &req, httplib::Response &res, const std::string &filename);

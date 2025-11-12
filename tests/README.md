@@ -1,33 +1,39 @@
-# EmotionAI Test Suite
+# Test Configurations
 
-This directory contains unit and integration tests for the EmotionAI application using Google Test.
+This directory contains configuration files for different testing scenarios:
 
-## Test Structure
+## Configuration Files
 
-- **unit/**: Unit tests for individual components
-  - **config/**: Configuration system tests
-  - **logging/**: Logger tests
-  - **db/**: Redis manager tests
-  - **emotionai/**: Image and file processing tests
-  - **server/**: Server factory tests
+### unit_config.yaml
+- **Purpose**: Unit tests with minimal resource usage
+- **Port**: 8081
+- **Features**: 
+  - Smaller file size limits (10MB)
+  - Shorter expiration times
+  - File logging disabled
+  - Redis DB 1
 
-- **integration/**: Integration tests
-  - **server/**: Server integration tests
-  - **end_to_end/**: End-to-end workflow tests
+### integration_config.yaml  
+- **Purpose**: Integration tests with realistic settings
+- **Port**: 8082
+- **Features**:
+  - Standard file size limits (50MB)
+  - Medium expiration times
+  - Both console and file logging
+  - Redis DB 2
 
-- **mocks/**: Mock classes for testing
+### e2e_config.yaml
+- **Purpose**: End-to-end tests with production-like settings
+- **Port**: 8083
+- **Features**:
+  - Larger file size limits (100MB)
+  - Production expiration times
+  - Comprehensive logging
+  - Redis DB 3
 
-## Running Tests
+## Usage in Tests
 
-### Prerequisites
-- Google Test installed
-- Redis server (for some integration tests)
-- OpenCV with test images
-
-### Build and Run
-```bash
-mkdir build
-cd build
-cmake ..
-make emotionai_tests
-./emotionai_tests
+```cpp
+// In test setup
+auto& config = Common::Config::instance();
+config.loadFromFile("tests/unit_config.yaml");

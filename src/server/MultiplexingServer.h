@@ -56,7 +56,7 @@ private:
 	int server_fd_;
 	int epoll_fd_;
 	bool running_;
-	std::unique_ptr<db::RedisManager> redis_manager_;
+	std::shared_ptr<db::RedisManager> redis_manager_; // Change to shared_ptr
 	std::unique_ptr<EmotionAI::FileProcessor> file_processor_;
 	std::filesystem::path static_files_root_;
 	std::filesystem::path upload_folder_;

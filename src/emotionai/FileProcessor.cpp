@@ -13,8 +13,8 @@
 namespace fs = std::filesystem;
 namespace EmotionAI
 {
-	FileProcessor::FileProcessor(db::RedisManager &redis_manager)
-		: redis_manager_(redis_manager), model_loaded_(false)
+	FileProcessor::FileProcessor(std::shared_ptr<db::RedisManager> redis_manager)
+		: redis_manager_(std::move(redis_manager))
 	{
 		try
 		{
@@ -22,7 +22,7 @@ namespace EmotionAI
 		}
 		catch (const std::exception &e)
 		{
-			LOG_ERROR("Failed to initialize models: {}", e.what());
+			LOG_ERROR("Failed to initialize models in FileProcessor constructor: {}", e.what());
 		}
 	}
 
@@ -124,12 +124,12 @@ namespace EmotionAI
 
 	void FileProcessor::process_image_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
 	{
-		redis_manager_.set_task_status(task_id, nlohmann::json{
-													{"progress", 0},
-													{"message", "Processing image..."},
-													{"error", nullptr},
-													{"complete", false}}
-													.dump());
+		redis_manager_->set_task_status(task_id, nlohmann::json{
+													 {"progress", 0},
+													 {"message", "Processing image..."},
+													 {"error", nullptr},
+													 {"complete", false}}
+													 .dump());
 
 		try
 		{
@@ -137,25 +137,33 @@ namespace EmotionAI
 			Image input_image(filepath);
 			cv::Mat image = input_image.to_cv_mat();
 
+			// Get results path from config
+			auto &config = Common::Config::instance();
+			std::string results_path = config.resultPath();
+
+			// Ensure results directory exists
+			fs::create_directories(results_path);
+
 			// Save uploaded image
 			std::string result_filename = "result_" + filename;
-			std::string result_path = (fs::path("result") / result_filename).string();
-			if (cv::imwrite(result_path, image))
-				LOG_INFO("Image saved successfully to {}", result_path);
+			std::string result_file_path = (fs::path(results_path) / result_filename).string();
+
+			if (cv::imwrite(result_file_path, image))
+				LOG_INFO("Image saved successfully to {}", result_file_path);
 			else
-				LOG_ERROR("Error: Could not save image to {}", result_path);
+				LOG_ERROR("Error: Could not save image to {}", result_file_path);
 
 			if (image.empty())
 			{
 				throw std::runtime_error("Could not read image");
 			}
 
-			redis_manager_.set_task_status(task_id, nlohmann::json{
-														{"progress", 50},
-														{"message", "Processing image..."},
-														{"error", nullptr},
-														{"complete", false}}
-														.dump());
+			redis_manager_->set_task_status(task_id, nlohmann::json{
+														 {"progress", 50},
+														 {"message", "Processing image..."},
+														 {"error", nullptr},
+														 {"complete", false}}
+														 .dump());
 
 			auto [processed_image, result] = process_image(image);
 
@@ -163,13 +171,13 @@ namespace EmotionAI
 			Image result_image(processed_image, ".jpg");
 
 			// Update status
-			redis_manager_.set_task_status(task_id, nlohmann::json{
-														{"complete", true},
-														{"type", "image"},
-														{"image_url", "/api/results/" + result_filename},
-														{"result", result},
-														{"progress", 100}}
-														.dump());
+			redis_manager_->set_task_status(task_id, nlohmann::json{
+														 {"complete", true},
+														 {"type", "image"},
+														 {"image_url", "/api/results/" + result_filename},
+														 {"result", result},
+														 {"progress", 100}}
+														 .dump());
 		}
 		catch (const std::exception &e)
 		{
@@ -179,12 +187,12 @@ namespace EmotionAI
 
 	void FileProcessor::process_video_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
 	{
-		redis_manager_.set_task_status(task_id, nlohmann::json{
-													{"progress", 0},
-													{"message", "Processing video..."},
-													{"error", nullptr},
-													{"complete", false}}
-													.dump());
+		redis_manager_->set_task_status(task_id, nlohmann::json{
+													 {"progress", 0},
+													 {"message", "Processing video..."},
+													 {"error", nullptr},
+													 {"complete", false}}
+													 .dump());
 
 		try
 		{
@@ -199,7 +207,12 @@ namespace EmotionAI
 			double duration = (fps > 0) ? total_frames / fps : 0;
 
 			LOG_INFO("Processing video: {}, Frames: {}, FPS: {:.2f}, Duration: {:.2f}s",
-						 filename, total_frames, fps, duration);
+					 filename, total_frames, fps, duration);
+
+			// Get results path from config
+			auto &config = Common::Config::instance();
+			std::string results_path = config.paths().results;
+			fs::create_directories(results_path);
 
 			int frame_count = 0;
 			int processed_count = 0;
@@ -216,12 +229,12 @@ namespace EmotionAI
 
 				if (frame_count % frame_interval == 0 || frame_count == total_frames - 1)
 				{
-					redis_manager_.set_task_status(task_id, nlohmann::json{
-																{"progress", static_cast<int>((frame_count * 100.0) / total_frames)},
-																{"message", fmt::format("Processing frame {} of {}...", frame_count + 1, total_frames)},
-																{"error", nullptr},
-																{"complete", false}}
-																.dump());
+					redis_manager_->set_task_status(task_id, nlohmann::json{
+																 {"progress", static_cast<int>((frame_count * 100.0) / total_frames)},
+																 {"message", fmt::format("Processing frame {} of {}...", frame_count + 1, total_frames)},
+																 {"error", nullptr},
+																 {"complete", false}}
+																 .dump());
 
 					try
 					{
@@ -229,12 +242,12 @@ namespace EmotionAI
 
 						std::string frame_filename = fmt::format("frame_{}_{}.jpg", processed_count,
 																 filename.substr(0, filename.find_last_of('.')));
-						std::string frame_path = (fs::path("result") / frame_filename).string();
+						std::string frame_file_path = (fs::path(results_path) / frame_filename).string();
 
-						if (cv::imwrite(frame_path, frame))
-							LOG_INFO("Image saved successfully to {}", frame_path);
+						if (cv::imwrite(frame_file_path, frame))
+							LOG_INFO("Image saved successfully to {}", frame_file_path);
 						else
-							LOG_ERROR("Error: Could not save image to {}", frame_path);
+							LOG_ERROR("Error: Could not save image to {}", frame_file_path);
 
 						nlohmann::json frame_result;
 						frame_result["frame"] = frame_count;
@@ -266,13 +279,13 @@ namespace EmotionAI
 				throw std::runtime_error("No frames were processed successfully");
 			}
 
-			redis_manager_.set_task_status(task_id, nlohmann::json{
-														{"complete", true},
-														{"type", "video"},
-														{"frames_processed", results.size()},
-														{"results", results},
-														{"progress", 100}}
-														.dump());
+			redis_manager_->set_task_status(task_id, nlohmann::json{
+														 {"complete", true},
+														 {"type", "video"},
+														 {"frames_processed", results.size()},
+														 {"results", results},
+														 {"progress", 100}}
+														 .dump());
 		}
 		catch (const std::exception &e)
 		{
@@ -282,13 +295,13 @@ namespace EmotionAI
 
 	void FileProcessor::process_video_realtime(const std::string &task_id, const std::string &filepath, const std::string &filename)
 	{
-		redis_manager_.set_task_status(task_id, nlohmann::json{
-													{"progress", 0},
-													{"message", "Processing video for real-time analysis..."},
-													{"error", nullptr},
-													{"complete", false},
-													{"mode", "realtime"}}
-													.dump());
+		redis_manager_->set_task_status(task_id, nlohmann::json{
+													 {"progress", 0},
+													 {"message", "Processing video for real-time analysis..."},
+													 {"error", nullptr},
+													 {"complete", false},
+													 {"mode", "realtime"}}
+													 .dump());
 
 		try
 		{
@@ -302,7 +315,12 @@ namespace EmotionAI
 			double fps = cap.get(cv::CAP_PROP_FPS);
 
 			LOG_INFO("Real-time video analysis: {}, Frames: {}, FPS: {:.2f}",
-						 filename, total_frames, fps);
+					 filename, total_frames, fps);
+
+			// Get results path from config
+			auto &config = Common::Config::instance();
+			std::string results_path = config.resultPath();
+			fs::create_directories(results_path);
 
 			int frame_count = 0;
 			std::vector<nlohmann::json> frame_results;
@@ -312,7 +330,7 @@ namespace EmotionAI
 
 			// Process frames at a reasonable rate
 			int frame_interval = std::max(1, static_cast<int>(fps / 10)); // Process 2 frames per second
-			int max_frames = 60;										 // Maximum frames to process for performance
+			int max_frames = 60;										  // Maximum frames to process for performance
 
 			while (cap.isOpened() && frame_count < max_frames)
 			{
@@ -332,13 +350,13 @@ namespace EmotionAI
 				// Update progress
 				if (frame_results.size() % 5 == 0)
 				{
-					redis_manager_.set_task_status(task_id, nlohmann::json{
-																{"progress", static_cast<int>((frame_count * 100.0) / std::min(total_frames, max_frames))},
-																{"message", fmt::format("Analyzing frame {}...", frame_count + 1)},
-																{"error", nullptr},
-																{"complete", false},
-																{"frames_processed", frame_results.size()}}
-																.dump());
+					redis_manager_->set_task_status(task_id, nlohmann::json{
+																 {"progress", static_cast<int>((frame_count * 100.0) / std::min(total_frames, max_frames))},
+																 {"message", fmt::format("Analyzing frame {}...", frame_count + 1)},
+																 {"error", nullptr},
+																 {"complete", false},
+																 {"frames_processed", frame_results.size()}}
+																 .dump());
 				}
 
 				try
@@ -348,15 +366,15 @@ namespace EmotionAI
 					// Save the processed frame image
 					std::string frame_filename = fmt::format("realtime_frame_{}_{}.jpg", frame_results.size(),
 															 filename.substr(0, filename.find_last_of('.')));
-					std::string frame_path = (fs::path("result") / frame_filename).string();
+					std::string frame_file_path = (fs::path(results_path) / frame_filename).string();
 
-					if (cv::imwrite(frame_path, frame))
+					if (cv::imwrite(frame_file_path, frame))
 					{
-						LOG_INFO("Real-time frame saved: {}", frame_path);
+						LOG_INFO("Real-time frame saved: {}", frame_file_path);
 					}
 					else
 					{
-						LOG_WARN("Failed to save real-time frame: {}", frame_path);
+						LOG_WARN("Failed to save real-time frame: {}", frame_file_path);
 					}
 
 					// Store frame result with timestamp and image URL
@@ -456,20 +474,20 @@ namespace EmotionAI
 				}
 			}
 
-			redis_manager_.set_task_status(task_id, nlohmann::json{
-														{"complete", true},
-														{"type", "video_realtime"},
-														{"frames_processed", frame_results.size()},
-														{"frame_results", frame_results},
-														{"valence_history", valence_history},
-														{"arousal_history", arousal_history},
-														{"frame_numbers", frame_numbers},
-														{"fps", fps},
-														{"duration", total_frames / fps},
-														{"statistics", stats},
-														{"average_emotions", avg_emotions},
-														{"progress", 100}}
-														.dump());
+			redis_manager_->set_task_status(task_id, nlohmann::json{
+														 {"complete", true},
+														 {"type", "video_realtime"},
+														 {"frames_processed", frame_results.size()},
+														 {"frame_results", frame_results},
+														 {"valence_history", valence_history},
+														 {"arousal_history", arousal_history},
+														 {"frame_numbers", frame_numbers},
+														 {"fps", fps},
+														 {"duration", total_frames / fps},
+														 {"statistics", stats},
+														 {"average_emotions", avg_emotions},
+														 {"progress", 100}}
+														 .dump());
 		}
 		catch (const std::exception &e)
 		{
@@ -487,7 +505,7 @@ namespace EmotionAI
 				{"complete", false},
 				{"model", "emotieff"},
 				{"model_name", "EmotiEffLib"}};
-			redis_manager_.set_task_status(task_id, initial_status.dump());
+			redis_manager_->set_task_status(task_id, initial_status.dump());
 
 			if (!allowed_file(filename))
 			{
@@ -519,9 +537,9 @@ namespace EmotionAI
 			// Try to update status even if Redis might be having issues
 			try
 			{
-				redis_manager_.set_task_status(task_id, nlohmann::json{
-															{"error", e.what()},
-															{"complete", true}});
+				redis_manager_->set_task_status(task_id, nlohmann::json{
+															 {"error", e.what()},
+															 {"complete", true}});
 			}
 			catch (const std::exception &redis_error)
 			{
@@ -534,8 +552,51 @@ namespace EmotionAI
 
 	std::pair<cv::Mat, nlohmann::json> FileProcessor::process_image(const cv::Mat &image)
 	{
-		// Pass the emotion recognizer to Image for processing
-		Image img(image);
-		return img.process_image(image, fer_.get());
+		std::lock_guard<std::mutex> lock(model_mutex_); // Add thread safety
+
+		try
+		{
+			LOG_DEBUG("Starting image processing...");
+
+			// Check if emotion model is loaded and pointer is valid
+			if (!fer_ || !model_loaded_)
+			{
+				LOG_WARN("Emotion model not loaded, returning empty result");
+				nlohmann::json empty_result = {
+					{"emotion", "unknown"},
+					{"confidence", 0.0},
+					{"additional_probs", nlohmann::json::object()}};
+				return {image.clone(), empty_result};
+			}
+
+			// Additional pointer validation
+			if (reinterpret_cast<uintptr_t>(fer_.get()) < 0x1000)
+			{
+				LOG_ERROR("Invalid emotion recognizer pointer: {}", reinterpret_cast<void *>(fer_.get()));
+				throw std::runtime_error("Invalid emotion recognizer pointer");
+			}
+
+			LOG_DEBUG("Emotion recognizer pointer is valid: {}", reinterpret_cast<void *>(fer_.get()));
+
+			// Pass the emotion recognizer to Image for processing
+			Image img(image);
+			LOG_DEBUG("Image object created, calling process_image...");
+
+			auto result = img.process_image(image, fer_.get());
+			LOG_DEBUG("Image processing completed successfully");
+
+			return result;
+		}
+		catch (const std::exception &e)
+		{
+			LOG_ERROR("Error in process_image: {}", e.what());
+			// Return a safe default result
+			nlohmann::json error_result = {
+				{"emotion", "error"},
+				{"confidence", 0.0},
+				{"error", e.what()},
+				{"additional_probs", nlohmann::json::object()}};
+			return {image.clone(), error_result};
+		}
 	}
 } // namespace EmotionAI
