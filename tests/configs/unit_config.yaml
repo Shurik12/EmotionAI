@@ -1,0 +1,44 @@
+server:
+  host: "127.0.0.1"
+  port: 8081
+  type: "non-blocking"
+  
+paths:
+  upload: "./test_uploads"
+  results: "./test_results"
+  logs: "./test_logs"
+  frontend: "./test_frontend"
+
+app:
+  max_content_length: 10485760  # 10MB for tests
+  allowed_extensions: ["png", "jpg", "jpeg", "mp4"]
+  task_expiration: 300  # 5 minutes for tests
+  application_expiration: 86400  # 1 day for tests
+  emotion_categories: ["anger", "happiness", "neutral", "sadness"]
+
+logging:
+  level: "debug"
+  max_file_size: 5242880  # 5MB
+  max_files: 3
+  console_enabled: true
+  file_enabled: false  # Disable file logging for unit tests
+  pattern: "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%n] %v"
+  file_pattern: "[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] %v"
+  flush_on_level: "debug"
+
+redis:
+  host: "localhost"
+  port: 6379
+  db: 1  # Use different DB for tests
+  password: "redis_password"
+
+mtcnn:
+  keep_all: false
+  post_process: false
+  min_face_size: 20
+  device: "cpu"
+
+model:
+  backend: "torch"
+  emotion_model_path: "/home/alex/git/EmotionAI/contrib/emotiefflib/models/emotieffcpplib_prepared_models/enet_b0_8_va_mtl.pt"
+  face_detection_models_path: "/home/alex/git/EmotionAI/contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/data/models/"

@@ -100,7 +100,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE emotionai_lib)
 enable_testing()
 
 if(BUILD_TESTS)
-    find_package(GTest REQUIRED)
     add_subdirectory(tests)
 endif()
 
