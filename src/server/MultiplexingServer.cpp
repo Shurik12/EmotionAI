@@ -74,11 +74,13 @@ void MultiplexingServer::initializeComponents()
 	LOG_INFO("Initializing RedisManager and FileProcessor...");
 	try
 	{
-		redis_manager_ = std::make_unique<db::RedisManager>();
+		// Create RedisManager as shared_ptr
+		redis_manager_ = std::make_shared<db::RedisManager>();
 		redis_manager_->initialize();
 		LOG_INFO("RedisManager initialized successfully");
 
-		file_processor_ = std::make_unique<EmotionAI::FileProcessor>(*redis_manager_);
+		// FileProcessor now expects shared_ptr
+		file_processor_ = std::make_unique<EmotionAI::FileProcessor>(redis_manager_);
 		LOG_INFO("FileProcessor initialized successfully");
 	}
 	catch (const std::exception &e)
@@ -130,7 +132,7 @@ void MultiplexingServer::ensureDirectoriesExist()
 		fs::create_directories(results_folder_);
 		fs::create_directories(static_files_root_);
 		LOG_INFO("Directories ensured: upload={}, results={}, static={}",
-					 upload_folder_.string(), results_folder_.string(), static_files_root_.string());
+				 upload_folder_.string(), results_folder_.string(), static_files_root_.string());
 	}
 	catch (const std::exception &e)
 	{
@@ -157,7 +159,7 @@ void MultiplexingServer::setupRoutes()
 		handleSubmitApplication(context, body);
 	};
 
-	// GET routes
+	// GET routes - only exact matches now
 	get_routes_["/api/progress"] = [this](const std::shared_ptr<ClientContext> &context)
 	{
 		handleProgress(context);
@@ -200,6 +202,22 @@ void MultiplexingServer::setupRoutes()
 		handleOptions(context);
 	};
 	options_routes_["/api/submit_application"] = [this](const std::shared_ptr<ClientContext> &context)
+	{
+		handleOptions(context);
+	};
+	options_routes_["/api/progress"] = [this](const std::shared_ptr<ClientContext> &context)
+	{
+		handleOptions(context);
+	};
+	options_routes_["/api/results"] = [this](const std::shared_ptr<ClientContext> &context)
+	{
+		handleOptions(context);
+	};
+	options_routes_["/api/health"] = [this](const std::shared_ptr<ClientContext> &context)
+	{
+		handleOptions(context);
+	};
+	options_routes_["/static"] = [this](const std::shared_ptr<ClientContext> &context)
 	{
 		handleOptions(context);
 	};
@@ -456,44 +474,49 @@ void MultiplexingServer::parseHttpRequest(const std::shared_ptr<ClientContext> &
 	context->buffer = context->buffer.substr(header_end + 4); // Remove headers from buffer
 }
 
-// ADD THIS MISSING METHOD IMPLEMENTATION
 void MultiplexingServer::processRequest(const std::shared_ptr<ClientContext> &context)
 {
-	// Set CORS headers will be included in sendResponse
+	LOG_DEBUG("Processing: {} {}", context->method, context->path);
 
 	try
 	{
 		if (context->method == "OPTIONS")
 		{
 			// Handle preflight requests
-			for (const auto &route : options_routes_)
+			auto it = options_routes_.find(context->path);
+			if (it != options_routes_.end())
 			{
-				if (context->path.find(route.first) == 0)
-				{
-					sendResponse(context->fd, 200, "application/json", R"({"status": "ok"})");
-					return;
-				}
+				it->second(context);
 			}
-			sendResponse(context->fd, 404, "application/json", R"({"error": "Not found"})");
+			else
+			{
+				sendResponse(context->fd, 404, "application/json", R"({"error": "Not found"})");
+			}
 		}
 		else if (context->method == "POST")
 		{
 			std::string body = context->buffer.substr(0, context->content_length);
 
-			for (const auto &route : post_routes_)
+			auto it = post_routes_.find(context->path);
+			if (it != post_routes_.end())
 			{
-				if (context->path == route.first)
-				{
-					route.second(context, body);
-					return;
-				}
+				it->second(context, body);
 			}
-			sendResponse(context->fd, 404, "application/json", R"({"error": "Not found"})");
+			else
+			{
+				sendResponse(context->fd, 404, "application/json", R"({"error": "Not found"})");
+			}
 		}
 		else if (context->method == "GET")
 		{
-			// Handle parameterized routes
-			if (context->path.find("/api/progress/") == 0)
+			// Handle parameterized routes FIRST (before exact matches)
+			if (context->path.find("/static/") == 0)
+			{
+				context->params["filename"] = context->path.substr(8);
+				handleServeStatic(context);
+				return;
+			}
+			else if (context->path.find("/api/progress/") == 0)
 			{
 				context->params["task_id"] = context->path.substr(14);
 				handleProgress(context);
@@ -505,30 +528,28 @@ void MultiplexingServer::processRequest(const std::shared_ptr<ClientContext> &co
 				handleServeResult(context);
 				return;
 			}
-			else if (context->path.find("/static/") == 0)
+			else if (context->path.find("/api/health") == 0)
 			{
-				context->params["filename"] = context->path.substr(8);
-				handleServeStatic(context);
+				handleHealthCheck(context);
 				return;
 			}
 
-			// Handle exact match routes
-			for (const auto &route : get_routes_)
+			// THEN try exact route matches from setupRoutes()
+			auto it = get_routes_.find(context->path);
+			if (it != get_routes_.end())
 			{
-				if (route.first == "/")
-				{
-					route.second(context);
-					return;
-				}
-				else if (context->path == route.first)
-				{
-					route.second(context);
-					return;
-				}
+				it->second(context);
+				return;
 			}
 
-			// If no exact match, try React routing
-			handleServeReactFile(context);
+			// Finally, fall back to React routing for non-API paths
+			if (!isApiEndpoint(context->path))
+			{
+				handleServeReactFile(context);
+				return;
+			}
+
+			sendResponse(context->fd, 404, "application/json", R"({"error": "Not found"})");
 		}
 		else
 		{
@@ -859,8 +880,25 @@ void MultiplexingServer::handleProgress(const std::shared_ptr<ClientContext> &co
 {
 	try
 	{
+		std::string task_id;
+
+		// Check if task_id is in params (from parameterized route) or query string
 		auto task_id_it = context->params.find("task_id");
-		if (task_id_it == context->params.end())
+		if (task_id_it != context->params.end())
+		{
+			task_id = task_id_it->second;
+		}
+		else
+		{
+			// Check query parameters
+			auto query_it = context->params.find("task_id");
+			if (query_it != context->params.end())
+			{
+				task_id = query_it->second;
+			}
+		}
+
+		if (task_id.empty())
 		{
 			sendResponse(context->fd, 400, "application/json", R"({"error": "Task ID required"})");
 			return;
@@ -872,7 +910,7 @@ void MultiplexingServer::handleProgress(const std::shared_ptr<ClientContext> &co
 			return;
 		}
 
-		auto status = redis_manager_->get_task_status(task_id_it->second);
+		auto status = redis_manager_->get_task_status(task_id);
 		if (!status)
 		{
 			sendResponse(context->fd, 404, "application/json", R"({"error": "Task not found"})");

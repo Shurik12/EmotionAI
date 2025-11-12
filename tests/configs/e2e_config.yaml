@@ -1,0 +1,44 @@
+server:
+  host: "0.0.0.0"
+  port: 8083
+  type: "blocking"
+  
+paths:
+  upload: "/tmp/test_upload_e2e"
+  results: "/tmp/test_results_e2e"
+  logs: "/tmp/test_logs_e2e"
+  frontend: "/tmp/test_static_e2e"
+
+app:
+  max_content_length: 104857600  # 100MB for E2E tests
+  allowed_extensions: ["png", "jpg", "jpeg", "mp4", "avi", "mov", "webm", "mp3", "wav"]
+  task_expiration: 3600  # 1 hour
+  application_expiration: 2592000  # 30 days
+  emotion_categories: ["anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"]
+
+logging:
+  level: "info"
+  max_file_size: 20971520  # 20MB
+  max_files: 10
+  console_enabled: true
+  file_enabled: true
+  pattern: "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%n] %v"
+  file_pattern: "[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] %v"
+  flush_on_level: "warn"
+
+redis:
+  host: "localhost"
+  port: 6379
+  db: 3  # Use different DB for E2E tests
+  password: "redis_password"
+
+mtcnn:
+  keep_all: false
+  post_process: true
+  min_face_size: 30
+  device: "cpu"
+
+model:
+  backend: "torch"
+  emotion_model_path: "/home/alex/git/EmotionAI/contrib/emotiefflib/models/emotieffcpplib_prepared_models/enet_b0_8_va_mtl.pt"
+  face_detection_models_path: "/home/alex/git/EmotionAI/contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/data/models/"
