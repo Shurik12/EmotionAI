@@ -187,13 +187,17 @@ namespace EmotionAI
 						 static_cast<int>(face.bbox.y2 - face.bbox.y1));
 
 			// Ensure ROI is within image bounds
-			if (roi.x >= 0 && roi.y >= 0 &&
-				roi.x + roi.width <= frame.cols &&
-				roi.y + roi.height <= frame.rows)
-			{
-				cv::Mat face_img = frame(roi).clone();
-				cvFaces.push_back(face_img);
-			}
+			if (roi.x < 0)
+				roi.x = 0;
+			if (roi.y < 0)
+				roi.y = 0;
+			if (roi.x + roi.width > frame.cols)
+				roi.width = frame.cols - roi.x;
+			if (roi.y + roi.height > frame.rows)
+				roi.height = frame.rows - roi.y;
+
+			cv::Mat face_img = frame(roi).clone();
+			cvFaces.push_back(face_img);
 		}
 
 		return cvFaces;
@@ -214,9 +218,9 @@ namespace EmotionAI
 			std::string model = fs::path(emotion_model_path).filename().string();
 			std::vector<std::string> emotions;
 			if (model == "enet_b2_7.pt")
-				emotions = { "anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise" };
+				emotions = {"anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"};
 			else
-				emotions = { "anger", "contempt", "disgust", "fear", "happiness", "neutral", "sadness", "surprise" };
+				emotions = {"anger", "contempt", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"};
 
 			// Convert to RGB for display and processing
 			cv::Mat image_rgb;
@@ -266,12 +270,12 @@ namespace EmotionAI
 			for (size_t i = 0; i < emotions.size(); ++i)
 				additional_probs[emotions[i]] = fmt::format("{:.2f}", first_score.scores[i]);
 
-			if (emotions.size() == 8) 
+			if (emotions.size() == 8)
 			{
 				additional_probs["valence"] = fmt::format("{:.2f}", first_score.scores[8]);
 				additional_probs["arousal"] = fmt::format("{:.2f}", first_score.scores[9]);
 			}
-				
+
 			result["additional_probs"] = std::move(additional_probs);
 
 			cv::Mat annotated_image = image_rgb.clone();

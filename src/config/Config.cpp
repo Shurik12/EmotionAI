@@ -38,7 +38,6 @@ namespace Common
 			YAML::Node root = YAML::LoadFile(config_path);
 			ConfigData new_data;
 
-			// Parse server configuration
 			if (root["server"])
 			{
 				const auto &server = root["server"];
@@ -47,7 +46,6 @@ namespace Common
 				new_data.server.type = server["type"].as<std::string>(new_data.server.type);
 			}
 
-			// Parse paths configuration
 			if (root["paths"])
 			{
 				const auto &paths = root["paths"];
@@ -57,7 +55,6 @@ namespace Common
 				new_data.paths.frontend = paths["frontend"].as<std::string>(new_data.paths.frontend);
 			}
 
-			// Parse application configuration
 			if (root["app"])
 			{
 				const auto &app = root["app"];
@@ -75,7 +72,6 @@ namespace Common
 				}
 			}
 
-			// Parse logging configuration
 			if (root["logging"])
 			{
 				const auto &logging = root["logging"];
@@ -89,7 +85,6 @@ namespace Common
 				new_data.logging.flush_on_level = logging["flush_on_level"].as<std::string>(new_data.logging.flush_on_level);
 			}
 
-			// Parse Redis configuration
 			if (root["redis"])
 			{
 				const auto &redis = root["redis"];
@@ -99,7 +94,15 @@ namespace Common
 				new_data.redis.password = redis["password"].as<std::string>(new_data.redis.password);
 			}
 
-			// Parse MTCNN configuration
+			if (root["dragonfly"])
+			{
+				const auto &dragonfly = root["dragonfly"];
+				new_data.dragonfly.host = dragonfly["host"].as<std::string>(new_data.dragonfly.host);
+				new_data.dragonfly.port = dragonfly["port"].as<int>(new_data.dragonfly.port);
+				new_data.dragonfly.db = dragonfly["db"].as<int>(new_data.dragonfly.db);
+				new_data.dragonfly.password = dragonfly["password"].as<std::string>(new_data.dragonfly.password);
+			}
+
 			if (root["mtcnn"])
 			{
 				const auto &mtcnn = root["mtcnn"];
@@ -109,7 +112,6 @@ namespace Common
 				new_data.mtcnn.device = mtcnn["device"].as<std::string>(new_data.mtcnn.device);
 			}
 
-			// Parse model configuration
 			if (root["model"])
 			{
 				const auto &model = root["model"];
@@ -118,13 +120,11 @@ namespace Common
 				new_data.model.face_detection_models_path = model["face_detection_models_path"].as<std::string>(new_data.model.face_detection_models_path);
 			}
 
-			// Atomically update the configuration data
 			data_ = std::move(new_data);
 			loaded_.store(true);
 
 			spdlog::info("Configuration loaded successfully from: {}", config_path);
 
-			// Log important configuration values
 			spdlog::info("Server configuration:");
 			spdlog::info("  Host: {}", data_.server.host);
 			spdlog::info("  Port: {}", data_.server.port);
@@ -149,6 +149,12 @@ namespace Common
 			spdlog::info("  Port: {}", data_.redis.port);
 			spdlog::info("  DB: {}", data_.redis.db);
 			spdlog::info("  Password: {}", data_.redis.password.empty() ? "<empty>" : "***");
+
+			spdlog::info("DragonflyDB configuration:");
+			spdlog::info("  Host: {}", data_.dragonfly.host);
+			spdlog::info("  Port: {}", data_.dragonfly.port);
+			spdlog::info("  DB: {}", data_.dragonfly.db);
+			spdlog::info("  Password: {}", data_.dragonfly.password.empty() ? "<empty>" : "***");
 
 			spdlog::info("Model configuration:");
 			spdlog::info("  Backend: {}", data_.model.backend);
@@ -210,8 +216,7 @@ namespace Common
 			{"warn", spdlog::level::warn},
 			{"error", spdlog::level::err},
 			{"critical", spdlog::level::critical},
-			{"off", spdlog::level::off}
-		};
+			{"off", spdlog::level::off}};
 
 		auto it = level_map.find(data_.logging.level);
 		return it != level_map.end() ? it->second : spdlog::level::info;
@@ -226,8 +231,7 @@ namespace Common
 			{"warn", spdlog::level::warn},
 			{"error", spdlog::level::err},
 			{"critical", spdlog::level::critical},
-			{"off", spdlog::level::off}
-		};
+			{"off", spdlog::level::off}};
 
 		auto it = level_map.find(data_.logging.flush_on_level);
 		return it != level_map.end() ? it->second : spdlog::level::info;
