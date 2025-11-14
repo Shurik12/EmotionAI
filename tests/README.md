@@ -35,5 +35,5 @@ This directory contains configuration files for different testing scenarios:
 
 ```cpp
 // In test setup
-auto& config = Common::Config::instance();
+auto& config = Config::instance();
 config.loadFromFile("tests/unit_config.yaml");

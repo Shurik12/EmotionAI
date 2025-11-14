@@ -16,7 +16,7 @@
 #include <config/Config.h>
 #include <logging/Logger.h>
 #include <common/uuid.h>
-#include <db/RedisManager.h>
+#include <db/TaskManager.h>
 #include <emotionai/FileProcessor.h>
 
 namespace fs = std::filesystem;
@@ -24,7 +24,7 @@ using json = nlohmann::json;
 
 MultiplexingServer::MultiplexingServer()
 	: server_fd_(-1), epoll_fd_(-1), running_(false),
-	  redis_manager_(nullptr), file_processor_(nullptr)
+	  dragonfly_manager_(nullptr), file_processor_(nullptr)
 {
 }
 
@@ -33,6 +33,12 @@ MultiplexingServer::~MultiplexingServer()
 	try
 	{
 		stop();
+
+		// Stop task batcher
+		if (task_batcher_)
+		{
+			task_batcher_->stop();
+		}
 
 		// Wait for all background threads to finish
 		for (auto &[task_id, thread] : background_threads_)
@@ -71,28 +77,49 @@ void MultiplexingServer::initialize()
 
 void MultiplexingServer::initializeComponents()
 {
-	LOG_INFO("Initializing RedisManager and FileProcessor...");
+	LOG_INFO("Initializing DragonflyManager and FileProcessor...");
 	try
 	{
-		// Create RedisManager as shared_ptr
-		redis_manager_ = std::make_shared<db::RedisManager>();
-		redis_manager_->initialize();
-		LOG_INFO("RedisManager initialized successfully");
+		// Create DragonflyManager as shared_ptr
+		dragonfly_manager_ = std::make_shared<DragonflyManager>();
+		dragonfly_manager_->initialize();
+		LOG_INFO("DragonflyManager initialized successfully");
 
-		// FileProcessor now expects shared_ptr
-		file_processor_ = std::make_unique<EmotionAI::FileProcessor>(redis_manager_);
+		// Initialize TaskManager with DragonflyManager
+		auto &task_manager = TaskManager::instance();
+		task_manager.set_dragonfly_manager(dragonfly_manager_);
+		LOG_INFO("TaskManager initialized successfully");
+
+		// Pass shared_ptr to FileProcessor
+		file_processor_ = std::make_unique<EmotionAI::FileProcessor>(dragonfly_manager_);
 		LOG_INFO("FileProcessor initialized successfully");
+
+		// Initialize task batcher for efficient status updates
+		initializeTaskBatcher();
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Failed to initialize components: {}", e.what());
+		LOG_ERROR("Failed to initialize components: {}", e.what());
 		throw;
 	}
 }
 
+void MultiplexingServer::initializeTaskBatcher()
+{
+	task_batcher_ = std::make_unique<TaskBatcher>(50, std::chrono::milliseconds(100));
+
+	task_batcher_->set_batch_callback([this](const auto &batch)
+									  {
+		auto& task_manager = TaskManager::instance();
+		task_manager.batch_update_status(batch); });
+
+	task_batcher_->start();
+	LOG_INFO("TaskBatcher initialized with batch_size=50, timeout=100ms");
+}
+
 void MultiplexingServer::start()
 {
-	auto &config = Common::Config::instance();
+	auto &config = Config::instance();
 	std::string host = config.server().host;
 	int port = config.server().port;
 
@@ -117,7 +144,7 @@ void MultiplexingServer::stop() noexcept
 // duplication
 void MultiplexingServer::loadConfiguration()
 {
-	auto &config = Common::Config::instance();
+	auto &config = Config::instance();
 	log_folder_ = config.paths().logs;
 	static_files_root_ = config.paths().frontend;
 	upload_folder_ = config.paths().upload;
@@ -238,7 +265,7 @@ void MultiplexingServer::createSocket()
 		throw std::runtime_error("Failed to set socket options");
 	}
 
-	auto &config = Common::Config::instance();
+	auto &config = Config::instance();
 	std::string host = config.server().host;
 	int port = config.server().port;
 
@@ -690,8 +717,6 @@ void MultiplexingServer::closeClient(int client_fd)
 	}
 }
 
-// Route handler implementations (adapted from original)
-
 void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &context, const std::string &body)
 {
 	LOG_INFO("Handling file upload, body size: {}", body.size());
@@ -796,7 +821,7 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 			return;
 		}
 
-		std::string task_id = db::RedisManager::generate_uuid();
+		std::string task_id = DragonflyManager::generate_uuid();
 		fs::path filepath = upload_folder_ / (task_id + "_" + filename);
 
 		// Save the file with better error handling
@@ -833,26 +858,71 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 			return;
 		}
 
-		// Process file in background thread
-		std::lock_guard<std::mutex> lock(task_mutex_);
-		background_threads_[task_id] = std::thread(
-			[this, task_id, filepath, filename]()
+		// Capture shared_ptr by value to extend DragonflyManager lifetime
+		auto dragonfly_manager = dragonfly_manager_;
+		auto *file_processor = file_processor_.get();
+		auto *task_batcher = task_batcher_.get();
+
+		// Create the thread first, then add it to the map
+		std::thread background_thread = std::thread(
+			[this, dragonfly_manager, file_processor, task_batcher, task_id, filepath, filename]()
 			{
 				try
 				{
 					LOG_INFO("Starting background processing for task: {}", task_id);
-					file_processor_->process_file(task_id, filepath.string(), filename);
+
+					// Set initial status using TaskManager for immediate response
+					nlohmann::json initial_status = {
+						{"task_id", task_id},
+						{"progress", 0},
+						{"message", "Starting file processing"},
+						{"error", nullptr},
+						{"complete", false},
+						{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+										  std::chrono::system_clock::now().time_since_epoch())
+										  .count()}};
+
+					auto &task_manager = TaskManager::instance();
+					task_manager.set_task_status(task_id, initial_status);
+
+					// Process the file
+					file_processor->process_file(task_id, filepath.string(), filename);
+
 					LOG_INFO("Background processing completed for task: {}", task_id);
 				}
 				catch (const std::exception &e)
 				{
-					spdlog::error("Background processing failed for task {}: {}", task_id, e.what());
+					LOG_ERROR("Background processing failed for task {}: {}", task_id, e.what());
+
+					// Set error status using TaskManager
+					try
+					{
+						nlohmann::json error_status = {
+							{"task_id", task_id},
+							{"progress", 0},
+							{"message", "Processing failed"},
+							{"error", e.what()},
+							{"complete", true},
+							{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+											  std::chrono::system_clock::now().time_since_epoch())
+											  .count()}};
+
+						auto &task_manager = TaskManager::instance();
+						task_manager.set_task_status(task_id, error_status);
+					}
+					catch (const std::exception &db_error)
+					{
+						LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
+					}
 				}
+
 				// Remove thread from map when done
-				std::lock_guard<std::mutex> lock(task_mutex_);
-				background_threads_.erase(task_id);
+				this->removeBackgroundThread(task_id);
 			});
-		background_threads_[task_id].detach();
+
+		// Now add the thread to the map with the lock held
+		std::lock_guard<std::mutex> lock(task_mutex_);
+		background_threads_[task_id] = std::move(background_thread);
 
 		LOG_INFO("Upload accepted, task_id: {}", task_id);
 		sendResponse(context->fd, 202, "application/json",
@@ -904,20 +974,17 @@ void MultiplexingServer::handleProgress(const std::shared_ptr<ClientContext> &co
 			return;
 		}
 
-		if (!redis_manager_)
-		{
-			sendResponse(context->fd, 500, "application/json", R"({"error": "Server not properly initialized"})");
-			return;
-		}
+		// Use TaskManager with caching instead of direct DragonflyDB access
+		auto &task_manager = TaskManager::instance();
+		auto status = task_manager.get_task_status(task_id);
 
-		auto status = redis_manager_->get_task_status(task_id);
 		if (!status)
 		{
 			sendResponse(context->fd, 404, "application/json", R"({"error": "Task not found"})");
 			return;
 		}
 
-		sendResponse(context->fd, 200, "application/json", status.value());
+		sendResponse(context->fd, 200, "application/json", status->dump());
 	}
 	catch (const std::exception &e)
 	{
@@ -926,11 +993,61 @@ void MultiplexingServer::handleProgress(const std::shared_ptr<ClientContext> &co
 	}
 }
 
+void MultiplexingServer::handleBatchProgress(const std::shared_ptr<ClientContext> &context, const std::string &body)
+{
+	try
+	{
+		auto task_ids_json = nlohmann::json::parse(body);
+		if (!task_ids_json.is_array())
+		{
+			sendResponse(context->fd, 400, "application/json", R"({"error": "Expected array of task IDs"})");
+			return;
+		}
+
+		std::vector<std::string> task_ids;
+		for (const auto &id : task_ids_json)
+		{
+			if (id.is_string())
+			{
+				task_ids.push_back(id.get<std::string>());
+			}
+		}
+
+		if (task_ids.empty())
+		{
+			sendResponse(context->fd, 400, "application/json", R"({"error": "No task IDs provided"})");
+			return;
+		}
+
+		// Use TaskManager for efficient batch retrieval
+		auto &task_manager = TaskManager::instance();
+		auto results = task_manager.batch_get_status(task_ids);
+
+		nlohmann::json response;
+		for (const auto &[task_id, status] : results)
+		{
+			response[task_id] = status;
+		}
+
+		sendResponse(context->fd, 200, "application/json", response.dump());
+	}
+	catch (const nlohmann::json::parse_error &e)
+	{
+		spdlog::error("JSON parse error in batch progress: {}", e.what());
+		sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid JSON"})");
+	}
+	catch (const std::exception &e)
+	{
+		spdlog::error("Exception in handleBatchProgress: {}", e.what());
+		sendResponse(context->fd, 500, "application/json", R"({"error": "Internal server error"})");
+	}
+}
+
 void MultiplexingServer::handleSubmitApplication(const std::shared_ptr<ClientContext> &context, const std::string &body)
 {
 	try
 	{
-		if (!redis_manager_)
+		if (!dragonfly_manager_)
 		{
 			sendResponse(context->fd, 500, "application/json", R"({"error": "Server not properly initialized"})");
 			return;
@@ -954,7 +1071,7 @@ void MultiplexingServer::handleSubmitApplication(const std::shared_ptr<ClientCon
 			return;
 		}
 
-		std::string application_id = redis_manager_->save_application(application_data.dump());
+		std::string application_id = dragonfly_manager_->save_application(application_data.dump());
 		sendResponse(context->fd, 201, "application/json",
 					 fmt::format(R"({{"application_id": "{}"}})", application_id));
 	}
@@ -1096,6 +1213,20 @@ bool MultiplexingServer::isApiEndpoint(const std::string &path)
 			return true;
 	}
 	return false;
+}
+
+void MultiplexingServer::removeBackgroundThread(const std::string &task_id)
+{
+	std::lock_guard<std::mutex> lock(task_mutex_);
+	auto it = background_threads_.find(task_id);
+	if (it != background_threads_.end())
+	{
+		if (it->second.joinable())
+		{
+			it->second.detach(); // Let the thread finish on its own
+		}
+		background_threads_.erase(it);
+	}
 }
 
 void MultiplexingServer::cleanupFinishedThreads()

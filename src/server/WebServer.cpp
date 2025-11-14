@@ -13,50 +13,61 @@
 #include <config/Config.h>
 #include <logging/Logger.h>
 #include <common/uuid.h>
-#include <db/RedisManager.h>
+#include <db/DragonflyManager.h>
 #include <emotionai/FileProcessor.h>
+#include <db/TaskManager.h>
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 WebServer::WebServer()
-	: redis_manager_(nullptr),
+	: dragonfly_manager_(nullptr),
 	  file_processor_(nullptr)
 {
 }
 
 WebServer::~WebServer()
 {
-    try
-    {
-        stop();
-        waitForCompletion();
-    }
-    catch (...)
-    {
-        LOG_ERROR("Exception during server shutdown");
-    }
+	try
+	{
+		stop();
+		waitForCompletion();
+
+		// Stop task batcher
+		if (task_batcher_)
+		{
+			task_batcher_->stop();
+		}
+	}
+	catch (...)
+	{
+		LOG_ERROR("Exception during server shutdown");
+	}
 }
 
 void WebServer::waitForCompletion()
 {
-    std::unique_lock<std::mutex> lock(task_mutex_);
-    
-    // Wait for all background threads to complete with a timeout
-    auto timeout = std::chrono::seconds(30); // 30 second timeout
-    auto condition = [this]() { return background_threads_.empty(); };
-    
-    if (!completion_cv_.wait_for(lock, timeout, condition)) {
-        LOG_WARN("Timeout waiting for background threads to complete");
-        
-        // Force cleanup of any remaining threads
-        for (auto &[task_id, thread] : background_threads_) {
-            if (thread.joinable()) {
-                thread.detach(); // Let them finish on their own
-            }
-        }
-        background_threads_.clear();
-    }
+	std::unique_lock<std::mutex> lock(task_mutex_);
+
+	// Wait for all background threads to complete with a timeout
+	auto timeout = std::chrono::seconds(30); // 30 second timeout
+	auto condition = [this]()
+	{ return background_threads_.empty(); };
+
+	if (!completion_cv_.wait_for(lock, timeout, condition))
+	{
+		LOG_WARN("Timeout waiting for background threads to complete");
+
+		// Force cleanup of any remaining threads
+		for (auto &[task_id, thread] : background_threads_)
+		{
+			if (thread.joinable())
+			{
+				thread.detach(); // Let them finish on their own
+			}
+		}
+		background_threads_.clear();
+	}
 }
 
 void WebServer::initialize()
@@ -70,34 +81,41 @@ void WebServer::initialize()
 
 void WebServer::initializeComponents()
 {
-    LOG_INFO("Initializing RedisManager and FileProcessor...");
-    try
-    {
-        // Create RedisManager as shared_ptr
-        redis_manager_ = std::make_shared<db::RedisManager>();
-        redis_manager_->initialize();
-        LOG_INFO("RedisManager initialized successfully");
+	LOG_INFO("Initializing DragonflyManager and FileProcessor...");
+	try
+	{
+		// Create DragonflyManager as shared_ptr
+		dragonfly_manager_ = std::make_shared<DragonflyManager>();
+		dragonfly_manager_->initialize();
+		LOG_INFO("DragonflyManager initialized successfully");
 
-        // Pass shared_ptr to FileProcessor
-        file_processor_ = std::make_unique<EmotionAI::FileProcessor>(redis_manager_);
-        LOG_INFO("FileProcessor initialized successfully");
-    }
-    catch (const std::exception &e)
-    {
-        LOG_ERROR("Failed to initialize components: {}", e.what());
-        throw;
-    }
+		// Initialize TaskManager with DragonflyManager
+		auto &task_manager = TaskManager::instance();
+		task_manager.set_dragonfly_manager(dragonfly_manager_);
+		LOG_INFO("TaskManager initialized successfully");
+
+		// Pass shared_ptr to FileProcessor
+		file_processor_ = std::make_unique<EmotionAI::FileProcessor>(dragonfly_manager_);
+		LOG_INFO("FileProcessor initialized successfully");
+
+		// Initialize task batcher
+		initializeTaskBatcher();
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Failed to initialize components: {}", e.what());
+		throw;
+	}
 }
 
 void WebServer::start()
 {
-	auto &config = Common::Config::instance();
+	auto &config = Config::instance();
 	std::string host = config.server().host;
 	int port = config.server().port;
 
-	svr_.set_logger([](const auto &req, const auto &res) {
-        LOG_INFO("{} {} -> {} {}", req.method, req.path, res.status, req.remote_addr);
-    });
+	svr_.set_logger([](const auto &req, const auto &res)
+					{ LOG_INFO("{} {} -> {} {}", req.method, req.path, res.status, req.remote_addr); });
 
 	LOG_INFO("Starting server on {}:{}", host, port);
 	if (!svr_.listen(host.c_str(), port))
@@ -121,7 +139,7 @@ void WebServer::stop() noexcept
 // duplication
 void WebServer::loadConfiguration()
 {
-	auto &config = Common::Config::instance();
+	auto &config = Config::instance();
 	log_folder_ = config.paths().logs;
 	static_files_root_ = config.paths().frontend;
 	upload_folder_ = config.paths().upload;
@@ -136,7 +154,7 @@ void WebServer::ensureDirectoriesExist()
 		fs::create_directories(results_folder_);
 		fs::create_directories(static_files_root_);
 		LOG_INFO("Directories ensured: upload={}, results={}, static={}",
-					 upload_folder_.string(), results_folder_.string(), static_files_root_.string());
+				 upload_folder_.string(), results_folder_.string(), static_files_root_.string());
 	}
 	catch (const std::exception &e)
 	{
@@ -148,7 +166,8 @@ void WebServer::ensureDirectoriesExist()
 void WebServer::setupRoutes()
 {
 	// API Routes
-	svr_.Post("/api/upload_realtime", [this](const httplib::Request &req, httplib::Response &res) {
+	svr_.Post("/api/upload_realtime", [this](const httplib::Request &req, httplib::Response &res)
+			  {
 		// Similar to handleUpload but for real-time processing
 		try {
 			if (!req.form.has_file("file")) {
@@ -171,7 +190,7 @@ void WebServer::setupRoutes()
 			}
 
 			std::string filename = file.filename;
-			std::string task_id = db::RedisManager::generate_uuid();
+			std::string task_id = DragonflyManager::generate_uuid();
 			fs::path filepath = upload_folder_ / (task_id + "_" + filename);
 
 			// Save the file
@@ -196,9 +215,8 @@ void WebServer::setupRoutes()
 			LOG_ERROR("Exception in real-time upload: {}", e.what());
 			res.status = 500;
 			res.set_content(R"({"error": "Internal server error"})", "application/json");
-		}
-	});
-	
+		} });
+
 	svr_.Post("/api/upload", [this](const httplib::Request &req, httplib::Response &res)
 			  { handleUpload(req, res); });
 
@@ -241,127 +259,124 @@ void WebServer::setupRoutes()
 
 void WebServer::handleUpload(const httplib::Request &req, httplib::Response &res)
 {
-    try
-    {
-        if (!req.form.has_file("file"))
-        {
-            res.status = 400;
-            res.set_content(R"({"error": "No file provided"})", "application/json");
-            return;
-        }
+	try
+	{
+		if (!req.form.has_file("file"))
+		{
+			res.status = 400;
+			res.set_content(R"({"error": "No file provided"})", "application/json");
+			return;
+		}
 
-        const auto &file = req.form.get_file("file");
-        if (file.filename.empty())
-        {
-            res.status = 400;
-            res.set_content(R"({"error": "No file selected"})", "application/json");
-            return;
-        }
+		const auto &file = req.form.get_file("file");
+		if (file.filename.empty())
+		{
+			res.status = 400;
+			res.set_content(R"({"error": "No file selected"})", "application/json");
+			return;
+		}
 
-        if (!file_processor_ || !file_processor_->allowed_file(file.filename))
-        {
-            res.status = 400;
-            res.set_content(R"({"error": "Invalid file type"})", "application/json");
-            return;
-        }
+		if (!file_processor_ || !file_processor_->allowed_file(file.filename))
+		{
+			res.status = 400;
+			res.set_content(R"({"error": "Invalid file type"})", "application/json");
+			return;
+		}
 
-        std::string filename = file.filename;
-        std::string task_id = db::RedisManager::generate_uuid();
-        fs::path filepath = upload_folder_ / (task_id + "_" + filename);
+		std::string filename = file.filename;
+		std::string task_id = DragonflyManager::generate_uuid();
+		fs::path filepath = upload_folder_ / (task_id + "_" + filename);
 
-        // Save the file
-        std::ofstream out_file(filepath, std::ios::binary);
-        out_file.write(file.content.data(), file.content.size());
-        out_file.close();
+		// Save the file
+		std::ofstream out_file(filepath, std::ios::binary);
+		out_file.write(file.content.data(), file.content.size());
+		out_file.close();
 
-        // Capture shared_ptr by value to extend RedisManager lifetime
-        auto redis_manager = redis_manager_;
-        auto* file_processor = file_processor_.get();
-        
-        // Create the thread first, then add it to the map
-        std::thread background_thread = std::thread(
-            [this, redis_manager, file_processor, task_id, filepath, filename]()
-            {
-                try
-                {
-                    LOG_INFO("Starting background processing for task: {}", task_id);
-                    
-                    // Set initial status using the shared_ptr
-                    nlohmann::json initial_status = {
-                        {"task_id", task_id},
-                        {"status", "processing"},
-                        {"progress", 0},
-                        {"message", "Starting file processing"}
-                    };
-                    redis_manager->set_task_status(task_id, initial_status);
-                    
-                    // Process the file
-                    file_processor->process_file(task_id, filepath.string(), filename);
-                    
-                    LOG_INFO("Background processing completed for task: {}", task_id);
-                }
-                catch (const std::exception &e)
-                {
-                    LOG_ERROR("Background processing failed for task {}: {}", task_id, e.what());
-                    
-                    // Set error status using the shared_ptr
-                    try {
-                        nlohmann::json error_status = {
-                            {"task_id", task_id},
-                            {"status", "error"},
-                            {"progress", 0},
-                            {"message", std::string("Processing failed: ") + e.what()}
-                        };
-                        redis_manager->set_task_status(task_id, error_status);
-                    } catch (const std::exception& redis_error) {
-                        LOG_ERROR("Failed to update Redis status for task {}: {}", task_id, redis_error.what());
-                    }
-                }
-                
-                // Remove thread from map when done - use a separate method to avoid deadlock
-                this->removeBackgroundThread(task_id);
-            });
+		auto dragonfly_manager = dragonfly_manager_;
+		auto *file_processor = file_processor_.get();
 
-        // Now add the thread to the map with the lock held
-        std::lock_guard<std::mutex> lock(task_mutex_);
-        background_threads_[task_id] = std::move(background_thread);
+		// Create the thread first, then add it to the map
+		std::thread background_thread = std::thread(
+			[this, dragonfly_manager, file_processor, task_id, filepath, filename]()
+			{
+				try
+				{
+					LOG_INFO("Starting background processing for task: {}", task_id);
 
-        res.status = 202;
-        res.set_content(fmt::format(R"({{"task_id": "{}"}})", task_id), "application/json");
-    }
-    catch (const std::exception &e)
-    {
-        LOG_ERROR("Exception in handleUpload: {}", e.what());
-        res.status = 500;
-        res.set_content(R"({"error": "Internal server error"})", "application/json");
-    }
+					// Set initial status using the shared_ptr
+					nlohmann::json initial_status = {
+						{"task_id", task_id},
+						{"status", "processing"},
+						{"progress", 0},
+						{"message", "Starting file processing"}};
+					dragonfly_manager->set_task_status(task_id, initial_status);
+
+					// Process the file
+					file_processor->process_file(task_id, filepath.string(), filename);
+
+					LOG_INFO("Background processing completed for task: {}", task_id);
+				}
+				catch (const std::exception &e)
+				{
+					LOG_ERROR("Background processing failed for task {}: {}", task_id, e.what());
+
+					// Set error status using the shared_ptr
+					try
+					{
+						nlohmann::json error_status = {
+							{"task_id", task_id},
+							{"status", "error"},
+							{"progress", 0},
+							{"message", std::string("Processing failed: ") + e.what()}};
+						dragonfly_manager->set_task_status(task_id, error_status);
+					}
+					catch (const std::exception &redis_error)
+					{
+						LOG_ERROR("Failed to update Redis status for task {}: {}", task_id, redis_error.what());
+					}
+				}
+
+				// Remove thread from map when done - use a separate method to avoid deadlock
+				this->removeBackgroundThread(task_id);
+			});
+
+		// Now add the thread to the map with the lock held
+		std::lock_guard<std::mutex> lock(task_mutex_);
+		background_threads_[task_id] = std::move(background_thread);
+
+		res.status = 202;
+		res.set_content(fmt::format(R"({{"task_id": "{}"}})", task_id), "application/json");
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Exception in handleUpload: {}", e.what());
+		res.status = 500;
+		res.set_content(R"({"error": "Internal server error"})", "application/json");
+	}
 }
 
-void WebServer::removeBackgroundThread(const std::string& task_id)
+void WebServer::removeBackgroundThread(const std::string &task_id)
 {
-    std::lock_guard<std::mutex> lock(task_mutex_);
-    auto it = background_threads_.find(task_id);
-    if (it != background_threads_.end()) {
-        if (it->second.joinable()) {
-            it->second.detach(); // Let the thread finish on its own
-        }
-        background_threads_.erase(it);
-    }
+	std::lock_guard<std::mutex> lock(task_mutex_);
+	auto it = background_threads_.find(task_id);
+	if (it != background_threads_.end())
+	{
+		if (it->second.joinable())
+		{
+			it->second.detach(); // Let the thread finish on its own
+		}
+		background_threads_.erase(it);
+	}
 }
 
 void WebServer::handleProgress(const httplib::Request &req, httplib::Response &res, const std::string &task_id)
 {
 	try
 	{
-		// Check if redis_manager_ is initialized
-		if (!redis_manager_)
-		{
-			res.status = 500;
-			res.set_content(R"({"error": "Server not properly initialized"})", "application/json");
-			return;
-		}
+		// Use TaskManager with caching
+		auto &task_manager = TaskManager::instance();
+		auto status = task_manager.get_task_status(task_id);
 
-		auto status = redis_manager_->get_task_status(task_id);
 		if (!status)
 		{
 			res.status = 404;
@@ -369,7 +384,7 @@ void WebServer::handleProgress(const httplib::Request &req, httplib::Response &r
 			return;
 		}
 
-		res.set_content(status.value(), "application/json");
+		res.set_content(status->dump(), "application/json");
 	}
 	catch (const std::exception &e)
 	{
@@ -383,8 +398,7 @@ void WebServer::handleSubmitApplication(const httplib::Request &req, httplib::Re
 {
 	try
 	{
-		// Check if redis_manager_ is initialized
-		if (!redis_manager_)
+		if (!dragonfly_manager_)
 		{
 			res.status = 500;
 			res.set_content(R"({"error": "Server not properly initialized"})", "application/json");
@@ -411,7 +425,7 @@ void WebServer::handleSubmitApplication(const httplib::Request &req, httplib::Re
 			return;
 		}
 
-		std::string application_id = redis_manager_->save_application(application_data.dump());
+		std::string application_id = dragonfly_manager_->save_application(application_data.dump());
 
 		res.status = 201;
 		res.set_content(fmt::format(R"({{"application_id": "{}"}})", application_id), "application/json");
@@ -450,7 +464,6 @@ void WebServer::handleHealthCheck(const httplib::Request &req, httplib::Response
 {
 	try
 	{
-		// redis_manager_->connection()->redisCommand("PING");
 		res.set_content(R"({"status": "healthy"})", "application/json");
 	}
 	catch (const std::exception &e)
@@ -583,4 +596,17 @@ void WebServer::validateJsonDocument(const nlohmann::json &json)
 	{
 		throw std::runtime_error("Empty JSON object");
 	}
+}
+
+void WebServer::initializeTaskBatcher()
+{
+	task_batcher_ = std::make_unique<TaskBatcher>(50, std::chrono::milliseconds(100));
+
+	task_batcher_->set_batch_callback([this](const auto &batch)
+									  {
+        auto& task_manager = TaskManager::instance();
+        task_manager.batch_update_status(batch); });
+
+	task_batcher_->start();
+	LOG_INFO("TaskBatcher initialized with batch_size=50, timeout=100ms");
 }

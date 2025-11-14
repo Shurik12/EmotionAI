@@ -62,7 +62,7 @@ namespace db
 
 	void RedisManager::loadConfiguration()
 	{
-		auto &config = Common::Config::instance();
+		auto &config = Config::instance();
 
 		redis_host_ = config.redis().host;
 		redis_port_ = config.redis().port;

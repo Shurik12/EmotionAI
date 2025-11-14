@@ -16,12 +16,8 @@
 
 #include <nlohmann/json.hpp>
 #include <server/IServer.h>
-
-// Forward declarations
-namespace db
-{
-	class RedisManager;
-}
+#include <db/DragonflyManager.h>
+#include <db/TaskBatcher.h>
 
 namespace EmotionAI
 {
@@ -56,8 +52,9 @@ private:
 	int server_fd_;
 	int epoll_fd_;
 	bool running_;
-	std::shared_ptr<db::RedisManager> redis_manager_; // Change to shared_ptr
+	std::shared_ptr<DragonflyManager> dragonfly_manager_;
 	std::unique_ptr<EmotionAI::FileProcessor> file_processor_;
+	std::unique_ptr<TaskBatcher> task_batcher_;
 	std::filesystem::path static_files_root_;
 	std::filesystem::path upload_folder_;
 	std::filesystem::path results_folder_;
@@ -75,6 +72,7 @@ private:
 	void setupRoutes();
 	void ensureDirectoriesExist();
 	void initializeComponents();
+	void initializeTaskBatcher();
 
 	// Server core methods
 	void createSocket();
@@ -95,6 +93,7 @@ private:
 	void handleUpload(const std::shared_ptr<ClientContext> &context, const std::string &body);
 	void handleUploadRealtime(const std::shared_ptr<ClientContext> &context, const std::string &body);
 	void handleProgress(const std::shared_ptr<ClientContext> &context);
+	void handleBatchProgress(const std::shared_ptr<ClientContext> &context, const std::string &body);
 	void handleSubmitApplication(const std::shared_ptr<ClientContext> &context, const std::string &body);
 	void handleServeResult(const std::shared_ptr<ClientContext> &context);
 	void handleHealthCheck(const std::shared_ptr<ClientContext> &context);
@@ -106,6 +105,7 @@ private:
 	// Helper functions
 	static bool isApiEndpoint(const std::string &path);
 	void cleanupFinishedThreads();
+	void removeBackgroundThread(const std::string &task_id);
 	std::map<std::string, std::string> parseMultipartFormData(const std::string &body, const std::string &boundary);
 	std::string extractBoundary(const std::string &content_type);
 
