@@ -14,7 +14,7 @@
 #include <server/IServer.h>
 #include <db/DragonflyManager.h>
 #include <emotionai/FileProcessor.h>
-#include <db/TaskBatcher.h>
+#include <server/ThreadPool.h>
 
 namespace EmotionAI
 {
@@ -39,14 +39,8 @@ private:
 	std::filesystem::path upload_folder_;
 	std::filesystem::path results_folder_;
 	std::filesystem::path log_folder_;
-	std::mutex task_mutex_;
-	std::map<std::string, std::thread> background_threads_;
 	std::condition_variable completion_cv_;
-	std::unique_ptr<TaskBatcher> task_batcher_;
-
-	void initializeTaskBatcher();
-    
-    void waitForCompletion();
+	std::unique_ptr<ThreadPool> thread_pool_;
 
 	void loadConfiguration();
 	void setupRoutes();
@@ -55,7 +49,6 @@ private:
 
 	// Route handlers
 	void handleUpload(const httplib::Request &req, httplib::Response &res);
-	void removeBackgroundThread(const std::string& task_id);
 	void handleProgress(const httplib::Request &req, httplib::Response &res, const std::string &task_id);
 	void handleSubmitApplication(const httplib::Request &req, httplib::Response &res);
 	void handleServeResult(const httplib::Request &req, httplib::Response &res, const std::string &filename);
@@ -64,10 +57,7 @@ private:
 	void handleServeReactFile(const httplib::Request &req, httplib::Response &res, const std::string &filename);
 	void handleRoot(const httplib::Request &req, httplib::Response &res);
 
-	// Helper functions
 	static bool isApiEndpoint(const std::string &path);
-	void cleanupFinishedThreads();
-
-	// JSON validation
+	
 	static void validateJsonDocument(const nlohmann::json &json);
 };

@@ -9,7 +9,6 @@
 #include <config/Config.h>
 #include <logging/Logger.h>
 #include <db/TaskManager.h>
-#include <db/TaskBatcher.h>
 #include "FileProcessor.h"
 
 namespace fs = std::filesystem;
@@ -463,47 +462,24 @@ void FileProcessor::process_video_realtime(const std::string &task_id, const std
 	}
 }
 
-// Static batcher for efficient status updates
-static TaskBatcher &get_status_batcher()
-{
-	static TaskBatcher batcher(50, std::chrono::milliseconds(100));
-	static std::once_flag init_flag;
-
-	std::call_once(init_flag, []()
-				   {
-        batcher.set_batch_callback([](const auto& batch) {
-            auto& task_manager = TaskManager::instance();
-            task_manager.batch_update_status(batch);
-        });
-        batcher.start(); });
-
-	return batcher;
-}
-
 void FileProcessor::process_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
 {
-	auto &batcher = get_status_batcher();
+	// Get TaskManager instance
+	auto &task_manager = TaskManager::instance();
 
 	try
 	{
-		// Initial status - update immediately to ensure quick response
-		nlohmann::json initial_status = {
-			{"task_id", task_id},
-			{"progress", 0},
-			{"message", "Starting processing..."},
-			{"error", nullptr},
-			{"complete", false},
-			{"model", "emotieff"},
-			{"model_name", "EmotiEffLib"},
-			{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-							  std::chrono::system_clock::now().time_since_epoch())
-							  .count()}};
-
-		// Use immediate update for initial status
-		if (dragonfly_manager_)
-		{
-			dragonfly_manager_->set_task_status(task_id, initial_status);
-		}
+		// Initial status via TaskManager
+		task_manager.set_task_status(task_id, {{"task_id", task_id},
+											   {"progress", 0},
+											   {"message", "Starting processing..."},
+											   {"error", nullptr},
+											   {"complete", false},
+											   {"model", "emotieff"},
+											   {"model_name", "EmotiEffLib"},
+											   {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+																 std::chrono::system_clock::now().time_since_epoch())
+																 .count()}});
 
 		LOG_INFO("Starting file processing - Task: {}, File: {}", task_id, filename);
 
@@ -521,58 +497,54 @@ void FileProcessor::process_file(const std::string &task_id, const std::string &
 		std::string file_ext = filename.substr(dot_pos + 1);
 		std::transform(file_ext.begin(), file_ext.end(), file_ext.begin(), ::tolower);
 
-		// Update status to processing
-		batcher.enqueue(task_id, {{"progress", 10},
-								  {"message", "Validating file..."},
-								  {"error", nullptr},
-								  {"complete", false},
-								  {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-													std::chrono::system_clock::now().time_since_epoch())
-													.count()}});
+		// Progress updates via TaskManager
+		task_manager.set_task_status(task_id, {{"progress", 10},
+											   {"message", "Validating file..."},
+											   {"error", nullptr},
+											   {"complete", false},
+											   {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+																 std::chrono::system_clock::now().time_since_epoch())
+																 .count()}});
 
-		nlohmann::json final_result;
-		std::string result_type;
+		nlohmann::json processing_result;
 
 		// Process based on file type
 		if (file_ext == "png" || file_ext == "jpg" || file_ext == "jpeg")
 		{
-			batcher.enqueue(task_id, {{"progress", 20},
-									  {"message", "Processing image file..."},
-									  {"file_type", "image"},
-									  {"complete", false}});
+			task_manager.set_task_status(task_id, {{"progress", 20},
+												   {"message", "Processing image file..."},
+												   {"file_type", "image"},
+												   {"complete", false}});
 
-			final_result = process_image_file(task_id, filepath, filename);
-			result_type = "image";
+			processing_result = process_image_file(task_id, filepath, filename);
 		}
 		else if (file_ext == "mp4" || file_ext == "avi" || file_ext == "webm")
 		{
-			batcher.enqueue(task_id, {{"progress", 20},
-									  {"message", "Processing video file..."},
-									  {"file_type", "video"},
-									  {"complete", false}});
+			task_manager.set_task_status(task_id, {{"progress", 20},
+												   {"message", "Processing video file..."},
+												   {"file_type", "video"},
+												   {"complete", false}});
 
-			final_result = process_video_file(task_id, filepath, filename);
-			result_type = "video";
+			processing_result = process_video_file(task_id, filepath, filename);
 		}
 		else
 		{
 			throw std::runtime_error("Unsupported file type: " + file_ext);
 		}
 
-		// Final success status with actual results
+		// Final success status with results
 		nlohmann::json success_status = {
 			{"progress", 100},
 			{"message", "Processing completed successfully"},
 			{"complete", true},
-			{"type", result_type},
 			{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
 							  std::chrono::system_clock::now().time_since_epoch())
 							  .count()}};
 
-		// Merge the final results into the status
-		success_status.insert(final_result.begin(), final_result.end());
+		// Merge processing results
+		success_status.insert(processing_result.begin(), processing_result.end());
 
-		batcher.enqueue(task_id, success_status);
+		task_manager.set_task_status(task_id, success_status);
 
 		LOG_INFO("File processing completed successfully - Task: {}, File: {}", task_id, filename);
 	}
@@ -580,32 +552,15 @@ void FileProcessor::process_file(const std::string &task_id, const std::string &
 	{
 		LOG_ERROR("Error processing file {} for task {}: {}", filename, task_id, e.what());
 
-		// Error status - use immediate update for error to ensure client sees it
-		nlohmann::json error_status = {
-			{"task_id", task_id},
-			{"progress", 0},
-			{"message", "Processing failed"},
-			{"error", e.what()},
-			{"complete", true},
-			{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-							  std::chrono::system_clock::now().time_since_epoch())
-							  .count()}};
-
-		// Try batcher first, but also do immediate update for critical errors
-		batcher.enqueue(task_id, error_status);
-
-		// Also update immediately to ensure error is propagated
-		if (dragonfly_manager_)
-		{
-			try
-			{
-				dragonfly_manager_->set_task_status(task_id, error_status);
-			}
-			catch (const std::exception &db_error)
-			{
-				LOG_ERROR("Failed to update error status in DragonflyDB for task {}: {}", task_id, db_error.what());
-			}
-		}
+		// Error status via TaskManager
+		task_manager.set_task_status(task_id, {{"task_id", task_id},
+											   {"progress", 0},
+											   {"message", "Processing failed"},
+											   {"error", e.what()},
+											   {"complete", true},
+											   {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+																 std::chrono::system_clock::now().time_since_epoch())
+																 .count()}});
 	}
 
 	// Clean up the uploaded file
