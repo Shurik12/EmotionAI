@@ -13,7 +13,7 @@ protected:
 	void SetUp() override
 	{
 		// Load integration test configuration
-		auto &config = Common::Config::instance();
+		auto &config = Config::instance();
 		if (!config.loadFromFile("tests/configs/integration_config.yaml"))
 		{
 			GTEST_SKIP() << "Integration test configuration not found, skipping test";
@@ -55,7 +55,7 @@ protected:
 		}
 
 		// Cleanup test directories using config values
-		auto &config = Common::Config::instance();
+		auto &config = Config::instance();
 		if (config.isLoaded())
 		{
 			std::filesystem::remove_all(config.uploadPath());

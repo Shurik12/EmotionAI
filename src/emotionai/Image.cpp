@@ -139,7 +139,7 @@ namespace EmotionAI
 
 	std::vector<cv::Mat> Image::recognizeFaces(const cv::Mat &frame, int downscaleWidth)
 	{
-		auto &config = Common::Config::instance();
+		auto &config = Config::instance();
 
 		// Get MTCNN configuration from config
 		std::string models_dir = config.model().face_detection_models_path;
@@ -213,7 +213,7 @@ namespace EmotionAI
 			}
 
 			// Get model from configuration
-			auto &config = Common::Config::instance();
+			auto &config = Config::instance();
 			std::string emotion_model_path = config.model().emotion_model_path;
 			std::string model = fs::path(emotion_model_path).filename().string();
 			std::vector<std::string> emotions;

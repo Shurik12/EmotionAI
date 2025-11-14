@@ -12,12 +12,8 @@
 #include <common/httplib.h>
 #include <nlohmann/json.hpp>
 #include <server/IServer.h>
-
-// Forward declarations
-namespace db
-{
-	class RedisManager;
-}
+#include <db/DragonflyManager.h>
+#include <db/TaskBatcher.h>
 
 namespace EmotionAI
 {
@@ -36,7 +32,7 @@ public:
 
 private:
 	httplib::Server svr_;
-	std::shared_ptr<db::RedisManager> redis_manager_;
+	std::shared_ptr<DragonflyManager> dragonfly_manager_;
 	std::unique_ptr<EmotionAI::FileProcessor> file_processor_;
 	std::filesystem::path static_files_root_;
 	std::filesystem::path upload_folder_;
@@ -45,6 +41,9 @@ private:
 	std::mutex task_mutex_;
 	std::map<std::string, std::thread> background_threads_;
 	std::condition_variable completion_cv_;
+	std::unique_ptr<TaskBatcher> task_batcher_;
+
+	void initializeTaskBatcher();
     
     void waitForCompletion();
 

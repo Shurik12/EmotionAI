@@ -38,19 +38,19 @@ server:
 
 TEST_F(ConfigTest, SingletonPattern)
 {
-	auto &config1 = Common::Config::instance();
-	auto &config2 = Common::Config::instance();
+	auto &config1 = Config::instance();
+	auto &config2 = Config::instance();
 	EXPECT_EQ(&config1, &config2);
 }
 
 TEST_F(ConfigTest, LoadFromFileSuccess)
 {
-	auto &config = Common::Config::instance();
+	auto &config = Config::instance();
 	EXPECT_TRUE(config.loadFromFile(test_config_path_));
 }
 
 TEST_F(ConfigTest, LoadFromFileNotFound)
 {
-	auto &config = Common::Config::instance();
+	auto &config = Config::instance();
 	EXPECT_FALSE(config.loadFromFile("nonexistent.yaml"));
 }

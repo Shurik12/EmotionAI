@@ -13,7 +13,7 @@ protected:
 	void SetUp() override
 	{
 		// Load E2E test configuration
-		auto &config = Common::Config::instance();
+		auto &config = Config::instance();
 		if (!config.loadFromFile("tests/configs/e2e_config.yaml"))
 		{
 			GTEST_SKIP() << "E2E test configuration not found, skipping test";
@@ -75,7 +75,7 @@ protected:
 		std::this_thread::sleep_for(std::chrono::seconds(2));
 
 		// Cleanup test directories using config values
-		auto &config = Common::Config::instance();
+		auto &config = Config::instance();
 		if (config.isLoaded())
 		{
 			std::filesystem::remove_all(config.uploadPath());
@@ -112,7 +112,7 @@ protected:
 
 	std::string getUploadPath() const
 	{
-		auto &config = Common::Config::instance();
+		auto &config = Config::instance();
 		return config.uploadPath();
 	}
 

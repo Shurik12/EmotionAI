@@ -4,17 +4,19 @@
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 
-#include <db/RedisManager.h>
+#include <db/DragonflyManager.h>
 #include <emotionai/Image.h>
 #include <config/Config.h>
 #include <logging/Logger.h>
+#include <db/TaskManager.h>
+#include <db/TaskBatcher.h>
 #include "FileProcessor.h"
 
 namespace fs = std::filesystem;
 namespace EmotionAI
 {
-	FileProcessor::FileProcessor(std::shared_ptr<db::RedisManager> redis_manager)
-		: redis_manager_(std::move(redis_manager))
+	FileProcessor::FileProcessor(std::shared_ptr<DragonflyManager> dragonfly_manager)
+		: dragonfly_manager_(std::move(dragonfly_manager))
 	{
 		try
 		{
@@ -42,7 +44,7 @@ namespace EmotionAI
 		std::string extension = filename.substr(dot_pos + 1);
 		std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 
-		auto &config = Common::Config::instance();
+		auto &config = Config::instance();
 		std::vector<std::string> allowed_extensions = config.app().allowed_extensions;
 
 		return std::find(allowed_extensions.begin(), allowed_extensions.end(), extension) != allowed_extensions.end();
@@ -71,7 +73,7 @@ namespace EmotionAI
 			LOG_INFO("Initializing emotion recognition models...");
 
 			// Get model paths from configuration
-			auto &config = Common::Config::instance();
+			auto &config = Config::instance();
 			std::string model_backend = config.model().backend;
 			std::string emotion_model_path = config.model().emotion_model_path;
 
@@ -122,186 +124,153 @@ namespace EmotionAI
 		}
 	}
 
-	void FileProcessor::process_image_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
+	nlohmann::json FileProcessor::process_image_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
 	{
-		redis_manager_->set_task_status(task_id, nlohmann::json{
-													 {"progress", 0},
-													 {"message", "Processing image..."},
-													 {"error", nullptr},
-													 {"complete", false}}
-													 .dump());
+		// Use Image class to load the file
+		Image input_image(filepath);
+		cv::Mat image = input_image.to_cv_mat();
 
-		try
+		// Get results path from config
+		auto &config = Config::instance();
+		std::string results_path = config.resultPath();
+
+		// Ensure results directory exists
+		fs::create_directories(results_path);
+
+		// Save uploaded image with result prefix
+		std::string result_filename = "result_" + filename;
+		std::string result_file_path = (fs::path(results_path) / result_filename).string();
+
+		if (image.empty())
 		{
-			// Use Image class to load the file
-			Image input_image(filepath);
-			cv::Mat image = input_image.to_cv_mat();
-
-			// Get results path from config
-			auto &config = Common::Config::instance();
-			std::string results_path = config.resultPath();
-
-			// Ensure results directory exists
-			fs::create_directories(results_path);
-
-			// Save uploaded image
-			std::string result_filename = "result_" + filename;
-			std::string result_file_path = (fs::path(results_path) / result_filename).string();
-
-			if (cv::imwrite(result_file_path, image))
-				LOG_INFO("Image saved successfully to {}", result_file_path);
-			else
-				LOG_ERROR("Error: Could not save image to {}", result_file_path);
-
-			if (image.empty())
-			{
-				throw std::runtime_error("Could not read image");
-			}
-
-			redis_manager_->set_task_status(task_id, nlohmann::json{
-														 {"progress", 50},
-														 {"message", "Processing image..."},
-														 {"error", nullptr},
-														 {"complete", false}}
-														 .dump());
-
-			auto [processed_image, result] = process_image(image);
-
-			// Save result using Image class
-			Image result_image(processed_image, ".jpg");
-
-			// Update status
-			redis_manager_->set_task_status(task_id, nlohmann::json{
-														 {"complete", true},
-														 {"type", "image"},
-														 {"image_url", "/api/results/" + result_filename},
-														 {"result", result},
-														 {"progress", 100}}
-														 .dump());
+			throw std::runtime_error("Could not read image");
 		}
-		catch (const std::exception &e)
+
+		// Process the image and get both the annotated image and emotion results
+		auto [processed_image, emotion_result] = process_image(image);
+
+		// Save the processed image
+		if (!cv::imwrite(result_file_path, processed_image))
 		{
-			throw std::runtime_error("Image processing failed: " + std::string(e.what()));
+			LOG_ERROR("Error: Could not save processed image to {}", result_file_path);
+			throw std::runtime_error("Failed to save processed image");
 		}
+
+		LOG_INFO("Processed image saved successfully to {}", result_file_path);
+
+		// Build the complete result JSON
+		nlohmann::json result = {
+			{"type", "image"},
+			{"image_url", "/api/results/" + result_filename},
+			{"result", emotion_result}};
+
+		return result;
 	}
 
-	void FileProcessor::process_video_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
+	nlohmann::json FileProcessor::process_video_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
 	{
-		redis_manager_->set_task_status(task_id, nlohmann::json{
-													 {"progress", 0},
-													 {"message", "Processing video..."},
-													 {"error", nullptr},
-													 {"complete", false}}
-													 .dump());
-
-		try
+		cv::VideoCapture cap(filepath);
+		if (!cap.isOpened())
 		{
-			cv::VideoCapture cap(filepath);
-			if (!cap.isOpened())
+			throw std::runtime_error("Could not open video");
+		}
+
+		int total_frames = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_COUNT));
+		double fps = cap.get(cv::CAP_PROP_FPS);
+		double duration = (fps > 0) ? total_frames / fps : 0;
+
+		LOG_INFO("Processing video: {}, Frames: {}, FPS: {:.2f}, Duration: {:.2f}s",
+				 filename, total_frames, fps, duration);
+
+		// Get results path from config
+		auto &config = Config::instance();
+		std::string results_path = config.paths().results;
+		fs::create_directories(results_path);
+
+		int frame_count = 0;
+		int processed_count = 0;
+		nlohmann::json results = nlohmann::json::array();
+		int frame_interval = (total_frames > 5) ? std::max(1, total_frames / 5) : 1;
+
+		while (cap.isOpened())
+		{
+			cv::Mat frame;
+			if (!cap.read(frame))
 			{
-				throw std::runtime_error("Could not open video");
+				break;
 			}
 
-			int total_frames = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_COUNT));
-			double fps = cap.get(cv::CAP_PROP_FPS);
-			double duration = (fps > 0) ? total_frames / fps : 0;
-
-			LOG_INFO("Processing video: {}, Frames: {}, FPS: {:.2f}, Duration: {:.2f}s",
-					 filename, total_frames, fps, duration);
-
-			// Get results path from config
-			auto &config = Common::Config::instance();
-			std::string results_path = config.paths().results;
-			fs::create_directories(results_path);
-
-			int frame_count = 0;
-			int processed_count = 0;
-			nlohmann::json results = nlohmann::json::array();
-			int frame_interval = (total_frames > 5) ? std::max(1, total_frames / 5) : 1;
-
-			while (cap.isOpened())
+			if (frame_count % frame_interval == 0 || frame_count == total_frames - 1)
 			{
-				cv::Mat frame;
-				if (!cap.read(frame))
+				try
 				{
-					break;
-				}
+					auto [processed_frame, result] = process_image(frame);
 
-				if (frame_count % frame_interval == 0 || frame_count == total_frames - 1)
-				{
-					redis_manager_->set_task_status(task_id, nlohmann::json{
-																 {"progress", static_cast<int>((frame_count * 100.0) / total_frames)},
-																 {"message", fmt::format("Processing frame {} of {}...", frame_count + 1, total_frames)},
-																 {"error", nullptr},
-																 {"complete", false}}
-																 .dump());
+					std::string frame_filename = fmt::format("frame_{}_{}.jpg", processed_count,
+															 filename.substr(0, filename.find_last_of('.')));
+					std::string frame_file_path = (fs::path(results_path) / frame_filename).string();
 
-					try
+					if (cv::imwrite(frame_file_path, processed_frame))
 					{
-						auto [processed_frame, result] = process_image(frame);
-
-						std::string frame_filename = fmt::format("frame_{}_{}.jpg", processed_count,
-																 filename.substr(0, filename.find_last_of('.')));
-						std::string frame_file_path = (fs::path(results_path) / frame_filename).string();
-
-						if (cv::imwrite(frame_file_path, frame))
-							LOG_INFO("Image saved successfully to {}", frame_file_path);
-						else
-							LOG_ERROR("Error: Could not save image to {}", frame_file_path);
-
-						nlohmann::json frame_result;
-						frame_result["frame"] = frame_count;
-						frame_result["image_url"] = "/api/results/" + frame_filename;
-						frame_result["result"] = result;
-						results.push_back(frame_result);
-
-						processed_count++;
-
-						if (processed_count >= 5)
-						{
-							break;
-						}
+						LOG_INFO("Processed frame saved successfully to {}", frame_file_path);
 					}
-					catch (const std::exception &e)
+					else
 					{
-						LOG_WARN("Error processing frame {}: {}", frame_count, e.what());
-						continue;
+						LOG_ERROR("Error: Could not save processed frame to {}", frame_file_path);
+						// Continue processing even if frame save fails
+					}
+
+					nlohmann::json frame_result;
+					frame_result["frame"] = frame_count;
+					frame_result["image_url"] = "/api/results/" + frame_filename;
+					frame_result["result"] = result;
+					results.push_back(frame_result);
+
+					processed_count++;
+
+					if (processed_count >= 5)
+					{
+						break;
 					}
 				}
-
-				frame_count++;
+				catch (const std::exception &e)
+				{
+					LOG_WARN("Error processing frame {}: {}", frame_count, e.what());
+					continue;
+				}
 			}
 
-			cap.release();
-
-			if (results.empty())
-			{
-				throw std::runtime_error("No frames were processed successfully");
-			}
-
-			redis_manager_->set_task_status(task_id, nlohmann::json{
-														 {"complete", true},
-														 {"type", "video"},
-														 {"frames_processed", results.size()},
-														 {"results", results},
-														 {"progress", 100}}
-														 .dump());
+			frame_count++;
 		}
-		catch (const std::exception &e)
+
+		cap.release();
+
+		if (results.empty())
 		{
-			throw std::runtime_error("Video processing failed: " + std::string(e.what()));
+			throw std::runtime_error("No frames were processed successfully");
 		}
+
+		// Build the complete video result JSON
+		nlohmann::json result = {
+			{"type", "video"},
+			{"frames_processed", results.size()},
+			{"results", results},
+			{"total_frames", total_frames},
+			{"fps", fps},
+			{"duration", duration}};
+
+		return result;
 	}
 
 	void FileProcessor::process_video_realtime(const std::string &task_id, const std::string &filepath, const std::string &filename)
 	{
-		redis_manager_->set_task_status(task_id, nlohmann::json{
-													 {"progress", 0},
-													 {"message", "Processing video for real-time analysis..."},
-													 {"error", nullptr},
-													 {"complete", false},
-													 {"mode", "realtime"}}
-													 .dump());
+		dragonfly_manager_->set_task_status(task_id, nlohmann::json{
+														 {"progress", 0},
+														 {"message", "Processing video for real-time analysis..."},
+														 {"error", nullptr},
+														 {"complete", false},
+														 {"mode", "realtime"}}
+														 .dump());
 
 		try
 		{
@@ -318,7 +287,7 @@ namespace EmotionAI
 					 filename, total_frames, fps);
 
 			// Get results path from config
-			auto &config = Common::Config::instance();
+			auto &config = Config::instance();
 			std::string results_path = config.resultPath();
 			fs::create_directories(results_path);
 
@@ -350,13 +319,13 @@ namespace EmotionAI
 				// Update progress
 				if (frame_results.size() % 5 == 0)
 				{
-					redis_manager_->set_task_status(task_id, nlohmann::json{
-																 {"progress", static_cast<int>((frame_count * 100.0) / std::min(total_frames, max_frames))},
-																 {"message", fmt::format("Analyzing frame {}...", frame_count + 1)},
-																 {"error", nullptr},
-																 {"complete", false},
-																 {"frames_processed", frame_results.size()}}
-																 .dump());
+					dragonfly_manager_->set_task_status(task_id, nlohmann::json{
+																	 {"progress", static_cast<int>((frame_count * 100.0) / std::min(total_frames, max_frames))},
+																	 {"message", fmt::format("Analyzing frame {}...", frame_count + 1)},
+																	 {"error", nullptr},
+																	 {"complete", false},
+																	 {"frames_processed", frame_results.size()}}
+																	 .dump());
 				}
 
 				try
@@ -474,79 +443,173 @@ namespace EmotionAI
 				}
 			}
 
-			redis_manager_->set_task_status(task_id, nlohmann::json{
-														 {"complete", true},
-														 {"type", "video_realtime"},
-														 {"frames_processed", frame_results.size()},
-														 {"frame_results", frame_results},
-														 {"valence_history", valence_history},
-														 {"arousal_history", arousal_history},
-														 {"frame_numbers", frame_numbers},
-														 {"fps", fps},
-														 {"duration", total_frames / fps},
-														 {"statistics", stats},
-														 {"average_emotions", avg_emotions},
-														 {"progress", 100}}
-														 .dump());
+			dragonfly_manager_->set_task_status(task_id, nlohmann::json{
+															 {"complete", true},
+															 {"type", "video_realtime"},
+															 {"frames_processed", frame_results.size()},
+															 {"frame_results", frame_results},
+															 {"valence_history", valence_history},
+															 {"arousal_history", arousal_history},
+															 {"frame_numbers", frame_numbers},
+															 {"fps", fps},
+															 {"duration", total_frames / fps},
+															 {"statistics", stats},
+															 {"average_emotions", avg_emotions},
+															 {"progress", 100}}
+															 .dump());
 		}
 		catch (const std::exception &e)
 		{
 			throw std::runtime_error("Real-time video analysis failed: " + std::string(e.what()));
 		}
 	}
+
+	// Static batcher for efficient status updates
+	static TaskBatcher &get_status_batcher()
+	{
+		static TaskBatcher batcher(50, std::chrono::milliseconds(100));
+		static std::once_flag init_flag;
+
+		std::call_once(init_flag, []()
+					   {
+        batcher.set_batch_callback([](const auto& batch) {
+            auto& task_manager = TaskManager::instance();
+            task_manager.batch_update_status(batch);
+        });
+        batcher.start(); });
+
+		return batcher;
+	}
+
 	void FileProcessor::process_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
 	{
+		auto &batcher = get_status_batcher();
+
 		try
 		{
+			// Initial status - update immediately to ensure quick response
 			nlohmann::json initial_status = {
+				{"task_id", task_id},
 				{"progress", 0},
-				{"message", "Начало обработки..."},
+				{"message", "Starting processing..."},
 				{"error", nullptr},
 				{"complete", false},
 				{"model", "emotieff"},
-				{"model_name", "EmotiEffLib"}};
-			redis_manager_->set_task_status(task_id, initial_status.dump());
+				{"model_name", "EmotiEffLib"},
+				{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+								  std::chrono::system_clock::now().time_since_epoch())
+								  .count()}};
+
+			// Use immediate update for initial status
+			if (dragonfly_manager_)
+			{
+				dragonfly_manager_->set_task_status(task_id, initial_status);
+			}
+
+			LOG_INFO("Starting file processing - Task: {}, File: {}", task_id, filename);
 
 			if (!allowed_file(filename))
 			{
-				throw std::runtime_error("Unsupported file format");
+				throw std::runtime_error("Unsupported file format: " + filename);
 			}
 
 			size_t dot_pos = filename.find_last_of('.');
 			if (dot_pos == std::string::npos)
 			{
-				throw std::runtime_error("Invalid filename");
+				throw std::runtime_error("Invalid filename: " + filename);
 			}
 
 			std::string file_ext = filename.substr(dot_pos + 1);
 			std::transform(file_ext.begin(), file_ext.end(), file_ext.begin(), ::tolower);
 
+			// Update status to processing
+			batcher.enqueue(task_id, {{"progress", 10},
+									  {"message", "Validating file..."},
+									  {"error", nullptr},
+									  {"complete", false},
+									  {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+														std::chrono::system_clock::now().time_since_epoch())
+														.count()}});
+
+			nlohmann::json final_result;
+			std::string result_type;
+
+			// Process based on file type
 			if (file_ext == "png" || file_ext == "jpg" || file_ext == "jpeg")
 			{
-				process_image_file(task_id, filepath, filename);
+				batcher.enqueue(task_id, {{"progress", 20},
+										  {"message", "Processing image file..."},
+										  {"file_type", "image"},
+										  {"complete", false}});
+
+				final_result = process_image_file(task_id, filepath, filename);
+				result_type = "image";
 			}
 			else if (file_ext == "mp4" || file_ext == "avi" || file_ext == "webm")
 			{
-				process_video_file(task_id, filepath, filename);
+				batcher.enqueue(task_id, {{"progress", 20},
+										  {"message", "Processing video file..."},
+										  {"file_type", "video"},
+										  {"complete", false}});
+
+				final_result = process_video_file(task_id, filepath, filename);
+				result_type = "video";
 			}
+			else
+			{
+				throw std::runtime_error("Unsupported file type: " + file_ext);
+			}
+
+			// Final success status with actual results
+			nlohmann::json success_status = {
+				{"progress", 100},
+				{"message", "Processing completed successfully"},
+				{"complete", true},
+				{"type", result_type},
+				{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+								  std::chrono::system_clock::now().time_since_epoch())
+								  .count()}};
+
+			// Merge the final results into the status
+			success_status.insert(final_result.begin(), final_result.end());
+
+			batcher.enqueue(task_id, success_status);
+
+			LOG_INFO("File processing completed successfully - Task: {}, File: {}", task_id, filename);
 		}
 		catch (const std::exception &e)
 		{
-			LOG_ERROR("Error processing file {}: {}", filename, e.what());
+			LOG_ERROR("Error processing file {} for task {}: {}", filename, task_id, e.what());
 
-			// Try to update status even if Redis might be having issues
-			try
+			// Error status - use immediate update for error to ensure client sees it
+			nlohmann::json error_status = {
+				{"task_id", task_id},
+				{"progress", 0},
+				{"message", "Processing failed"},
+				{"error", e.what()},
+				{"complete", true},
+				{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+								  std::chrono::system_clock::now().time_since_epoch())
+								  .count()}};
+
+			// Try batcher first, but also do immediate update for critical errors
+			batcher.enqueue(task_id, error_status);
+
+			// Also update immediately to ensure error is propagated
+			if (dragonfly_manager_)
 			{
-				redis_manager_->set_task_status(task_id, nlohmann::json{
-															 {"error", e.what()},
-															 {"complete", true}});
-			}
-			catch (const std::exception &redis_error)
-			{
-				LOG_ERROR("Failed to update Redis status for task {}: {}", task_id, redis_error.what());
+				try
+				{
+					dragonfly_manager_->set_task_status(task_id, error_status);
+				}
+				catch (const std::exception &db_error)
+				{
+					LOG_ERROR("Failed to update error status in DragonflyDB for task {}: {}", task_id, db_error.what());
+				}
 			}
 		}
 
+		// Clean up the uploaded file
 		cleanup_file(filepath);
 	}
 
