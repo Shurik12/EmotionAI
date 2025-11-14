@@ -81,7 +81,7 @@ private:
 		std::vector<std::unique_ptr<redisContext, RedisContextDeleter>> connections;
 		std::condition_variable cv;
 		size_t in_use = 0;
-		const size_t max_pool_size = 20;
+		const size_t max_pool_size = 100;
 	};
 
 	// Enhanced connection pool with pipeline support
