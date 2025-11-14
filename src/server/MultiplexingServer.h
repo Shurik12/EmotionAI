@@ -17,8 +17,8 @@
 #include <nlohmann/json.hpp>
 #include <server/IServer.h>
 #include <db/DragonflyManager.h>
-#include <db/TaskBatcher.h>
 #include <emotionai/FileProcessor.h>
+#include <server/ThreadPool.h>
 
 class MultiplexingServer : public IServer
 {
@@ -50,14 +50,12 @@ private:
 	bool running_;
 	std::shared_ptr<DragonflyManager> dragonfly_manager_;
 	std::unique_ptr<FileProcessor> file_processor_;
-	std::unique_ptr<TaskBatcher> task_batcher_;
 	std::filesystem::path static_files_root_;
 	std::filesystem::path upload_folder_;
 	std::filesystem::path results_folder_;
 	std::filesystem::path log_folder_;
-	std::mutex task_mutex_;
-	std::map<std::string, std::thread> background_threads_;
 	std::map<int, std::shared_ptr<ClientContext>> clients_;
+	std::unique_ptr<ThreadPool> thread_pool_;
 
 	// Route handlers
 	std::map<std::string, std::function<void(const std::shared_ptr<ClientContext> &, const std::string &)>> post_routes_;
@@ -68,7 +66,6 @@ private:
 	void setupRoutes();
 	void ensureDirectoriesExist();
 	void initializeComponents();
-	void initializeTaskBatcher();
 
 	// Server core methods
 	void createSocket();
@@ -100,8 +97,6 @@ private:
 
 	// Helper functions
 	static bool isApiEndpoint(const std::string &path);
-	void cleanupFinishedThreads();
-	void removeBackgroundThread(const std::string &task_id);
 	std::map<std::string, std::string> parseMultipartFormData(const std::string &body, const std::string &boundary);
 	std::string extractBoundary(const std::string &content_type);
 

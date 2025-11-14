@@ -31,42 +31,10 @@ WebServer::~WebServer()
 	try
 	{
 		stop();
-		waitForCompletion();
-
-		// Stop task batcher
-		if (task_batcher_)
-		{
-			task_batcher_->stop();
-		}
 	}
 	catch (...)
 	{
 		LOG_ERROR("Exception during server shutdown");
-	}
-}
-
-void WebServer::waitForCompletion()
-{
-	std::unique_lock<std::mutex> lock(task_mutex_);
-
-	// Wait for all background threads to complete with a timeout
-	auto timeout = std::chrono::seconds(30); // 30 second timeout
-	auto condition = [this]()
-	{ return background_threads_.empty(); };
-
-	if (!completion_cv_.wait_for(lock, timeout, condition))
-	{
-		LOG_WARN("Timeout waiting for background threads to complete");
-
-		// Force cleanup of any remaining threads
-		for (auto &[task_id, thread] : background_threads_)
-		{
-			if (thread.joinable())
-			{
-				thread.detach(); // Let them finish on their own
-			}
-		}
-		background_threads_.clear();
 	}
 }
 
@@ -81,25 +49,26 @@ void WebServer::initialize()
 
 void WebServer::initializeComponents()
 {
-	LOG_INFO("Initializing DragonflyManager and FileProcessor...");
+	LOG_INFO("Initializing components...");
 	try
 	{
-		// Create DragonflyManager as shared_ptr
+		// Create thread pool first
+		thread_pool_ = std::make_unique<ThreadPool>(4);
+		LOG_INFO("ThreadPool initialized with 4 threads");
+
+		// Create DragonflyManager
 		dragonfly_manager_ = std::make_shared<DragonflyManager>();
 		dragonfly_manager_->initialize();
 		LOG_INFO("DragonflyManager initialized successfully");
 
-		// Initialize TaskManager with DragonflyManager
+		// Initialize TaskManager
 		auto &task_manager = TaskManager::instance();
 		task_manager.set_dragonfly_manager(dragonfly_manager_);
 		LOG_INFO("TaskManager initialized successfully");
 
-		// Pass shared_ptr to FileProcessor
+		// Create FileProcessor
 		file_processor_ = std::make_unique<FileProcessor>(dragonfly_manager_);
 		LOG_INFO("FileProcessor initialized successfully");
-
-		// Initialize task batcher
-		initializeTaskBatcher();
 	}
 	catch (const std::exception &e)
 	{
@@ -168,7 +137,7 @@ void WebServer::setupRoutes()
 	// API Routes
 	svr_.Post("/api/upload_realtime", [this](const httplib::Request &req, httplib::Response &res)
 			  {
-		// Similar to handleUpload but for real-time processing
+		// Real-time processing using ThreadPool
 		try {
 			if (!req.form.has_file("file")) {
 				res.status = 400;
@@ -183,7 +152,7 @@ void WebServer::setupRoutes()
 				return;
 			}
 
-			if (!file_processor_->allowed_file(file.filename)) {
+			if (!file_processor_ || !file_processor_->allowed_file(file.filename)) {
 				res.status = 400;
 				res.set_content(R"({"error": "Invalid file type"})", "application/json");
 				return;
@@ -198,15 +167,62 @@ void WebServer::setupRoutes()
 			out_file.write(file.content.data(), file.content.size());
 			out_file.close();
 
-			// Process file in real-time mode
-			std::lock_guard<std::mutex> lock(task_mutex_);
-			background_threads_[task_id] = std::thread(
-				[this, task_id, filepath, filename]() {
-					file_processor_->process_video_realtime(task_id, filepath.string(), filename);
-					std::lock_guard<std::mutex> lock(task_mutex_);
-					background_threads_.erase(task_id);
-				});
-			background_threads_[task_id].detach();
+			// Verify file was saved
+			if (!fs::exists(filepath) || fs::file_size(filepath) == 0) {
+				throw std::runtime_error("Failed to save uploaded file");
+			}
+
+			LOG_INFO("Real-time file saved successfully: {}, size: {} bytes", filepath.string(), fs::file_size(filepath));
+
+			// Submit to thread pool instead of creating individual thread
+			auto* file_processor = file_processor_.get();
+			
+			thread_pool_->enqueue([this, file_processor, task_id, filepath, filename]() {
+				try {
+					LOG_INFO("Starting real-time processing for task: {}", task_id);
+					
+					// Use TaskManager directly for status updates
+					auto& task_manager = TaskManager::instance();
+					
+					// Set initial status
+					task_manager.set_task_status(task_id, {
+						{"task_id", task_id},
+						{"progress", 0},
+						{"message", "Starting real-time video processing"},
+						{"error", nullptr},
+						{"complete", false},
+						{"mode", "realtime"},
+						{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+							std::chrono::system_clock::now().time_since_epoch()).count()}
+					});
+					
+					// Process file in real-time mode
+					file_processor->process_video_realtime(task_id, filepath.string(), filename);
+					
+					LOG_INFO("Real-time processing completed for task: {}", task_id);
+				}
+				catch (const std::exception &e)
+				{
+					LOG_ERROR("Real-time processing failed for task {}: {}", task_id, e.what());
+					
+					// Set error status
+					try {
+						auto& task_manager = TaskManager::instance();
+						task_manager.set_task_status(task_id, {
+							{"task_id", task_id},
+							{"progress", 0},
+							{"message", "Real-time processing failed"},
+							{"error", e.what()},
+							{"complete", true},
+							{"mode", "realtime"},
+							{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+								std::chrono::system_clock::now().time_since_epoch()).count()}
+						});
+					} catch (const std::exception& db_error) {
+						LOG_ERROR("Failed to update error status for real-time task {}: {}", task_id, db_error.what());
+					}
+				}
+			});
 
 			res.status = 202;
 			res.set_content(fmt::format(R"({{"task_id": "{}", "mode": "realtime"}})", task_id), "application/json");
@@ -219,6 +235,40 @@ void WebServer::setupRoutes()
 
 	svr_.Post("/api/upload", [this](const httplib::Request &req, httplib::Response &res)
 			  { handleUpload(req, res); });
+
+	// Add batch progress endpoint
+	svr_.Post("/api/batch_progress", [this](const httplib::Request &req, httplib::Response &res)
+			  { 
+		try {
+			auto task_ids_json = nlohmann::json::parse(req.body);
+			if (!task_ids_json.is_array()) {
+				res.status = 400;
+				res.set_content(R"({"error": "Expected array of task IDs"})", "application/json");
+				return;
+			}
+			
+			std::vector<std::string> task_ids;
+			for (const auto& id : task_ids_json) {
+				if (id.is_string()) {
+					task_ids.push_back(id.get<std::string>());
+				}
+			}
+			
+			auto& task_manager = TaskManager::instance();
+			auto results = task_manager.batch_get_status(task_ids);
+			
+			nlohmann::json response;
+			for (const auto& [task_id, status] : results) {
+				response[task_id] = status;
+			}
+			
+			res.set_content(response.dump(), "application/json");
+		} catch (const std::exception &e) {
+			LOG_ERROR("Batch progress error: {}", e.what());
+			res.status = 500;
+			res.set_content(R"({"error": "Internal server error"})", "application/json");
+		}
+	});
 
 	svr_.Get("/api/progress/:task_id", [this](const httplib::Request &req, httplib::Response &res)
 			 { handleProgress(req, res, req.path_params.at("task_id")); });
@@ -292,58 +342,62 @@ void WebServer::handleUpload(const httplib::Request &req, httplib::Response &res
 		out_file.write(file.content.data(), file.content.size());
 		out_file.close();
 
-		auto dragonfly_manager = dragonfly_manager_;
+		if (!fs::exists(filepath) || fs::file_size(filepath) == 0)
+		{
+			throw std::runtime_error("Failed to save uploaded file");
+		}
+
+		LOG_INFO("File saved successfully: {}, size: {} bytes", filepath.string(), fs::file_size(filepath));
+
+		// Submit to thread pool
 		auto *file_processor = file_processor_.get();
 
-		// Create the thread first, then add it to the map
-		std::thread background_thread = std::thread(
-			[this, dragonfly_manager, file_processor, task_id, filepath, filename]()
-			{
-				try
-				{
-					LOG_INFO("Starting background processing for task: {}", task_id);
+		thread_pool_->enqueue([this, file_processor, task_id, filepath, filename]()
+							  {
+            try {
+                LOG_INFO("Starting background processing for task: {}", task_id);
+                
+                // Use TaskManager directly for status updates
+                auto& task_manager = TaskManager::instance();
+                
+                // Initial status
+                task_manager.set_task_status(task_id, {
+                    {"task_id", task_id},
+                    {"progress", 0},
+                    {"message", "Starting file processing"},
+                    {"error", nullptr},
+                    {"complete", false},
+                    {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now().time_since_epoch()).count()}
+                });
+                
+                // Process the file
+                file_processor->process_file(task_id, filepath.string(), filename);
+                
+                LOG_INFO("Background processing completed for task: {}", task_id);
+            }
+            catch (const std::exception &e)
+            {
+                LOG_ERROR("Background processing failed for task {}: {}", task_id, e.what());
+                
+                // Error status via TaskManager
+                try {
+                    auto& task_manager = TaskManager::instance();
+                    task_manager.set_task_status(task_id, {
+                        {"task_id", task_id},
+                        {"progress", 0},
+                        {"message", "Processing failed"},
+                        {"error", e.what()},
+                        {"complete", true},
+                        {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::system_clock::now().time_since_epoch()).count()}
+                    });
+                } catch (const std::exception& db_error) {
+                    LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
+                }
+            } });
 
-					// Set initial status using the shared_ptr
-					nlohmann::json initial_status = {
-						{"task_id", task_id},
-						{"status", "processing"},
-						{"progress", 0},
-						{"message", "Starting file processing"}};
-					dragonfly_manager->set_task_status(task_id, initial_status);
-
-					// Process the file
-					file_processor->process_file(task_id, filepath.string(), filename);
-
-					LOG_INFO("Background processing completed for task: {}", task_id);
-				}
-				catch (const std::exception &e)
-				{
-					LOG_ERROR("Background processing failed for task {}: {}", task_id, e.what());
-
-					// Set error status using the shared_ptr
-					try
-					{
-						nlohmann::json error_status = {
-							{"task_id", task_id},
-							{"status", "error"},
-							{"progress", 0},
-							{"message", std::string("Processing failed: ") + e.what()}};
-						dragonfly_manager->set_task_status(task_id, error_status);
-					}
-					catch (const std::exception &redis_error)
-					{
-						LOG_ERROR("Failed to update Redis status for task {}: {}", task_id, redis_error.what());
-					}
-				}
-
-				// Remove thread from map when done - use a separate method to avoid deadlock
-				this->removeBackgroundThread(task_id);
-			});
-
-		// Now add the thread to the map with the lock held
-		std::lock_guard<std::mutex> lock(task_mutex_);
-		background_threads_[task_id] = std::move(background_thread);
-
+		LOG_INFO("Upload accepted and queued for processing, task_id: {}", task_id);
 		res.status = 202;
 		res.set_content(fmt::format(R"({{"task_id": "{}"}})", task_id), "application/json");
 	}
@@ -352,20 +406,6 @@ void WebServer::handleUpload(const httplib::Request &req, httplib::Response &res
 		LOG_ERROR("Exception in handleUpload: {}", e.what());
 		res.status = 500;
 		res.set_content(R"({"error": "Internal server error"})", "application/json");
-	}
-}
-
-void WebServer::removeBackgroundThread(const std::string &task_id)
-{
-	std::lock_guard<std::mutex> lock(task_mutex_);
-	auto it = background_threads_.find(task_id);
-	if (it != background_threads_.end())
-	{
-		if (it->second.joinable())
-		{
-			it->second.detach(); // Let the thread finish on its own
-		}
-		background_threads_.erase(it);
 	}
 }
 
@@ -568,22 +608,6 @@ bool WebServer::isApiEndpoint(const std::string &path)
 	return false;
 }
 
-void WebServer::cleanupFinishedThreads()
-{
-	std::lock_guard<std::mutex> lock(task_mutex_);
-	for (auto it = background_threads_.begin(); it != background_threads_.end();)
-	{
-		if (!it->second.joinable())
-		{
-			it = background_threads_.erase(it);
-		}
-		else
-		{
-			++it;
-		}
-	}
-}
-
 void WebServer::validateJsonDocument(const nlohmann::json &json)
 {
 	if (!json.is_object())
@@ -596,17 +620,4 @@ void WebServer::validateJsonDocument(const nlohmann::json &json)
 	{
 		throw std::runtime_error("Empty JSON object");
 	}
-}
-
-void WebServer::initializeTaskBatcher()
-{
-	task_batcher_ = std::make_unique<TaskBatcher>(50, std::chrono::milliseconds(100));
-
-	task_batcher_->set_batch_callback([this](const auto &batch)
-									  {
-        auto& task_manager = TaskManager::instance();
-        task_manager.batch_update_status(batch); });
-
-	task_batcher_->start();
-	LOG_INFO("TaskBatcher initialized with batch_size=50, timeout=100ms");
 }

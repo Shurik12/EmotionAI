@@ -34,21 +34,6 @@ MultiplexingServer::~MultiplexingServer()
 	{
 		stop();
 
-		// Stop task batcher
-		if (task_batcher_)
-		{
-			task_batcher_->stop();
-		}
-
-		// Wait for all background threads to finish
-		for (auto &[task_id, thread] : background_threads_)
-		{
-			if (thread.joinable())
-			{
-				thread.join();
-			}
-		}
-
 		if (epoll_fd_ != -1)
 		{
 			close(epoll_fd_);
@@ -60,7 +45,7 @@ MultiplexingServer::~MultiplexingServer()
 	}
 	catch (...)
 	{
-		spdlog::error("Exception during server shutdown");
+		LOG_ERROR("Exception during server shutdown");
 	}
 }
 
@@ -77,10 +62,16 @@ void MultiplexingServer::initialize()
 
 void MultiplexingServer::initializeComponents()
 {
-	LOG_INFO("Initializing DragonflyManager and FileProcessor...");
+	LOG_INFO("Initializing components for MultiplexingServer...");
 	try
 	{
-		// Create DragonflyManager as shared_ptr
+		// Create thread pool for background processing
+		// Use number of CPU cores for optimal performance
+		unsigned int num_threads = std::max(2u, std::thread::hardware_concurrency());
+		thread_pool_ = std::make_unique<ThreadPool>(num_threads);
+		LOG_INFO("ThreadPool initialized with {} threads", num_threads);
+
+		// Create DragonflyManager
 		dragonfly_manager_ = std::make_shared<DragonflyManager>();
 		dragonfly_manager_->initialize();
 		LOG_INFO("DragonflyManager initialized successfully");
@@ -90,31 +81,18 @@ void MultiplexingServer::initializeComponents()
 		task_manager.set_dragonfly_manager(dragonfly_manager_);
 		LOG_INFO("TaskManager initialized successfully");
 
-		// Pass shared_ptr to FileProcessor
+		// Create FileProcessor
 		file_processor_ = std::make_unique<FileProcessor>(dragonfly_manager_);
 		LOG_INFO("FileProcessor initialized successfully");
 
-		// Initialize task batcher for efficient status updates
-		initializeTaskBatcher();
+		// No TaskBatcher initialization needed
+		LOG_INFO("All components initialized successfully");
 	}
 	catch (const std::exception &e)
 	{
 		LOG_ERROR("Failed to initialize components: {}", e.what());
 		throw;
 	}
-}
-
-void MultiplexingServer::initializeTaskBatcher()
-{
-	task_batcher_ = std::make_unique<TaskBatcher>(50, std::chrono::milliseconds(100));
-
-	task_batcher_->set_batch_callback([this](const auto &batch)
-									  {
-		auto& task_manager = TaskManager::instance();
-		task_manager.batch_update_status(batch); });
-
-	task_batcher_->start();
-	LOG_INFO("TaskBatcher initialized with batch_size=50, timeout=100ms");
 }
 
 void MultiplexingServer::start()
@@ -336,8 +314,6 @@ void MultiplexingServer::handleEvents()
 				handleClientData(events[i].data.fd);
 			}
 		}
-
-		cleanupFinishedThreads();
 	}
 }
 
@@ -719,24 +695,24 @@ void MultiplexingServer::closeClient(int client_fd)
 
 void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &context, const std::string &body)
 {
-	LOG_INFO("Handling file upload, body size: {}", body.size());
+	LOG_INFO("Handling file upload from client {}, body size: {}", context->fd, body.size());
 
 	try
 	{
 		auto content_type_it = context->headers.find("Content-Type");
 		if (content_type_it == context->headers.end())
 		{
-			spdlog::error("No Content-Type header");
+			LOG_ERROR("No Content-Type header from client {}", context->fd);
 			sendResponse(context->fd, 400, "application/json", R"({"error": "No Content-Type header"})");
 			closeClient(context->fd);
 			return;
 		}
 
-		LOG_INFO("Content-Type: {}", content_type_it->second);
+		LOG_INFO("Content-Type from client {}: {}", context->fd, content_type_it->second);
 
 		if (content_type_it->second.find("multipart/form-data") == std::string::npos)
 		{
-			spdlog::error("Expected multipart/form-data, got: {}", content_type_it->second);
+			LOG_ERROR("Expected multipart/form-data from client {}, got: {}", context->fd, content_type_it->second);
 			sendResponse(context->fd, 400, "application/json", R"({"error": "Expected multipart form data"})");
 			closeClient(context->fd);
 			return;
@@ -745,7 +721,7 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 		std::string boundary = extractBoundary(content_type_it->second);
 		if (boundary.empty())
 		{
-			spdlog::error("Could not extract boundary from: {}", content_type_it->second);
+			LOG_ERROR("Could not extract boundary from client {}: {}", context->fd, content_type_it->second);
 			sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid multipart data"})");
 			closeClient(context->fd);
 			return;
@@ -753,19 +729,19 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 
 		auto form_data = parseMultipartFormData(body, boundary);
 
-		// Debug: log all form fields
+		// Debug: log form fields
 		for (const auto &[key, value] : form_data)
 		{
-			LOG_INFO("Form field: '{}', size: {}", key, value.size());
+			LOG_DEBUG("Form field from client {}: '{}', size: {}", context->fd, key, value.size());
 		}
 
 		auto file_it = form_data.find("file");
 		if (file_it == form_data.end())
 		{
-			spdlog::error("No 'file' field found in multipart data. Available fields:");
+			LOG_ERROR("No 'file' field found in multipart data from client {}. Available fields:", context->fd);
 			for (const auto &[key, value] : form_data)
 			{
-				spdlog::error("  Field: '{}'", key);
+				LOG_ERROR("  Field from client {}: '{}'", context->fd, key);
 			}
 			sendResponse(context->fd, 400, "application/json", R"({"error": "No file provided"})");
 			closeClient(context->fd);
@@ -775,23 +751,23 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 		const std::string &file_content = file_it->second;
 		if (file_content.empty())
 		{
-			spdlog::error("File content is empty");
+			LOG_ERROR("File content is empty from client {}", context->fd);
 			sendResponse(context->fd, 400, "application/json", R"({"error": "No file selected or empty file"})");
 			closeClient(context->fd);
 			return;
 		}
 
-		// Get filename from multipart data or use a default
+		// Get filename
 		std::string filename;
 		auto filename_it = form_data.find("filename");
 		if (filename_it != form_data.end() && !filename_it->second.empty())
 		{
 			filename = filename_it->second;
-			LOG_INFO("Using filename from multipart: {}", filename);
+			LOG_INFO("Using filename from multipart from client {}: {}", context->fd, filename);
 		}
 		else
 		{
-			// Try to extract from Content-Disposition in the body as fallback
+			// Extract from Content-Disposition as fallback
 			size_t filename_pos = body.find("filename=\"");
 			if (filename_pos != std::string::npos)
 			{
@@ -800,7 +776,7 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 				if (filename_end != std::string::npos)
 				{
 					filename = body.substr(filename_pos, filename_end - filename_pos);
-					LOG_INFO("Extracted filename from body: {}", filename);
+					LOG_INFO("Extracted filename from body for client {}: {}", context->fd, filename);
 				}
 			}
 		}
@@ -808,14 +784,15 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 		if (filename.empty())
 		{
 			filename = "uploaded_file";
-			spdlog::warn("No filename found, using default: {}", filename);
+			LOG_WARN("No filename found for client {}, using default: {}", context->fd, filename);
 		}
 
-		LOG_INFO("Processing upload: filename='{}', size={} bytes", filename, file_content.size());
+		LOG_INFO("Processing upload from client {}: filename='{}', size={} bytes",
+				 context->fd, filename, file_content.size());
 
 		if (!file_processor_ || !file_processor_->allowed_file(filename))
 		{
-			spdlog::error("File type not allowed: {}", filename);
+			LOG_ERROR("File type not allowed from client {}: {}", context->fd, filename);
 			sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid file type"})");
 			closeClient(context->fd);
 			return;
@@ -824,10 +801,10 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 		std::string task_id = DragonflyManager::generate_uuid();
 		fs::path filepath = upload_folder_ / (task_id + "_" + filename);
 
-		// Save the file with better error handling
+		// Save the file
 		try
 		{
-			LOG_INFO("Saving file to: {}", filepath.string());
+			LOG_INFO("Saving file from client {} to: {}", context->fd, filepath.string());
 			std::ofstream out_file(filepath, std::ios::binary);
 			if (!out_file)
 			{
@@ -848,92 +825,76 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 				throw std::runtime_error("File is empty");
 			}
 
-			LOG_INFO("File saved successfully: {}, size: {} bytes", filepath.string(), file_size);
+			LOG_INFO("File saved successfully from client {}: {}, size: {} bytes",
+					 context->fd, filepath.string(), file_size);
 		}
 		catch (const std::exception &e)
 		{
-			spdlog::error("Failed to save file {}: {}", filepath.string(), e.what());
+			LOG_ERROR("Failed to save file from client {} {}: {}", context->fd, filepath.string(), e.what());
 			sendResponse(context->fd, 500, "application/json", R"({"error": "Failed to save uploaded file"})");
 			closeClient(context->fd);
 			return;
 		}
 
-		// Capture shared_ptr by value to extend DragonflyManager lifetime
-		auto dragonfly_manager = dragonfly_manager_;
+		// Submit to thread pool instead of creating individual thread
 		auto *file_processor = file_processor_.get();
-		auto *task_batcher = task_batcher_.get();
 
-		// Create the thread first, then add it to the map
-		std::thread background_thread = std::thread(
-			[this, dragonfly_manager, file_processor, task_batcher, task_id, filepath, filename]()
-			{
-				try
-				{
-					LOG_INFO("Starting background processing for task: {}", task_id);
+		thread_pool_->enqueue([this, file_processor, task_id, filepath, filename]()
+							  {
+            try
+            {
+                LOG_INFO("Starting background processing for task: {}", task_id);
+                
+                // Use TaskManager directly for status updates
+                auto& task_manager = TaskManager::instance();
+                
+                // Set initial status
+                task_manager.set_task_status(task_id, {
+                    {"task_id", task_id},
+                    {"progress", 0},
+                    {"message", "Starting file processing"},
+                    {"error", nullptr},
+                    {"complete", false},
+                    {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now().time_since_epoch()).count()}
+                });
+                
+                // Process the file
+                file_processor->process_file(task_id, filepath.string(), filename);
+                
+                LOG_INFO("Background processing completed for task: {}", task_id);
+            }
+            catch (const std::exception &e)
+            {
+                LOG_ERROR("Background processing failed for task {}: {}", task_id, e.what());
+                
+                // Set error status
+                try {
+                    auto& task_manager = TaskManager::instance();
+                    task_manager.set_task_status(task_id, {
+                        {"task_id", task_id},
+                        {"progress", 0},
+                        {"message", "Processing failed"},
+                        {"error", e.what()},
+                        {"complete", true},
+                        {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::system_clock::now().time_since_epoch()).count()}
+                    });
+                } catch (const std::exception& db_error) {
+                    LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
+                }
+            } });
 
-					// Set initial status using TaskManager for immediate response
-					nlohmann::json initial_status = {
-						{"task_id", task_id},
-						{"progress", 0},
-						{"message", "Starting file processing"},
-						{"error", nullptr},
-						{"complete", false},
-						{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-										  std::chrono::system_clock::now().time_since_epoch())
-										  .count()}};
-
-					auto &task_manager = TaskManager::instance();
-					task_manager.set_task_status(task_id, initial_status);
-
-					// Process the file
-					file_processor->process_file(task_id, filepath.string(), filename);
-
-					LOG_INFO("Background processing completed for task: {}", task_id);
-				}
-				catch (const std::exception &e)
-				{
-					LOG_ERROR("Background processing failed for task {}: {}", task_id, e.what());
-
-					// Set error status using TaskManager
-					try
-					{
-						nlohmann::json error_status = {
-							{"task_id", task_id},
-							{"progress", 0},
-							{"message", "Processing failed"},
-							{"error", e.what()},
-							{"complete", true},
-							{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-											  std::chrono::system_clock::now().time_since_epoch())
-											  .count()}};
-
-						auto &task_manager = TaskManager::instance();
-						task_manager.set_task_status(task_id, error_status);
-					}
-					catch (const std::exception &db_error)
-					{
-						LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
-					}
-				}
-
-				// Remove thread from map when done
-				this->removeBackgroundThread(task_id);
-			});
-
-		// Now add the thread to the map with the lock held
-		std::lock_guard<std::mutex> lock(task_mutex_);
-		background_threads_[task_id] = std::move(background_thread);
-
-		LOG_INFO("Upload accepted, task_id: {}", task_id);
+		LOG_INFO("Upload accepted from client {}, task_id: {}", context->fd, task_id);
 		sendResponse(context->fd, 202, "application/json",
 					 fmt::format(R"({{"task_id": "{}"}})", task_id));
 
-		// Close connection after sending response
+		// Close client connection after sending response
 		closeClient(context->fd);
 	}
 	catch (const std::exception &e)
 	{
-		spdlog::error("Exception in handleUpload: {}", e.what());
+		LOG_ERROR("Exception in handleUpload from client {}: {}", context->fd, e.what());
 		sendResponse(context->fd, 500, "application/json", R"({"error": "Internal server error"})");
 		closeClient(context->fd);
 	}
@@ -1213,36 +1174,6 @@ bool MultiplexingServer::isApiEndpoint(const std::string &path)
 			return true;
 	}
 	return false;
-}
-
-void MultiplexingServer::removeBackgroundThread(const std::string &task_id)
-{
-	std::lock_guard<std::mutex> lock(task_mutex_);
-	auto it = background_threads_.find(task_id);
-	if (it != background_threads_.end())
-	{
-		if (it->second.joinable())
-		{
-			it->second.detach(); // Let the thread finish on its own
-		}
-		background_threads_.erase(it);
-	}
-}
-
-void MultiplexingServer::cleanupFinishedThreads()
-{
-	std::lock_guard<std::mutex> lock(task_mutex_);
-	for (auto it = background_threads_.begin(); it != background_threads_.end();)
-	{
-		if (!it->second.joinable())
-		{
-			it = background_threads_.erase(it);
-		}
-		else
-		{
-			++it;
-		}
-	}
 }
 
 std::string MultiplexingServer::extractBoundary(const std::string &content_type)

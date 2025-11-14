@@ -83,59 +83,70 @@ redisContext *DragonflyManager::get_connection()
 	// Thread-local connection doesn't exist or is bad, try pool
 	std::unique_lock<std::mutex> lock(connection_pool_->mutex);
 
-	// Try to get connection from pool
-	while (!connection_pool_->connections.empty())
+	// Try to get connection from pool with timeout
+	auto start_time = std::chrono::steady_clock::now();
+	auto timeout = std::chrono::seconds(5); // 5 second timeout
+
+	while (std::chrono::steady_clock::now() - start_time < timeout)
 	{
-		auto conn = std::move(connection_pool_->connections.back());
-		connection_pool_->connections.pop_back();
-		connection_pool_->in_use++;
-		lock.unlock();
-
-		if (test_connection(conn.get()))
+		// Try to get connection from pool
+		while (!connection_pool_->connections.empty())
 		{
-			// Move to thread-local storage
-			thread_connection_ = std::move(conn);
-			return thread_connection_.get();
-		}
-		else
-		{
-			// Connection is bad, try next one
-			lock.lock();
-			connection_pool_->in_use--;
-		}
-	}
+			auto conn = std::move(connection_pool_->connections.back());
+			connection_pool_->connections.pop_back();
+			connection_pool_->in_use++;
+			lock.unlock();
 
-	// No available connections in pool, create new one if under limit
-	if (connection_pool_->in_use < connection_pool_->max_pool_size)
-	{
-		connection_pool_->in_use++;
-		lock.unlock();
-
-		LOG_DEBUG("Creating new DragonflyDB connection for thread");
-		auto new_conn = create_connection();
-		if (new_conn)
-		{
-			if (test_connection(new_conn.get()))
+			if (test_connection(conn.get()))
 			{
-				thread_connection_ = std::move(new_conn);
+				// Move to thread-local storage
+				thread_connection_ = std::move(conn);
 				return thread_connection_.get();
 			}
 			else
 			{
-				LOG_WARN("Newly created DragonflyDB connection test failed");
+				// Connection is bad, try next one
+				lock.lock();
+				connection_pool_->in_use--;
 			}
 		}
 
-		// If we get here, connection creation or test failed
-		std::lock_guard<std::mutex> lock2(connection_pool_->mutex);
-		connection_pool_->in_use--;
-		LOG_ERROR("Failed to create or validate new DragonflyDB connection");
-	}
-	else
-	{
-		LOG_ERROR("DragonflyDB connection pool exhausted (max: {})", connection_pool_->max_pool_size);
+		// No available connections in pool, create new one if under limit
+		if (connection_pool_->in_use < connection_pool_->max_pool_size)
+		{
+			connection_pool_->in_use++;
+			lock.unlock();
+
+			LOG_DEBUG("Creating new DragonflyDB connection for thread");
+			auto new_conn = create_connection();
+			if (new_conn)
+			{
+				if (test_connection(new_conn.get()))
+				{
+					thread_connection_ = std::move(new_conn);
+					return thread_connection_.get();
+				}
+				else
+				{
+					LOG_WARN("Newly created DragonflyDB connection test failed");
+				}
+			}
+
+			// If we get here, connection creation or test failed
+			std::lock_guard<std::mutex> lock2(connection_pool_->mutex);
+			connection_pool_->in_use--;
+		}
+
+		// Wait a bit before retrying
+		lock.lock();
+		if (connection_pool_->cv.wait_for(lock, std::chrono::milliseconds(100), [this]()
+										  { return !connection_pool_->connections.empty() || connection_pool_->in_use < connection_pool_->max_pool_size; }))
+		{
+			continue; // Retry if condition met
+		}
 	}
 
+	LOG_ERROR("DragonflyDB connection pool timeout after 5 seconds");
 	return nullptr;
 }
 
