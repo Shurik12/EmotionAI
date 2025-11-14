@@ -18,11 +18,7 @@
 #include <server/IServer.h>
 #include <db/DragonflyManager.h>
 #include <db/TaskBatcher.h>
-
-namespace EmotionAI
-{
-	class FileProcessor;
-}
+#include <emotionai/FileProcessor.h>
 
 class MultiplexingServer : public IServer
 {
@@ -53,7 +49,7 @@ private:
 	int epoll_fd_;
 	bool running_;
 	std::shared_ptr<DragonflyManager> dragonfly_manager_;
-	std::unique_ptr<EmotionAI::FileProcessor> file_processor_;
+	std::unique_ptr<FileProcessor> file_processor_;
 	std::unique_ptr<TaskBatcher> task_batcher_;
 	std::filesystem::path static_files_root_;
 	std::filesystem::path upload_folder_;

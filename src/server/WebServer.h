@@ -13,6 +13,7 @@
 #include <nlohmann/json.hpp>
 #include <server/IServer.h>
 #include <db/DragonflyManager.h>
+#include <emotionai/FileProcessor.h>
 #include <db/TaskBatcher.h>
 
 namespace EmotionAI
@@ -33,7 +34,7 @@ public:
 private:
 	httplib::Server svr_;
 	std::shared_ptr<DragonflyManager> dragonfly_manager_;
-	std::unique_ptr<EmotionAI::FileProcessor> file_processor_;
+	std::unique_ptr<FileProcessor> file_processor_;
 	std::filesystem::path static_files_root_;
 	std::filesystem::path upload_folder_;
 	std::filesystem::path results_folder_;

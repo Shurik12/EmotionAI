@@ -95,7 +95,7 @@ void WebServer::initializeComponents()
 		LOG_INFO("TaskManager initialized successfully");
 
 		// Pass shared_ptr to FileProcessor
-		file_processor_ = std::make_unique<EmotionAI::FileProcessor>(dragonfly_manager_);
+		file_processor_ = std::make_unique<FileProcessor>(dragonfly_manager_);
 		LOG_INFO("FileProcessor initialized successfully");
 
 		// Initialize task batcher
