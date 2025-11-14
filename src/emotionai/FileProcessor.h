@@ -10,7 +10,7 @@
 // Forward declaration to avoid circular dependency
 namespace db
 {
-	class RedisManager;
+	class DragonflyManager;
 }
 
 namespace EmotionAI
@@ -23,7 +23,7 @@ namespace EmotionAI
 	class FileProcessor
 	{
 	public:
-		explicit FileProcessor(std::shared_ptr<db::RedisManager> redis_manager);
+		explicit FileProcessor(std::shared_ptr<DragonflyManager> dragonfly_manager);
 		~FileProcessor();
 
 		FileProcessor(const FileProcessor &) = delete;
@@ -41,17 +41,16 @@ namespace EmotionAI
 		void process_video_realtime(const std::string &task_id, const std::string &filepath, const std::string &filename);
 
 	private:
-		std::shared_ptr<db::RedisManager> redis_manager_;
+		std::shared_ptr<DragonflyManager> dragonfly_manager_;
 
-		// Emotion recognition model (now shared with Image class)
 		std::unique_ptr<EmotiEffLib::EmotiEffLibRecognizer> fer_;
 		bool model_loaded_;
 		std::mutex model_mutex_;
 
 		void cleanup_file(const std::string &filepath);
 		std::pair<cv::Mat, nlohmann::json> process_image(const cv::Mat &image);
-		void process_image_file(const std::string &task_id, const std::string &filepath, const std::string &filename);
-		void process_video_file(const std::string &task_id, const std::string &filepath, const std::string &filename);
+		nlohmann::json process_image_file(const std::string &task_id, const std::string &filepath, const std::string &filename);
+		nlohmann::json process_video_file(const std::string &task_id, const std::string &filepath, const std::string &filename);
 
 		// Helper functions
 		void initialize_models();

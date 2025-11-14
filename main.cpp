@@ -29,7 +29,7 @@ int main()
 		std::cout << "Starting EmotionAI Server..." << std::endl;
 
 		// Initialize configuration first
-		auto &config = Common::Config::instance();
+		auto &config = Config::instance();
 		if (!config.loadFromFile("config.yaml"))
 		{
 			std::cerr << "Warning: Failed to load config, using defaults" << std::endl;
