@@ -1,3 +1,4 @@
+// File: MultiplexingServer.cpp (refactored)
 #include <filesystem>
 #include <fstream>
 #include <vector>
@@ -23,8 +24,7 @@ namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 MultiplexingServer::MultiplexingServer()
-	: server_fd_(-1), epoll_fd_(-1), running_(false),
-	  dragonfly_manager_(nullptr), file_processor_(nullptr)
+	: server_fd_(-1), epoll_fd_(-1), running_(false)
 {
 }
 
@@ -60,41 +60,6 @@ void MultiplexingServer::initialize()
 	setupEpoll();
 }
 
-void MultiplexingServer::initializeComponents()
-{
-	LOG_INFO("Initializing components for MultiplexingServer...");
-	try
-	{
-		// Create thread pool for background processing
-		// Use number of CPU cores for optimal performance
-		unsigned int num_threads = std::max(2u, std::thread::hardware_concurrency());
-		thread_pool_ = std::make_unique<ThreadPool>(num_threads);
-		LOG_INFO("ThreadPool initialized with {} threads", num_threads);
-
-		// Create DragonflyManager
-		dragonfly_manager_ = std::make_shared<DragonflyManager>();
-		dragonfly_manager_->initialize();
-		LOG_INFO("DragonflyManager initialized successfully");
-
-		// Initialize TaskManager with DragonflyManager
-		auto &task_manager = TaskManager::instance();
-		task_manager.set_dragonfly_manager(dragonfly_manager_);
-		LOG_INFO("TaskManager initialized successfully");
-
-		// Create FileProcessor
-		file_processor_ = std::make_unique<FileProcessor>(dragonfly_manager_);
-		LOG_INFO("FileProcessor initialized successfully");
-
-		// No TaskBatcher initialization needed
-		LOG_INFO("All components initialized successfully");
-	}
-	catch (const std::exception &e)
-	{
-		LOG_ERROR("Failed to initialize components: {}", e.what());
-		throw;
-	}
-}
-
 void MultiplexingServer::start()
 {
 	auto &config = Config::instance();
@@ -119,33 +84,6 @@ void MultiplexingServer::stop() noexcept
 	}
 }
 
-// duplication
-void MultiplexingServer::loadConfiguration()
-{
-	auto &config = Config::instance();
-	log_folder_ = config.paths().logs;
-	static_files_root_ = config.paths().frontend;
-	upload_folder_ = config.paths().upload;
-	results_folder_ = config.paths().results;
-}
-
-void MultiplexingServer::ensureDirectoriesExist()
-{
-	try
-	{
-		fs::create_directories(upload_folder_);
-		fs::create_directories(results_folder_);
-		fs::create_directories(static_files_root_);
-		LOG_INFO("Directories ensured: upload={}, results={}, static={}",
-				 upload_folder_.string(), results_folder_.string(), static_files_root_.string());
-	}
-	catch (const std::exception &e)
-	{
-		spdlog::error("Failed to create directories: {}", e.what());
-		throw;
-	}
-}
-
 void MultiplexingServer::setupRoutes()
 {
 	// POST routes
@@ -164,7 +102,12 @@ void MultiplexingServer::setupRoutes()
 		handleSubmitApplication(context, body);
 	};
 
-	// GET routes - only exact matches now
+	post_routes_["/api/batch_progress"] = [this](const std::shared_ptr<ClientContext> &context, const std::string &body)
+	{
+		handleBatchProgress(context, body);
+	};
+
+	// GET routes
 	get_routes_["/api/progress"] = [this](const std::shared_ptr<ClientContext> &context)
 	{
 		handleProgress(context);
@@ -293,7 +236,7 @@ void MultiplexingServer::handleEvents()
 
 	while (running_)
 	{
-		int num_events = epoll_wait(epoll_fd_, events, MAX_EVENTS, 100); // 100ms timeout
+		int num_events = epoll_wait(epoll_fd_, events, MAX_EVENTS, 100);
 
 		if (num_events == -1)
 		{
@@ -333,7 +276,7 @@ void MultiplexingServer::acceptNewConnection()
 	clients_[client_fd] = context;
 
 	struct epoll_event event;
-	event.events = EPOLLIN | EPOLLET; // Edge-triggered
+	event.events = EPOLLIN | EPOLLET;
 	event.data.fd = client_fd;
 
 	if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, client_fd, &event) == -1)
@@ -365,7 +308,6 @@ void MultiplexingServer::handleClientData(int client_fd)
 		{
 			if (errno == EAGAIN || errno == EWOULDBLOCK)
 			{
-				// No more data to read
 				break;
 			}
 			else
@@ -377,7 +319,6 @@ void MultiplexingServer::handleClientData(int client_fd)
 		}
 		else if (bytes_read == 0)
 		{
-			// Client disconnected
 			closeClient(client_fd);
 			return;
 		}
@@ -386,17 +327,14 @@ void MultiplexingServer::handleClientData(int client_fd)
 			buffer[bytes_read] = '\0';
 			context->buffer.append(buffer, bytes_read);
 
-			// Parse HTTP request if headers are not complete
 			if (!context->headers_complete)
 			{
 				parseHttpRequest(context);
 			}
 
-			// If headers are complete and we have the full body, process the request
 			if (context->headers_complete && context->buffer.length() >= context->content_length)
 			{
 				processRequest(context);
-				// DON'T close client here - let the response be sent first
 				break;
 			}
 		}
@@ -408,24 +346,20 @@ void MultiplexingServer::parseHttpRequest(const std::shared_ptr<ClientContext> &
 	size_t header_end = context->buffer.find("\r\n\r\n");
 	if (header_end == std::string::npos)
 	{
-		return; // Headers not complete yet
+		return;
 	}
 
 	std::string headers_str = context->buffer.substr(0, header_end);
 	std::istringstream headers_stream(headers_str);
 	std::string line;
 
-	// Parse request line
 	if (std::getline(headers_stream, line))
 	{
 		std::istringstream request_line(line);
 		request_line >> context->method >> context->path;
-
-		// Convert method to uppercase
 		std::transform(context->method.begin(), context->method.end(), context->method.begin(), ::toupper);
 	}
 
-	// Parse headers
 	while (std::getline(headers_stream, line))
 	{
 		if (line.back() == '\r')
@@ -438,21 +372,18 @@ void MultiplexingServer::parseHttpRequest(const std::shared_ptr<ClientContext> &
 		{
 			std::string key = line.substr(0, colon_pos);
 			std::string value = line.substr(colon_pos + 1);
-			// Trim whitespace
 			value.erase(0, value.find_first_not_of(" \t"));
 			value.erase(value.find_last_not_of(" \t") + 1);
 			context->headers[key] = value;
 		}
 	}
 
-	// Extract content length
 	auto content_length_it = context->headers.find("Content-Length");
 	if (content_length_it != context->headers.end())
 	{
 		context->content_length = std::stoul(content_length_it->second);
 	}
 
-	// Extract query parameters
 	size_t query_pos = context->path.find('?');
 	if (query_pos != std::string::npos)
 	{
@@ -474,7 +405,7 @@ void MultiplexingServer::parseHttpRequest(const std::shared_ptr<ClientContext> &
 	}
 
 	context->headers_complete = true;
-	context->buffer = context->buffer.substr(header_end + 4); // Remove headers from buffer
+	context->buffer = context->buffer.substr(header_end + 4);
 }
 
 void MultiplexingServer::processRequest(const std::shared_ptr<ClientContext> &context)
@@ -485,7 +416,6 @@ void MultiplexingServer::processRequest(const std::shared_ptr<ClientContext> &co
 	{
 		if (context->method == "OPTIONS")
 		{
-			// Handle preflight requests
 			auto it = options_routes_.find(context->path);
 			if (it != options_routes_.end())
 			{
@@ -512,7 +442,6 @@ void MultiplexingServer::processRequest(const std::shared_ptr<ClientContext> &co
 		}
 		else if (context->method == "GET")
 		{
-			// Handle parameterized routes FIRST (before exact matches)
 			if (context->path.find("/static/") == 0)
 			{
 				context->params["filename"] = context->path.substr(8);
@@ -537,7 +466,6 @@ void MultiplexingServer::processRequest(const std::shared_ptr<ClientContext> &co
 				return;
 			}
 
-			// THEN try exact route matches from setupRoutes()
 			auto it = get_routes_.find(context->path);
 			if (it != get_routes_.end())
 			{
@@ -545,7 +473,6 @@ void MultiplexingServer::processRequest(const std::shared_ptr<ClientContext> &co
 				return;
 			}
 
-			// Finally, fall back to React routing for non-API paths
 			if (!isApiEndpoint(context->path))
 			{
 				handleServeReactFile(context);
@@ -597,8 +524,6 @@ void MultiplexingServer::sendResponse(int client_fd, int status_code, const std:
 		break;
 	}
 
-	// For now, we'll always close connections after response
-	// In the future, you could implement keep-alive based on headers
 	std::string response = fmt::format(
 		"HTTP/1.1 {} {}\r\n"
 		"Content-Type: {}\r\n"
@@ -622,7 +547,7 @@ void MultiplexingServer::sendResponse(int client_fd, int status_code, const std:
 	}
 }
 
-void MultiplexingServer::sendFileResponse(int client_fd, const std::filesystem::path &file_path)
+void MultiplexingServer::sendFileResponse(int client_fd, const fs::path &file_path)
 {
 	std::ifstream file(file_path, std::ios::binary | std::ios::ate);
 	if (!file)
@@ -655,32 +580,6 @@ void MultiplexingServer::sendFileResponse(int client_fd, const std::filesystem::
 	send(client_fd, buffer.data(), size, 0);
 }
 
-std::string MultiplexingServer::getMimeType(const std::string &filename)
-{
-	size_t dot_pos = filename.rfind('.');
-	if (dot_pos == std::string::npos)
-		return "application/octet-stream";
-
-	std::string ext = filename.substr(dot_pos + 1);
-	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-
-	static std::map<std::string, std::string> mime_types = {
-		{"html", "text/html"},
-		{"css", "text/css"},
-		{"js", "application/javascript"},
-		{"json", "application/json"},
-		{"png", "image/png"},
-		{"jpg", "image/jpeg"},
-		{"jpeg", "image/jpeg"},
-		{"gif", "image/gif"},
-		{"svg", "image/svg+xml"},
-		{"pdf", "application/pdf"},
-		{"txt", "text/plain"}};
-
-	auto it = mime_types.find(ext);
-	return it != mime_types.end() ? it->second : "application/octet-stream";
-}
-
 void MultiplexingServer::closeClient(int client_fd)
 {
 	auto it = clients_.find(client_fd);
@@ -695,24 +594,18 @@ void MultiplexingServer::closeClient(int client_fd)
 
 void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &context, const std::string &body)
 {
-	LOG_INFO("Handling file upload from client {}, body size: {}", context->fd, body.size());
-
 	try
 	{
 		auto content_type_it = context->headers.find("Content-Type");
 		if (content_type_it == context->headers.end())
 		{
-			LOG_ERROR("No Content-Type header from client {}", context->fd);
 			sendResponse(context->fd, 400, "application/json", R"({"error": "No Content-Type header"})");
 			closeClient(context->fd);
 			return;
 		}
 
-		LOG_INFO("Content-Type from client {}: {}", context->fd, content_type_it->second);
-
 		if (content_type_it->second.find("multipart/form-data") == std::string::npos)
 		{
-			LOG_ERROR("Expected multipart/form-data from client {}, got: {}", context->fd, content_type_it->second);
 			sendResponse(context->fd, 400, "application/json", R"({"error": "Expected multipart form data"})");
 			closeClient(context->fd);
 			return;
@@ -721,28 +614,15 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 		std::string boundary = extractBoundary(content_type_it->second);
 		if (boundary.empty())
 		{
-			LOG_ERROR("Could not extract boundary from client {}: {}", context->fd, content_type_it->second);
 			sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid multipart data"})");
 			closeClient(context->fd);
 			return;
 		}
 
 		auto form_data = parseMultipartFormData(body, boundary);
-
-		// Debug: log form fields
-		for (const auto &[key, value] : form_data)
-		{
-			LOG_DEBUG("Form field from client {}: '{}', size: {}", context->fd, key, value.size());
-		}
-
 		auto file_it = form_data.find("file");
 		if (file_it == form_data.end())
 		{
-			LOG_ERROR("No 'file' field found in multipart data from client {}. Available fields:", context->fd);
-			for (const auto &[key, value] : form_data)
-			{
-				LOG_ERROR("  Field from client {}: '{}'", context->fd, key);
-			}
 			sendResponse(context->fd, 400, "application/json", R"({"error": "No file provided"})");
 			closeClient(context->fd);
 			return;
@@ -751,23 +631,19 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 		const std::string &file_content = file_it->second;
 		if (file_content.empty())
 		{
-			LOG_ERROR("File content is empty from client {}", context->fd);
 			sendResponse(context->fd, 400, "application/json", R"({"error": "No file selected or empty file"})");
 			closeClient(context->fd);
 			return;
 		}
 
-		// Get filename
 		std::string filename;
 		auto filename_it = form_data.find("filename");
 		if (filename_it != form_data.end() && !filename_it->second.empty())
 		{
 			filename = filename_it->second;
-			LOG_INFO("Using filename from multipart from client {}: {}", context->fd, filename);
 		}
 		else
 		{
-			// Extract from Content-Disposition as fallback
 			size_t filename_pos = body.find("filename=\"");
 			if (filename_pos != std::string::npos)
 			{
@@ -776,7 +652,6 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 				if (filename_end != std::string::npos)
 				{
 					filename = body.substr(filename_pos, filename_end - filename_pos);
-					LOG_INFO("Extracted filename from body for client {}: {}", context->fd, filename);
 				}
 			}
 		}
@@ -784,112 +659,22 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 		if (filename.empty())
 		{
 			filename = "uploaded_file";
-			LOG_WARN("No filename found for client {}, using default: {}", context->fd, filename);
 		}
-
-		LOG_INFO("Processing upload from client {}: filename='{}', size={} bytes",
-				 context->fd, filename, file_content.size());
 
 		if (!file_processor_ || !file_processor_->allowed_file(filename))
 		{
-			LOG_ERROR("File type not allowed from client {}: {}", context->fd, filename);
 			sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid file type"})");
 			closeClient(context->fd);
 			return;
 		}
 
-		std::string task_id = DragonflyManager::generate_uuid();
-		fs::path filepath = upload_folder_ / (task_id + "_" + filename);
-
-		// Save the file
-		try
-		{
-			LOG_INFO("Saving file from client {} to: {}", context->fd, filepath.string());
-			std::ofstream out_file(filepath, std::ios::binary);
-			if (!out_file)
-			{
-				throw std::runtime_error("Failed to create file: " + filepath.string());
-			}
-			out_file.write(file_content.data(), file_content.size());
-			out_file.close();
-
-			// Verify file was written
-			if (!fs::exists(filepath))
-			{
-				throw std::runtime_error("File was not created");
-			}
-
-			auto file_size = fs::file_size(filepath);
-			if (file_size == 0)
-			{
-				throw std::runtime_error("File is empty");
-			}
-
-			LOG_INFO("File saved successfully from client {}: {}, size: {} bytes",
-					 context->fd, filepath.string(), file_size);
-		}
-		catch (const std::exception &e)
-		{
-			LOG_ERROR("Failed to save file from client {} {}: {}", context->fd, filepath.string(), e.what());
-			sendResponse(context->fd, 500, "application/json", R"({"error": "Failed to save uploaded file"})");
-			closeClient(context->fd);
-			return;
-		}
-
-		// Submit to thread pool instead of creating individual thread
-		auto *file_processor = file_processor_.get();
-
-		thread_pool_->enqueue([this, file_processor, task_id, filepath, filename]()
-							  {
-            try
-            {
-                LOG_INFO("Starting background processing for task: {}", task_id);
-                
-                // Use TaskManager directly for status updates
-                auto& task_manager = TaskManager::instance();
-                
-                // Set initial status
-                task_manager.set_task_status(task_id, {
-                    {"task_id", task_id},
-                    {"progress", 0},
-                    {"message", "Starting file processing"},
-                    {"error", nullptr},
-                    {"complete", false},
-                    {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-                        std::chrono::system_clock::now().time_since_epoch()).count()}
-                });
-                
-                // Process the file
-                file_processor->process_file(task_id, filepath.string(), filename);
-                
-                LOG_INFO("Background processing completed for task: {}", task_id);
-            }
-            catch (const std::exception &e)
-            {
-                LOG_ERROR("Background processing failed for task {}: {}", task_id, e.what());
-                
-                // Set error status
-                try {
-                    auto& task_manager = TaskManager::instance();
-                    task_manager.set_task_status(task_id, {
-                        {"task_id", task_id},
-                        {"progress", 0},
-                        {"message", "Processing failed"},
-                        {"error", e.what()},
-                        {"complete", true},
-                        {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::system_clock::now().time_since_epoch()).count()}
-                    });
-                } catch (const std::exception& db_error) {
-                    LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
-                }
-            } });
+		// Use the common upload handler and get the task_id
+		std::string task_id = handleUploadCommon(file_content, filename, false);
 
 		LOG_INFO("Upload accepted from client {}, task_id: {}", context->fd, task_id);
 		sendResponse(context->fd, 202, "application/json",
 					 fmt::format(R"({{"task_id": "{}"}})", task_id));
 
-		// Close client connection after sending response
 		closeClient(context->fd);
 	}
 	catch (const std::exception &e)
@@ -902,9 +687,95 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 
 void MultiplexingServer::handleUploadRealtime(const std::shared_ptr<ClientContext> &context, const std::string &body)
 {
-	// Similar to handleUpload but calls process_video_realtime
-	// Implementation would be very similar to handleUpload
-	handleUpload(context, body); // Simplified for example
+	try
+	{
+		auto content_type_it = context->headers.find("Content-Type");
+		if (content_type_it == context->headers.end())
+		{
+			sendResponse(context->fd, 400, "application/json", R"({"error": "No Content-Type header"})");
+			closeClient(context->fd);
+			return;
+		}
+
+		if (content_type_it->second.find("multipart/form-data") == std::string::npos)
+		{
+			sendResponse(context->fd, 400, "application/json", R"({"error": "Expected multipart form data"})");
+			closeClient(context->fd);
+			return;
+		}
+
+		std::string boundary = extractBoundary(content_type_it->second);
+		if (boundary.empty())
+		{
+			sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid multipart data"})");
+			closeClient(context->fd);
+			return;
+		}
+
+		auto form_data = parseMultipartFormData(body, boundary);
+		auto file_it = form_data.find("file");
+		if (file_it == form_data.end())
+		{
+			sendResponse(context->fd, 400, "application/json", R"({"error": "No file provided"})");
+			closeClient(context->fd);
+			return;
+		}
+
+		const std::string &file_content = file_it->second;
+		if (file_content.empty())
+		{
+			sendResponse(context->fd, 400, "application/json", R"({"error": "No file selected or empty file"})");
+			closeClient(context->fd);
+			return;
+		}
+
+		std::string filename;
+		auto filename_it = form_data.find("filename");
+		if (filename_it != form_data.end() && !filename_it->second.empty())
+		{
+			filename = filename_it->second;
+		}
+		else
+		{
+			size_t filename_pos = body.find("filename=\"");
+			if (filename_pos != std::string::npos)
+			{
+				filename_pos += 10;
+				size_t filename_end = body.find("\"", filename_pos);
+				if (filename_end != std::string::npos)
+				{
+					filename = body.substr(filename_pos, filename_end - filename_pos);
+				}
+			}
+		}
+
+		if (filename.empty())
+		{
+			filename = "uploaded_file";
+		}
+
+		if (!file_processor_ || !file_processor_->allowed_file(filename))
+		{
+			sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid file type"})");
+			closeClient(context->fd);
+			return;
+		}
+
+		// Use the common upload handler with realtime flag and get the task_id
+		std::string task_id = handleUploadCommon(file_content, filename, true);
+
+		LOG_INFO("Real-time upload accepted from client {}, task_id: {}", context->fd, task_id);
+		sendResponse(context->fd, 202, "application/json",
+					 fmt::format(R"({{"task_id": "{}", "mode": "realtime"}})", task_id));
+
+		closeClient(context->fd);
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Exception in real-time upload from client {}: {}", context->fd, e.what());
+		sendResponse(context->fd, 500, "application/json", R"({"error": "Internal server error"})");
+		closeClient(context->fd);
+	}
 }
 
 void MultiplexingServer::handleProgress(const std::shared_ptr<ClientContext> &context)
@@ -913,7 +784,6 @@ void MultiplexingServer::handleProgress(const std::shared_ptr<ClientContext> &co
 	{
 		std::string task_id;
 
-		// Check if task_id is in params (from parameterized route) or query string
 		auto task_id_it = context->params.find("task_id");
 		if (task_id_it != context->params.end())
 		{
@@ -921,7 +791,6 @@ void MultiplexingServer::handleProgress(const std::shared_ptr<ClientContext> &co
 		}
 		else
 		{
-			// Check query parameters
 			auto query_it = context->params.find("task_id");
 			if (query_it != context->params.end())
 			{
@@ -935,7 +804,6 @@ void MultiplexingServer::handleProgress(const std::shared_ptr<ClientContext> &co
 			return;
 		}
 
-		// Use TaskManager with caching instead of direct DragonflyDB access
 		auto &task_manager = TaskManager::instance();
 		auto status = task_manager.get_task_status(task_id);
 
@@ -980,7 +848,6 @@ void MultiplexingServer::handleBatchProgress(const std::shared_ptr<ClientContext
 			return;
 		}
 
-		// Use TaskManager for efficient batch retrieval
 		auto &task_manager = TaskManager::instance();
 		auto results = task_manager.batch_get_status(task_ids);
 
@@ -1008,33 +875,14 @@ void MultiplexingServer::handleSubmitApplication(const std::shared_ptr<ClientCon
 {
 	try
 	{
-		if (!dragonfly_manager_)
-		{
-			sendResponse(context->fd, 500, "application/json", R"({"error": "Server not properly initialized"})");
-			return;
-		}
+		std::string application_id = handleSubmitApplicationCommon(body);
 
-		json application_data;
-		try
-		{
-			application_data = json::parse(body);
-			validateJsonDocument(application_data);
-		}
-		catch (const json::parse_error &e)
-		{
-			sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid JSON"})");
-			return;
-		}
-		catch (const std::exception &e)
-		{
-			sendResponse(context->fd, 400, "application/json",
-						 fmt::format(R"({{"error": "{}"}})", e.what()));
-			return;
-		}
-
-		std::string application_id = dragonfly_manager_->save_application(application_data.dump());
 		sendResponse(context->fd, 201, "application/json",
 					 fmt::format(R"({{"application_id": "{}"}})", application_id));
+	}
+	catch (const json::parse_error &e)
+	{
+		sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid JSON"})");
 	}
 	catch (const std::exception &e)
 	{
@@ -1161,229 +1009,4 @@ void MultiplexingServer::handleRoot(const std::shared_ptr<ClientContext> &contex
 void MultiplexingServer::handleOptions(const std::shared_ptr<ClientContext> &context)
 {
 	sendResponse(context->fd, 200, "application/json", R"({"status": "ok"})");
-}
-
-// Helper functions
-
-bool MultiplexingServer::isApiEndpoint(const std::string &path)
-{
-	static const std::set<std::string> apiPrefixes = {"/api/", "/static/"};
-	for (const auto &prefix : apiPrefixes)
-	{
-		if (path.find(prefix) == 0)
-			return true;
-	}
-	return false;
-}
-
-std::string MultiplexingServer::extractBoundary(const std::string &content_type)
-{
-	size_t boundary_pos = content_type.find("boundary=");
-	if (boundary_pos == std::string::npos)
-	{
-		spdlog::error("No boundary found in Content-Type: {}", content_type);
-		return "";
-	}
-
-	boundary_pos += 9; // Length of "boundary="
-
-	// Extract the boundary value
-	std::string boundary;
-	if (boundary_pos < content_type.length())
-	{
-		if (content_type[boundary_pos] == '"')
-		{
-			// Quoted boundary
-			boundary_pos++;
-			size_t end_quote = content_type.find('"', boundary_pos);
-			if (end_quote != std::string::npos)
-			{
-				boundary = content_type.substr(boundary_pos, end_quote - boundary_pos);
-			}
-		}
-		else
-		{
-			// Unquoted boundary
-			size_t end_pos = content_type.find(';', boundary_pos);
-			if (end_pos == std::string::npos)
-			{
-				boundary = content_type.substr(boundary_pos);
-			}
-			else
-			{
-				boundary = content_type.substr(boundary_pos, end_pos - boundary_pos);
-			}
-		}
-	}
-
-	// Trim whitespace
-	boundary.erase(0, boundary.find_first_not_of(" \t"));
-	boundary.erase(boundary.find_last_not_of(" \t") + 1);
-
-	spdlog::debug("Extracted boundary: '{}'", boundary);
-	return "--" + boundary;
-}
-
-std::map<std::string, std::string> MultiplexingServer::parseMultipartFormData(const std::string &body, const std::string &boundary)
-{
-	std::map<std::string, std::string> result;
-
-	if (body.empty() || boundary.empty())
-	{
-		spdlog::error("Empty body or boundary in multipart data");
-		return result;
-	}
-
-	spdlog::debug("Parsing multipart data, body size: {}, boundary: '{}'", body.size(), boundary);
-
-	size_t pos = 0;
-
-	// Find first boundary
-	size_t boundary_pos = body.find(boundary);
-	if (boundary_pos == std::string::npos)
-	{
-		spdlog::error("First boundary not found");
-		return result;
-	}
-
-	pos = boundary_pos + boundary.length();
-
-	while (pos < body.length())
-	{
-		// Skip CRLF after boundary
-		if (pos + 2 <= body.length() && body.substr(pos, 2) == "\r\n")
-		{
-			pos += 2;
-		}
-		else if (pos + 2 <= body.length() && body.substr(pos, 2) == "--")
-		{
-			// End of multipart data
-			break;
-		}
-
-		// Parse headers
-		size_t headers_end = body.find("\r\n\r\n", pos);
-		if (headers_end == std::string::npos)
-		{
-			spdlog::error("Headers end not found");
-			break;
-		}
-
-		std::string headers_str = body.substr(pos, headers_end - pos);
-		pos = headers_end + 4; // Skip \r\n\r\n
-
-		// Parse headers to get field name and filename
-		std::string field_name;
-		std::string filename;
-
-		std::istringstream headers_stream(headers_str);
-		std::string header_line;
-		while (std::getline(headers_stream, header_line))
-		{
-			if (header_line.back() == '\r')
-				header_line.pop_back();
-
-			if (header_line.find("Content-Disposition:") == 0)
-			{
-				// Parse Content-Disposition header
-				size_t name_pos = header_line.find("name=\"");
-				if (name_pos != std::string::npos)
-				{
-					name_pos += 6;
-					size_t name_end = header_line.find("\"", name_pos);
-					if (name_end != std::string::npos)
-					{
-						field_name = header_line.substr(name_pos, name_end - name_pos);
-					}
-				}
-
-				size_t filename_pos = header_line.find("filename=\"");
-				if (filename_pos != std::string::npos)
-				{
-					filename_pos += 10;
-					size_t filename_end = header_line.find("\"", filename_pos);
-					if (filename_end != std::string::npos)
-					{
-						filename = header_line.substr(filename_pos, filename_end - filename_pos);
-					}
-				}
-			}
-		}
-
-		// Find next boundary
-		size_t next_boundary = body.find(boundary, pos);
-		if (next_boundary == std::string::npos)
-		{
-			// Last part - read until end (but remove trailing -- if present)
-			size_t data_end = body.length();
-			if (data_end >= 2 && body.substr(data_end - 2) == "--")
-			{
-				data_end -= 2;
-			}
-			// Also remove trailing CRLF if present
-			if (data_end >= 2 && body.substr(data_end - 2, 2) == "\r\n")
-			{
-				data_end -= 2;
-			}
-
-			if (!field_name.empty() && data_end > pos)
-			{
-				std::string field_data = body.substr(pos, data_end - pos);
-				result[field_name] = field_data;
-				if (!filename.empty())
-				{
-					result["filename"] = filename;
-				}
-				spdlog::debug("Found field '{}' with data size: {}", field_name, field_data.size());
-			}
-			break;
-		}
-
-		// Extract data between current position and next boundary
-		// Remove trailing CRLF before the boundary
-		size_t data_end = next_boundary;
-		if (data_end >= 2 && body.substr(data_end - 2, 2) == "\r\n")
-		{
-			data_end -= 2;
-		}
-
-		if (!field_name.empty() && data_end > pos)
-		{
-			std::string field_data = body.substr(pos, data_end - pos);
-			result[field_name] = field_data;
-			if (!filename.empty())
-			{
-				result["filename"] = filename;
-			}
-			spdlog::debug("Found field '{}' with data size: {}", field_name, field_data.size());
-		}
-
-		pos = next_boundary + boundary.length();
-
-		// Check for final boundary
-		if (pos + 2 <= body.length() && body.substr(pos, 2) == "--")
-		{
-			break;
-		}
-	}
-
-	LOG_INFO("Parsed {} multipart fields", result.size());
-	for (const auto &[key, value] : result)
-	{
-		LOG_INFO("  Field: '{}', data size: {}", key, value.size());
-	}
-
-	return result;
-}
-
-void MultiplexingServer::validateJsonDocument(const nlohmann::json &json)
-{
-	if (!json.is_object())
-	{
-		throw std::runtime_error("Expected JSON object");
-	}
-	if (json.empty())
-	{
-		throw std::runtime_error("Empty JSON object");
-	}
 }

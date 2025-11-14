@@ -1,3 +1,4 @@
+// File: WebServer.cpp (refactored)
 #include <filesystem>
 #include <fstream>
 #include <vector>
@@ -20,11 +21,7 @@
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
-WebServer::WebServer()
-	: dragonfly_manager_(nullptr),
-	  file_processor_(nullptr)
-{
-}
+WebServer::WebServer() = default;
 
 WebServer::~WebServer()
 {
@@ -45,36 +42,6 @@ void WebServer::initialize()
 	ensureDirectoriesExist();
 	initializeComponents();
 	setupRoutes();
-}
-
-void WebServer::initializeComponents()
-{
-	LOG_INFO("Initializing components...");
-	try
-	{
-		// Create thread pool first
-		thread_pool_ = std::make_unique<ThreadPool>(4);
-		LOG_INFO("ThreadPool initialized with 4 threads");
-
-		// Create DragonflyManager
-		dragonfly_manager_ = std::make_shared<DragonflyManager>();
-		dragonfly_manager_->initialize();
-		LOG_INFO("DragonflyManager initialized successfully");
-
-		// Initialize TaskManager
-		auto &task_manager = TaskManager::instance();
-		task_manager.set_dragonfly_manager(dragonfly_manager_);
-		LOG_INFO("TaskManager initialized successfully");
-
-		// Create FileProcessor
-		file_processor_ = std::make_unique<FileProcessor>(dragonfly_manager_);
-		LOG_INFO("FileProcessor initialized successfully");
-	}
-	catch (const std::exception &e)
-	{
-		LOG_ERROR("Failed to initialize components: {}", e.what());
-		throw;
-	}
 }
 
 void WebServer::start()
@@ -105,170 +72,17 @@ void WebServer::stop() noexcept
 	}
 }
 
-// duplication
-void WebServer::loadConfiguration()
-{
-	auto &config = Config::instance();
-	log_folder_ = config.paths().logs;
-	static_files_root_ = config.paths().frontend;
-	upload_folder_ = config.paths().upload;
-	results_folder_ = config.paths().results;
-}
-
-void WebServer::ensureDirectoriesExist()
-{
-	try
-	{
-		fs::create_directories(upload_folder_);
-		fs::create_directories(results_folder_);
-		fs::create_directories(static_files_root_);
-		LOG_INFO("Directories ensured: upload={}, results={}, static={}",
-				 upload_folder_.string(), results_folder_.string(), static_files_root_.string());
-	}
-	catch (const std::exception &e)
-	{
-		LOG_ERROR("Failed to create directories: {}", e.what());
-		throw;
-	}
-}
-
 void WebServer::setupRoutes()
 {
 	// API Routes
 	svr_.Post("/api/upload_realtime", [this](const httplib::Request &req, httplib::Response &res)
-			  {
-		// Real-time processing using ThreadPool
-		try {
-			if (!req.form.has_file("file")) {
-				res.status = 400;
-				res.set_content(R"({"error": "No file provided"})", "application/json");
-				return;
-			}
-
-			const auto &file = req.form.get_file("file");
-			if (file.filename.empty()) {
-				res.status = 400;
-				res.set_content(R"({"error": "No file selected"})", "application/json");
-				return;
-			}
-
-			if (!file_processor_ || !file_processor_->allowed_file(file.filename)) {
-				res.status = 400;
-				res.set_content(R"({"error": "Invalid file type"})", "application/json");
-				return;
-			}
-
-			std::string filename = file.filename;
-			std::string task_id = DragonflyManager::generate_uuid();
-			fs::path filepath = upload_folder_ / (task_id + "_" + filename);
-
-			// Save the file
-			std::ofstream out_file(filepath, std::ios::binary);
-			out_file.write(file.content.data(), file.content.size());
-			out_file.close();
-
-			// Verify file was saved
-			if (!fs::exists(filepath) || fs::file_size(filepath) == 0) {
-				throw std::runtime_error("Failed to save uploaded file");
-			}
-
-			LOG_INFO("Real-time file saved successfully: {}, size: {} bytes", filepath.string(), fs::file_size(filepath));
-
-			// Submit to thread pool instead of creating individual thread
-			auto* file_processor = file_processor_.get();
-			
-			thread_pool_->enqueue([this, file_processor, task_id, filepath, filename]() {
-				try {
-					LOG_INFO("Starting real-time processing for task: {}", task_id);
-					
-					// Use TaskManager directly for status updates
-					auto& task_manager = TaskManager::instance();
-					
-					// Set initial status
-					task_manager.set_task_status(task_id, {
-						{"task_id", task_id},
-						{"progress", 0},
-						{"message", "Starting real-time video processing"},
-						{"error", nullptr},
-						{"complete", false},
-						{"mode", "realtime"},
-						{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-							std::chrono::system_clock::now().time_since_epoch()).count()}
-					});
-					
-					// Process file in real-time mode
-					file_processor->process_video_realtime(task_id, filepath.string(), filename);
-					
-					LOG_INFO("Real-time processing completed for task: {}", task_id);
-				}
-				catch (const std::exception &e)
-				{
-					LOG_ERROR("Real-time processing failed for task {}: {}", task_id, e.what());
-					
-					// Set error status
-					try {
-						auto& task_manager = TaskManager::instance();
-						task_manager.set_task_status(task_id, {
-							{"task_id", task_id},
-							{"progress", 0},
-							{"message", "Real-time processing failed"},
-							{"error", e.what()},
-							{"complete", true},
-							{"mode", "realtime"},
-							{"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-								std::chrono::system_clock::now().time_since_epoch()).count()}
-						});
-					} catch (const std::exception& db_error) {
-						LOG_ERROR("Failed to update error status for real-time task {}: {}", task_id, db_error.what());
-					}
-				}
-			});
-
-			res.status = 202;
-			res.set_content(fmt::format(R"({{"task_id": "{}", "mode": "realtime"}})", task_id), "application/json");
-
-		} catch (const std::exception &e) {
-			LOG_ERROR("Exception in real-time upload: {}", e.what());
-			res.status = 500;
-			res.set_content(R"({"error": "Internal server error"})", "application/json");
-		} });
+			  { handleUploadRealtime(req, res); });
 
 	svr_.Post("/api/upload", [this](const httplib::Request &req, httplib::Response &res)
 			  { handleUpload(req, res); });
 
-	// Add batch progress endpoint
 	svr_.Post("/api/batch_progress", [this](const httplib::Request &req, httplib::Response &res)
-			  { 
-		try {
-			auto task_ids_json = nlohmann::json::parse(req.body);
-			if (!task_ids_json.is_array()) {
-				res.status = 400;
-				res.set_content(R"({"error": "Expected array of task IDs"})", "application/json");
-				return;
-			}
-			
-			std::vector<std::string> task_ids;
-			for (const auto& id : task_ids_json) {
-				if (id.is_string()) {
-					task_ids.push_back(id.get<std::string>());
-				}
-			}
-			
-			auto& task_manager = TaskManager::instance();
-			auto results = task_manager.batch_get_status(task_ids);
-			
-			nlohmann::json response;
-			for (const auto& [task_id, status] : results) {
-				response[task_id] = status;
-			}
-			
-			res.set_content(response.dump(), "application/json");
-		} catch (const std::exception &e) {
-			LOG_ERROR("Batch progress error: {}", e.what());
-			res.status = 500;
-			res.set_content(R"({"error": "Internal server error"})", "application/json");
-		}
-	});
+			  { handleBatchProgress(req, res); });
 
 	svr_.Get("/api/progress/:task_id", [this](const httplib::Request &req, httplib::Response &res)
 			 { handleProgress(req, res, req.path_params.at("task_id")); });
@@ -334,68 +148,9 @@ void WebServer::handleUpload(const httplib::Request &req, httplib::Response &res
 		}
 
 		std::string filename = file.filename;
-		std::string task_id = DragonflyManager::generate_uuid();
-		fs::path filepath = upload_folder_ / (task_id + "_" + filename);
 
-		// Save the file
-		std::ofstream out_file(filepath, std::ios::binary);
-		out_file.write(file.content.data(), file.content.size());
-		out_file.close();
-
-		if (!fs::exists(filepath) || fs::file_size(filepath) == 0)
-		{
-			throw std::runtime_error("Failed to save uploaded file");
-		}
-
-		LOG_INFO("File saved successfully: {}, size: {} bytes", filepath.string(), fs::file_size(filepath));
-
-		// Submit to thread pool
-		auto *file_processor = file_processor_.get();
-
-		thread_pool_->enqueue([this, file_processor, task_id, filepath, filename]()
-							  {
-            try {
-                LOG_INFO("Starting background processing for task: {}", task_id);
-                
-                // Use TaskManager directly for status updates
-                auto& task_manager = TaskManager::instance();
-                
-                // Initial status
-                task_manager.set_task_status(task_id, {
-                    {"task_id", task_id},
-                    {"progress", 0},
-                    {"message", "Starting file processing"},
-                    {"error", nullptr},
-                    {"complete", false},
-                    {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-                        std::chrono::system_clock::now().time_since_epoch()).count()}
-                });
-                
-                // Process the file
-                file_processor->process_file(task_id, filepath.string(), filename);
-                
-                LOG_INFO("Background processing completed for task: {}", task_id);
-            }
-            catch (const std::exception &e)
-            {
-                LOG_ERROR("Background processing failed for task {}: {}", task_id, e.what());
-                
-                // Error status via TaskManager
-                try {
-                    auto& task_manager = TaskManager::instance();
-                    task_manager.set_task_status(task_id, {
-                        {"task_id", task_id},
-                        {"progress", 0},
-                        {"message", "Processing failed"},
-                        {"error", e.what()},
-                        {"complete", true},
-                        {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::system_clock::now().time_since_epoch()).count()}
-                    });
-                } catch (const std::exception& db_error) {
-                    LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
-                }
-            } });
+		// Use the common upload handler and get the task_id
+		std::string task_id = handleUploadCommon(file.content, filename, false);
 
 		LOG_INFO("Upload accepted and queued for processing, task_id: {}", task_id);
 		res.status = 202;
@@ -409,11 +164,74 @@ void WebServer::handleUpload(const httplib::Request &req, httplib::Response &res
 	}
 }
 
+void WebServer::handleUploadRealtime(const httplib::Request &req, httplib::Response &res)
+{
+	try
+	{
+		if (!req.form.has_file("file"))
+		{
+			res.status = 400;
+			res.set_content(R"({"error": "No file provided"})", "application/json");
+			return;
+		}
+
+		const auto &file = req.form.get_file("file");
+		if (file.filename.empty())
+		{
+			res.status = 400;
+			res.set_content(R"({"error": "No file selected"})", "application/json");
+			return;
+		}
+
+		if (!file_processor_ || !file_processor_->allowed_file(file.filename))
+		{
+			res.status = 400;
+			res.set_content(R"({"error": "Invalid file type"})", "application/json");
+			return;
+		}
+
+		std::string filename = file.filename;
+
+		// Use the common upload handler with realtime flag and get the task_id
+		std::string task_id = handleUploadCommon(file.content, filename, true);
+
+		res.status = 202;
+		res.set_content(fmt::format(R"({{"task_id": "{}", "mode": "realtime"}})", task_id), "application/json");
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Exception in real-time upload: {}", e.what());
+		res.status = 500;
+		res.set_content(R"({"error": "Internal server error"})", "application/json");
+	}
+}
+
+void WebServer::handleSubmitApplication(const httplib::Request &req, httplib::Response &res)
+{
+	try
+	{
+		std::string application_id = handleSubmitApplicationCommon(req.body);
+
+		res.status = 201;
+		res.set_content(fmt::format(R"({{"application_id": "{}"}})", application_id), "application/json");
+	}
+	catch (const json::parse_error &e)
+	{
+		res.status = 400;
+		res.set_content(R"({"error": "Invalid JSON"})", "application/json");
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Error submitting application: {}", e.what());
+		res.status = 500;
+		res.set_content(R"({"error": "Internal server error"})", "application/json");
+	}
+}
+
 void WebServer::handleProgress(const httplib::Request &req, httplib::Response &res, const std::string &task_id)
 {
 	try
 	{
-		// Use TaskManager with caching
 		auto &task_manager = TaskManager::instance();
 		auto status = task_manager.get_task_status(task_id);
 
@@ -434,49 +252,46 @@ void WebServer::handleProgress(const httplib::Request &req, httplib::Response &r
 	}
 }
 
-void WebServer::handleSubmitApplication(const httplib::Request &req, httplib::Response &res)
+void WebServer::handleBatchProgress(const httplib::Request &req, httplib::Response &res)
 {
 	try
 	{
-		if (!dragonfly_manager_)
-		{
-			res.status = 500;
-			res.set_content(R"({"error": "Server not properly initialized"})", "application/json");
-			return;
-		}
-
-		json application_data;
-
-		try
-		{
-			application_data = json::parse(req.body);
-			validateJsonDocument(application_data);
-		}
-		catch (const json::parse_error &e)
+		auto task_ids_json = nlohmann::json::parse(req.body);
+		if (!task_ids_json.is_array())
 		{
 			res.status = 400;
-			res.set_content(R"({"error": "Invalid JSON"})", "application/json");
+			res.set_content(R"({"error": "Expected array of task IDs"})", "application/json");
 			return;
 		}
-		catch (const std::exception &e)
+
+		std::vector<std::string> task_ids;
+		for (const auto &id : task_ids_json)
 		{
-			res.status = 400;
-			res.set_content(fmt::format(R"({{"error": "{}"}})", e.what()), "application/json");
-			return;
+			if (id.is_string())
+			{
+				task_ids.push_back(id.get<std::string>());
+			}
 		}
 
-		std::string application_id = dragonfly_manager_->save_application(application_data.dump());
+		auto &task_manager = TaskManager::instance();
+		auto results = task_manager.batch_get_status(task_ids);
 
-		res.status = 201;
-		res.set_content(fmt::format(R"({{"application_id": "{}"}})", application_id), "application/json");
+		nlohmann::json response;
+		for (const auto &[task_id, status] : results)
+		{
+			response[task_id] = status;
+		}
+
+		res.set_content(response.dump(), "application/json");
 	}
 	catch (const std::exception &e)
 	{
-		LOG_ERROR("Error submitting application: {}", e.what());
+		LOG_ERROR("Batch progress error: {}", e.what());
 		res.status = 500;
 		res.set_content(R"({"error": "Internal server error"})", "application/json");
 	}
 }
+
 void WebServer::handleServeResult(const httplib::Request &req, httplib::Response &res, const std::string &filename)
 {
 	try
@@ -541,7 +356,6 @@ void WebServer::handleServeReactFile(const httplib::Request &req, httplib::Respo
 {
 	try
 	{
-		// Don't interfere with API routes
 		if (isApiEndpoint(req.path))
 		{
 			res.status = 404;
@@ -551,14 +365,12 @@ void WebServer::handleServeReactFile(const httplib::Request &req, httplib::Respo
 
 		fs::path file_path = static_files_root_ / filename;
 
-		// If it's a file that exists, serve it
 		if (fs::exists(file_path) && fs::is_regular_file(file_path))
 		{
 			res.set_file_content(file_path.string());
 			return;
 		}
 
-		// For React Router - serve index.html for all other routes
 		handleRoot(req, res);
 	}
 	catch (const std::exception &e)
@@ -590,34 +402,5 @@ void WebServer::handleRoot(const httplib::Request &req, httplib::Response &res)
 		LOG_ERROR("Exception serving root: {}", e.what());
 		res.status = 500;
 		res.set_content("Internal server error", "text/plain");
-	}
-}
-
-bool WebServer::isApiEndpoint(const std::string &path)
-{
-	static const std::set<std::string> apiPrefixes = {
-		"/api/", "/static/"};
-
-	for (const auto &prefix : apiPrefixes)
-	{
-		if (path.find(prefix) == 0)
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-void WebServer::validateJsonDocument(const nlohmann::json &json)
-{
-	if (!json.is_object())
-	{
-		throw std::runtime_error("Expected JSON object");
-	}
-
-	// Add additional validation as needed
-	if (json.empty())
-	{
-		throw std::runtime_error("Empty JSON object");
 	}
 }
