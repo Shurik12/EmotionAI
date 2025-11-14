@@ -35,6 +35,13 @@ sudo systemctl daemon-reload
 sudo systemctl restart your-cpp-service
 sudo systemctl reload nginx
 ```
+4. Dragonfly
+```bash
+# Run in foreground
+sudo docker run -p 6379:6379 --name dragonfly docker.dragonflydb.io/dragonflydb/dragonfly
+# Run in background
+sudo docker run -d -p 6379:6379 --name dragonfly docker.dragonflydb.io/dragonflydb/dragonfly
+```
 
 ### Contributing:
 1. Create issue: https://github.com/Shurik12/EmotionAI/issues

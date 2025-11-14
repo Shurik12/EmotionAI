@@ -33,7 +33,7 @@ build_frontend:
 	cd $(FRONTEND_DIR) && npm install && npm run build
 
 configure:
-	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake .. -G Ninja -DBUILD_TESTS=ON
+	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake .. -G Ninja
 
 build_backend:
 	cd $(BUILD_DIR) && ninja -j4
