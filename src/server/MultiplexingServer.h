@@ -1,26 +1,13 @@
 #pragma once
 
-#include <map>
-#include <set>
-#include <string>
-#include <filesystem>
-#include <functional>
-#include <memory>
-#include <thread>
-#include <mutex>
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <server/BaseServer.h>
 
-#include <nlohmann/json.hpp>
-#include <server/IServer.h>
-#include <db/DragonflyManager.h>
-#include <emotionai/FileProcessor.h>
-#include <server/ThreadPool.h>
-
-class MultiplexingServer : public IServer
+class MultiplexingServer : public BaseServer
 {
 public:
 	explicit MultiplexingServer();
@@ -48,26 +35,14 @@ private:
 	int server_fd_;
 	int epoll_fd_;
 	bool running_;
-	std::shared_ptr<DragonflyManager> dragonfly_manager_;
-	std::unique_ptr<FileProcessor> file_processor_;
-	std::filesystem::path static_files_root_;
-	std::filesystem::path upload_folder_;
-	std::filesystem::path results_folder_;
-	std::filesystem::path log_folder_;
 	std::map<int, std::shared_ptr<ClientContext>> clients_;
-	std::unique_ptr<ThreadPool> thread_pool_;
 
 	// Route handlers
 	std::map<std::string, std::function<void(const std::shared_ptr<ClientContext> &, const std::string &)>> post_routes_;
 	std::map<std::string, std::function<void(const std::shared_ptr<ClientContext> &)>> get_routes_;
 	std::map<std::string, std::function<void(const std::shared_ptr<ClientContext> &)>> options_routes_;
 
-	void loadConfiguration();
 	void setupRoutes();
-	void ensureDirectoriesExist();
-	void initializeComponents();
-
-	// Server core methods
 	void createSocket();
 	void setupEpoll();
 	void handleEvents();
@@ -75,14 +50,11 @@ private:
 	void handleClientData(int client_fd);
 	void closeClient(int client_fd);
 	void processRequest(const std::shared_ptr<ClientContext> &context);
-
-	// HTTP processing
 	void parseHttpRequest(const std::shared_ptr<ClientContext> &context);
 	void sendResponse(int client_fd, int status_code, const std::string &content_type, const std::string &body);
-	void sendFileResponse(int client_fd, const std::filesystem::path &file_path);
-	std::string getMimeType(const std::string &filename);
+	void sendFileResponse(int client_fd, const fs::path &file_path);
 
-	// Route handler implementations
+	// Thin route handler wrappers
 	void handleUpload(const std::shared_ptr<ClientContext> &context, const std::string &body);
 	void handleUploadRealtime(const std::shared_ptr<ClientContext> &context, const std::string &body);
 	void handleProgress(const std::shared_ptr<ClientContext> &context);
@@ -94,12 +66,4 @@ private:
 	void handleServeReactFile(const std::shared_ptr<ClientContext> &context);
 	void handleRoot(const std::shared_ptr<ClientContext> &context);
 	void handleOptions(const std::shared_ptr<ClientContext> &context);
-
-	// Helper functions
-	static bool isApiEndpoint(const std::string &path);
-	std::map<std::string, std::string> parseMultipartFormData(const std::string &body, const std::string &boundary);
-	std::string extractBoundary(const std::string &content_type);
-
-	// JSON validation
-	static void validateJsonDocument(const nlohmann::json &json);
 };
