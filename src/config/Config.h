@@ -80,6 +80,7 @@ namespace Common
 		const auto &paths() const { return data_.paths; }
 		const auto &app() const { return data_.app; }
 		const auto &redis() const { return data_.redis; }
+		const auto &dragonfly() const { return data_.dragonfly; }
 		const auto &mtcnn() const { return data_.mtcnn; }
 		const auto &model() const { return data_.model; }
 		const auto &logging() const { return data_.logging; }
@@ -138,6 +139,14 @@ namespace Common
 			std::string password = "";
 		};
 
+		struct DragonflyConfig
+		{
+			std::string host = "localhost";
+			int port = 6379;
+			int db = 0;
+			std::string password = "";
+		};
+
 		struct MtcnnConfig
 		{
 			bool keep_all = false;
@@ -160,6 +169,7 @@ namespace Common
 			AppConfig app;
 			LoggingConfig logging;
 			RedisConfig redis;
+			DragonflyConfig dragonfly;
 			MtcnnConfig mtcnn;
 			ModelConfig model;
 		};
