@@ -260,84 +260,100 @@ nlohmann::json FileProcessor::process_video_file(const std::string &task_id, con
 	return result;
 }
 
-void FileProcessor::process_video_realtime(const std::string &task_id, const std::string &filepath, const std::string &filename)
+void FileProcessor::process_video_realtime(const std::string &task_id,
+										   const std::string &filepath,
+										   const std::string &filename,
+										   ProgressCallback progress_callback)
 {
-	dragonfly_manager_->set_task_status(task_id, nlohmann::json{
-													 {"progress", 0},
-													 {"message", "Processing video for real-time analysis..."},
-													 {"error", nullptr},
-													 {"complete", false},
-													 {"mode", "realtime"}}
-													 .dump());
+	LOG_INFO("=== REAL-TIME VIDEO PROCESSING STARTED ===");
+	LOG_INFO("Task: {}, File: {}", task_id, filename);
 
 	try
 	{
+		// Initial progress update
+		if (progress_callback)
+		{
+			progress_callback(5, "Opening video file for real-time analysis...");
+		}
+
 		cv::VideoCapture cap(filepath);
 		if (!cap.isOpened())
 		{
-			throw std::runtime_error("Could not open video");
+			throw std::runtime_error("Could not open video file: " + filepath);
 		}
 
 		int total_frames = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_COUNT));
 		double fps = cap.get(cv::CAP_PROP_FPS);
 
+		if (total_frames <= 0)
+		{
+			cap.release();
+			throw std::runtime_error("Video has no frames or cannot read frame count");
+		}
+
 		LOG_INFO("Real-time video analysis: {}, Frames: {}, FPS: {:.2f}",
 				 filename, total_frames, fps);
 
+		if (progress_callback)
+		{
+			progress_callback(10, fmt::format("Video loaded: {} frames at {:.1f} FPS", total_frames, fps));
+		}
+
 		// Get results path from config
 		auto &config = Config::instance();
-		std::string results_path = config.resultPath();
+		std::string results_path = config.paths().results;
 		fs::create_directories(results_path);
 
 		int frame_count = 0;
+		int processed_count = 0;
 		std::vector<nlohmann::json> frame_results;
 		std::vector<double> valence_history;
 		std::vector<double> arousal_history;
 		std::vector<int> frame_numbers;
 
-		// Process frames at a reasonable rate
-		int frame_interval = std::max(1, static_cast<int>(fps / 10)); // Process 2 frames per second
-		int max_frames = 60;										  // Maximum frames to process for performance
+		// Process frames at a reasonable rate for real-time feedback
+		int frame_interval = std::max(1, static_cast<int>(fps / 5)); // Process 5 frames per second
+		int max_frames = std::min(total_frames, 60);				 // Maximum frames to process for performance
+
+		LOG_INFO("Real-time processing parameters: interval={}, max_frames={}", frame_interval, max_frames);
 
 		while (cap.isOpened() && frame_count < max_frames)
 		{
 			cv::Mat frame;
 			if (!cap.read(frame))
 			{
+				LOG_DEBUG("No more frames to read at frame {}", frame_count);
 				break;
 			}
 
-			// Skip frames based on interval
+			// Skip frames based on interval for real-time performance
 			if (frame_count % frame_interval != 0)
 			{
 				frame_count++;
 				continue;
 			}
 
-			// Update progress
-			if (frame_results.size() % 5 == 0)
+			// Update progress more frequently for real-time feedback
+			int progress = 10 + static_cast<int>((80.0 * frame_count) / max_frames);
+			if (progress_callback && (frame_count % (frame_interval * 2) == 0))
 			{
-				dragonfly_manager_->set_task_status(task_id, nlohmann::json{
-																 {"progress", static_cast<int>((frame_count * 100.0) / std::min(total_frames, max_frames))},
-																 {"message", fmt::format("Analyzing frame {}...", frame_count + 1)},
-																 {"error", nullptr},
-																 {"complete", false},
-																 {"frames_processed", frame_results.size()}}
-																 .dump());
+				progress_callback(progress, fmt::format("Analyzing frame {}/{}...", frame_count + 1, max_frames));
 			}
 
 			try
 			{
+				LOG_DEBUG("Processing frame {} for real-time analysis", frame_count);
+
 				auto [processed_frame, result] = process_image(frame);
 
 				// Save the processed frame image
-				std::string frame_filename = fmt::format("realtime_frame_{}_{}.jpg", frame_results.size(),
-														 filename.substr(0, filename.find_last_of('.')));
+				std::string frame_filename = fmt::format("realtime_{}_frame_{}.jpg",
+														 task_id, processed_count);
 				std::string frame_file_path = (fs::path(results_path) / frame_filename).string();
 
 				if (cv::imwrite(frame_file_path, frame))
 				{
-					LOG_INFO("Real-time frame saved: {}", frame_file_path);
+					LOG_DEBUG("Real-time frame saved: {}", frame_file_path);
 				}
 				else
 				{
@@ -357,15 +373,29 @@ void FileProcessor::process_video_realtime(const std::string &task_id, const std
 					auto &additional = result["additional_probs"];
 					if (additional.contains("valence"))
 					{
-						double valence = std::stod(additional["valence"].get<std::string>());
-						valence_history.push_back(valence);
-						frame_result["valence"] = valence;
+						try
+						{
+							double valence = std::stod(additional["valence"].get<std::string>());
+							valence_history.push_back(valence);
+							frame_result["valence"] = valence;
+						}
+						catch (const std::exception &e)
+						{
+							LOG_WARN("Failed to parse valence value: {}", e.what());
+						}
 					}
 					if (additional.contains("arousal"))
 					{
-						double arousal = std::stod(additional["arousal"].get<std::string>());
-						arousal_history.push_back(arousal);
-						frame_result["arousal"] = arousal;
+						try
+						{
+							double arousal = std::stod(additional["arousal"].get<std::string>());
+							arousal_history.push_back(arousal);
+							frame_result["arousal"] = arousal;
+						}
+						catch (const std::exception &e)
+						{
+							LOG_WARN("Failed to parse arousal value: {}", e.what());
+						}
 					}
 
 					// Extract emotion probabilities
@@ -376,7 +406,14 @@ void FileProcessor::process_video_realtime(const std::string &task_id, const std
 					{
 						if (additional.contains(emotion))
 						{
-							emotions[emotion] = std::stod(additional[emotion].get<std::string>());
+							try
+							{
+								emotions[emotion] = std::stod(additional[emotion].get<std::string>());
+							}
+							catch (const std::exception &e)
+							{
+								LOG_WARN("Failed to parse emotion {}: {}", emotion, e.what());
+							}
 						}
 					}
 					frame_result["emotions"] = emotions;
@@ -384,20 +421,24 @@ void FileProcessor::process_video_realtime(const std::string &task_id, const std
 
 				frame_numbers.push_back(frame_count);
 				frame_results.push_back(frame_result);
+				processed_count++;
+
+				LOG_DEBUG("Successfully processed frame {} for real-time analysis", frame_count);
 			}
 			catch (const std::exception &e)
 			{
 				LOG_WARN("Error processing frame {}: {}", frame_count, e.what());
+				// Continue with next frame instead of failing completely
 			}
 
 			frame_count++;
 
-			// Break if we have enough samples
-			if (frame_results.size() >= 30)
-				break; // Max 30 data points for clean charts
+			// Small delay to simulate real-time processing and prevent overwhelming the system
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
 		}
 
 		cap.release();
+		LOG_INFO("Real-time video processing completed. Processed {} frames out of {}", processed_count, frame_count);
 
 		if (frame_results.empty())
 		{
@@ -429,7 +470,7 @@ void FileProcessor::process_video_realtime(const std::string &task_id, const std
 			int count = 0;
 			for (const auto &frame : frame_results)
 			{
-				if (frame["emotions"].contains(emotion))
+				if (frame.contains("emotions") && frame["emotions"].contains(emotion))
 				{
 					sum += frame["emotions"][emotion].get<double>();
 					count++;
@@ -441,24 +482,60 @@ void FileProcessor::process_video_realtime(const std::string &task_id, const std
 			}
 		}
 
-		dragonfly_manager_->set_task_status(task_id, nlohmann::json{
-														 {"complete", true},
-														 {"type", "video_realtime"},
-														 {"frames_processed", frame_results.size()},
-														 {"frame_results", frame_results},
-														 {"valence_history", valence_history},
-														 {"arousal_history", arousal_history},
-														 {"frame_numbers", frame_numbers},
-														 {"fps", fps},
-														 {"duration", total_frames / fps},
-														 {"statistics", stats},
-														 {"average_emotions", avg_emotions},
-														 {"progress", 100}}
-														 .dump());
+		// Final progress update
+		if (progress_callback)
+		{
+			progress_callback(95, "Finalizing real-time analysis results...");
+		}
+
+		// Store final results via TaskManager
+		auto &task_manager = TaskManager::instance();
+		task_manager.set_task_status(task_id, {{"complete", true},
+											   {"type", "video_realtime"},
+											   {"frames_processed", frame_results.size()},
+											   {"frame_results", frame_results},
+											   {"valence_history", valence_history},
+											   {"arousal_history", arousal_history},
+											   {"frame_numbers", frame_numbers},
+											   {"fps", fps},
+											   {"duration", total_frames / fps},
+											   {"statistics", stats},
+											   {"average_emotions", avg_emotions},
+											   {"progress", 100},
+											   {"message", "Real-time analysis completed successfully"},
+											   {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+																 std::chrono::system_clock::now().time_since_epoch())
+																 .count()}});
+
+		if (progress_callback)
+		{
+			progress_callback(100, "Real-time analysis completed successfully");
+		}
+
+		LOG_INFO("=== REAL-TIME VIDEO PROCESSING COMPLETED ===");
+		LOG_INFO("Task: {}, Processed frames: {}", task_id, frame_results.size());
 	}
 	catch (const std::exception &e)
 	{
-		throw std::runtime_error("Real-time video analysis failed: " + std::string(e.what()));
+		LOG_ERROR("=== REAL-TIME VIDEO PROCESSING FAILED ===");
+		LOG_ERROR("Task: {}, Error: {}", task_id, e.what());
+
+		if (progress_callback)
+		{
+			progress_callback(0, std::string("Real-time processing failed: ") + e.what());
+		}
+
+		// Store error status
+		auto &task_manager = TaskManager::instance();
+		task_manager.set_task_status(task_id, {{"complete", true},
+											   {"error", e.what()},
+											   {"progress", 0},
+											   {"message", "Real-time processing failed"},
+											   {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+																 std::chrono::system_clock::now().time_since_epoch())
+																 .count()}});
+
+		throw;
 	}
 }
 
