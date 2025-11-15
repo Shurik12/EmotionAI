@@ -41,6 +41,7 @@ sudo systemctl reload nginx
 sudo docker run -p 6379:6379 --name dragonfly docker.dragonflydb.io/dragonflydb/dragonfly
 # Run in background
 sudo docker run -d -p 6379:6379 --name dragonfly docker.dragonflydb.io/dragonflydb/dragonfly
+sudo docker start dragonfly
 ```
 
 ### Contributing:

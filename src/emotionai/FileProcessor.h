@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <functional>
 #include <opencv2/opencv.hpp>
 #include <nlohmann/json.hpp>
 #include <emotiefflib/facial_analysis.h>
@@ -12,6 +13,8 @@
 class FileProcessor
 {
 public:
+	using ProgressCallback = std::function<void(int progress, const std::string &message)>;
+
 	explicit FileProcessor(std::shared_ptr<DragonflyManager> dragonfly_manager);
 	~FileProcessor();
 
@@ -27,7 +30,11 @@ public:
 	EmotiEffLib::EmotiEffLibRecognizer *get_emotion_recognizer() const { return fer_.get(); }
 	bool is_model_loaded() const { return model_loaded_; }
 
-	void process_video_realtime(const std::string &task_id, const std::string &filepath, const std::string &filename);
+	// Updated to accept progress callback
+	void process_video_realtime(const std::string &task_id,
+								const std::string &filepath,
+								const std::string &filename,
+								ProgressCallback progress_callback = nullptr);
 
 private:
 	std::shared_ptr<DragonflyManager> dragonfly_manager_;
