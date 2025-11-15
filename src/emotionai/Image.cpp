@@ -247,8 +247,11 @@ std::pair<cv::Mat, nlohmann::json> Image::process_image(const cv::Mat &image, Em
 		const auto &first_score = scores_list[0];
 
 		// Find the dominant emotion
-		auto max_it = std::max_element(first_score.scores.begin(), first_score.scores.end() - 2);
-		int main_emotion_idx = std::distance(first_score.scores.begin(), max_it);
+		const auto range_end = first_score.scores.begin() +
+							   (model == "enet_b2_7.pt" ? first_score.scores.size() : first_score.scores.size() - 2);
+		const int main_emotion_idx = std::distance(
+			first_score.scores.begin(),
+			std::max_element(first_score.scores.begin(), range_end));
 
 		// Build JSON result
 		nlohmann::json result;
