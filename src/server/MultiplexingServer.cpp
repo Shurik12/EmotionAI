@@ -343,69 +343,92 @@ void MultiplexingServer::handleClientData(int client_fd)
 
 void MultiplexingServer::parseHttpRequest(const std::shared_ptr<ClientContext> &context)
 {
-	size_t header_end = context->buffer.find("\r\n\r\n");
-	if (header_end == std::string::npos)
-	{
-		return;
-	}
+    size_t header_end = context->buffer.find("\r\n\r\n");
+    if (header_end == std::string::npos)
+    {
+        return;
+    }
 
-	std::string headers_str = context->buffer.substr(0, header_end);
-	std::istringstream headers_stream(headers_str);
-	std::string line;
+    std::string headers_str = context->buffer.substr(0, header_end);
+    std::istringstream headers_stream(headers_str);
+    std::string line;
 
-	if (std::getline(headers_stream, line))
-	{
-		std::istringstream request_line(line);
-		request_line >> context->method >> context->path;
-		std::transform(context->method.begin(), context->method.end(), context->method.begin(), ::toupper);
-	}
+    // Parse request line
+    if (std::getline(headers_stream, line))
+    {
+        std::istringstream request_line(line);
+        request_line >> context->method >> context->path;
+        std::transform(context->method.begin(), context->method.end(), context->method.begin(), ::toupper);
+    }
 
-	while (std::getline(headers_stream, line))
-	{
-		if (line.back() == '\r')
-			line.pop_back();
-		if (line.empty())
-			continue;
+    // Parse headers (case-insensitive)
+    while (std::getline(headers_stream, line))
+    {
+        if (line.back() == '\r')
+            line.pop_back();
+        if (line.empty())
+            continue;
 
-		size_t colon_pos = line.find(':');
-		if (colon_pos != std::string::npos)
-		{
-			std::string key = line.substr(0, colon_pos);
-			std::string value = line.substr(colon_pos + 1);
-			value.erase(0, value.find_first_not_of(" \t"));
-			value.erase(value.find_last_not_of(" \t") + 1);
-			context->headers[key] = value;
-		}
-	}
+        size_t colon_pos = line.find(':');
+        if (colon_pos != std::string::npos)
+        {
+            std::string key = line.substr(0, colon_pos);
+            std::string value = line.substr(colon_pos + 1);
+            
+            // Trim whitespace
+            key.erase(0, key.find_first_not_of(" \t"));
+            key.erase(key.find_last_not_of(" \t") + 1);
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t") + 1);
+            
+            // Convert key to lowercase for case-insensitive lookup
+            std::string lower_key = key;
+            std::transform(lower_key.begin(), lower_key.end(), lower_key.begin(), ::tolower);
+            
+            context->headers[lower_key] = value;
+            
+            LOG_DEBUG("Parsed header: '{}' = '{}'", lower_key, value);
+        }
+    }
 
-	auto content_length_it = context->headers.find("Content-Length");
-	if (content_length_it != context->headers.end())
-	{
-		context->content_length = std::stoul(content_length_it->second);
-	}
+    // Look for content-length (case-insensitive)
+    auto content_length_it = context->headers.find("content-length");
+    if (content_length_it != context->headers.end())
+    {
+        try {
+            context->content_length = std::stoul(content_length_it->second);
+            LOG_DEBUG("Content-Length: {}", context->content_length);
+        } catch (const std::exception& e) {
+            LOG_WARN("Invalid Content-Length: {}", content_length_it->second);
+        }
+    }
 
-	size_t query_pos = context->path.find('?');
-	if (query_pos != std::string::npos)
-	{
-		std::string query_str = context->path.substr(query_pos + 1);
-		context->path = context->path.substr(0, query_pos);
+    // Parse query parameters
+    size_t query_pos = context->path.find('?');
+    if (query_pos != std::string::npos)
+    {
+        std::string query_str = context->path.substr(query_pos + 1);
+        context->path = context->path.substr(0, query_pos);
 
-		std::istringstream query_stream(query_str);
-		std::string param;
-		while (std::getline(query_stream, param, '&'))
-		{
-			size_t equal_pos = param.find('=');
-			if (equal_pos != std::string::npos)
-			{
-				std::string key = param.substr(0, equal_pos);
-				std::string value = param.substr(equal_pos + 1);
-				context->params[key] = value;
-			}
-		}
-	}
+        std::istringstream query_stream(query_str);
+        std::string param;
+        while (std::getline(query_stream, param, '&'))
+        {
+            size_t equal_pos = param.find('=');
+            if (equal_pos != std::string::npos)
+            {
+                std::string key = param.substr(0, equal_pos);
+                std::string value = param.substr(equal_pos + 1);
+                context->params[key] = value;
+            }
+        }
+    }
 
-	context->headers_complete = true;
-	context->buffer = context->buffer.substr(header_end + 4);
+    context->headers_complete = true;
+    context->buffer = context->buffer.substr(header_end + 4);
+    
+    LOG_DEBUG("Request parsed: {} {}, headers: {}, content-length: {}", 
+              context->method, context->path, context->headers.size(), context->content_length);
 }
 
 void MultiplexingServer::processRequest(const std::shared_ptr<ClientContext> &context)
@@ -596,28 +619,39 @@ void MultiplexingServer::handleUpload(const std::shared_ptr<ClientContext> &cont
 {
 	try
 	{
-		auto content_type_it = context->headers.find("Content-Type");
-		if (content_type_it == context->headers.end())
-		{
-			sendResponse(context->fd, 400, "application/json", R"({"error": "No Content-Type header"})");
-			closeClient(context->fd);
-			return;
-		}
+		LOG_DEBUG("Handling upload request, checking Content-Type header");
+        
+        auto content_type_it = context->headers.find("content-type");
+        if (content_type_it == context->headers.end())
+        {
+            LOG_WARN("No Content-Type header found. Available headers:");
+            for (const auto& [key, value] : context->headers) {
+                LOG_WARN("  {}: {}", key, value);
+            }
+            
+            sendResponse(context->fd, 400, "application/json", R"({"error": "No Content-Type header"})");
+            closeClient(context->fd);
+            return;
+        }
 
-		if (content_type_it->second.find("multipart/form-data") == std::string::npos)
-		{
-			sendResponse(context->fd, 400, "application/json", R"({"error": "Expected multipart form data"})");
-			closeClient(context->fd);
-			return;
-		}
+		LOG_DEBUG("Content-Type: {}", content_type_it->second);
+
+        if (content_type_it->second.find("multipart/form-data") == std::string::npos)
+        {
+            LOG_WARN("Invalid Content-Type: {}", content_type_it->second);
+            sendResponse(context->fd, 400, "application/json", R"({"error": "Expected multipart form data"})");
+            closeClient(context->fd);
+            return;
+        }
 
 		std::string boundary = extractBoundary(content_type_it->second);
-		if (boundary.empty())
-		{
-			sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid multipart data"})");
-			closeClient(context->fd);
-			return;
-		}
+        if (boundary.empty())
+        {
+            LOG_WARN("Failed to extract boundary from Content-Type: {}", content_type_it->second);
+            sendResponse(context->fd, 400, "application/json", R"({"error": "Invalid multipart data"})");
+            closeClient(context->fd);
+            return;
+        }
 
 		auto form_data = parseMultipartFormData(body, boundary);
 		auto file_it = form_data.find("file");
@@ -689,13 +723,21 @@ void MultiplexingServer::handleUploadRealtime(const std::shared_ptr<ClientContex
 {
 	try
 	{
-		auto content_type_it = context->headers.find("Content-Type");
-		if (content_type_it == context->headers.end())
-		{
-			sendResponse(context->fd, 400, "application/json", R"({"error": "No Content-Type header"})");
-			closeClient(context->fd);
-			return;
-		}
+		LOG_DEBUG("Handling real-time upload request, checking Content-Type header");
+        
+        auto content_type_it = context->headers.find("content-type");
+        if (content_type_it == context->headers.end())
+        {
+            // Log all available headers for debugging
+            LOG_WARN("No Content-Type header found for real-time upload. Available headers:");
+            for (const auto& [key, value] : context->headers) {
+                LOG_WARN("  {}: {}", key, value);
+            }
+            
+            sendResponse(context->fd, 400, "application/json", R"({"error": "No Content-Type header"})");
+            closeClient(context->fd);
+            return;
+        }
 
 		if (content_type_it->second.find("multipart/form-data") == std::string::npos)
 		{
