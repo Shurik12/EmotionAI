@@ -130,7 +130,7 @@ nlohmann::json FileProcessor::process_image_file(const std::string &task_id, con
 
 	// Get results path from config
 	auto &config = Config::instance();
-	std::string results_path = config.resultPath();
+	std::string results_path = config.paths().results;
 
 	// Ensure results directory exists
 	fs::create_directories(results_path);

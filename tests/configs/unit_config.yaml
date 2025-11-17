@@ -17,14 +17,14 @@ app:
   emotion_categories: ["anger", "happiness", "neutral", "sadness"]
 
 logging:
-  level: "debug"
+  level: "warn"
   max_file_size: 5242880  # 5MB
   max_files: 3
   console_enabled: true
   file_enabled: false  # Disable file logging for unit tests
   pattern: "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%n] %v"
   file_pattern: "[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] %v"
-  flush_on_level: "debug"
+  flush_on_level: "warn"
 
 redis:
   host: "localhost"

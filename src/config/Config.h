@@ -28,46 +28,6 @@ public:
 	// Setup application environment
 	bool setupApplicationEnvironment();
 
-	// Getters for configuration values
-	std::string uploadPath() const { return data_.paths.upload; }
-	std::string resultPath() const { return data_.paths.results; }
-	std::string frontendBuildPath() const { return data_.paths.frontend; }
-	std::string logPath() const { return data_.paths.logs; }
-	int maxContentLength() const { return data_.app.max_content_length; }
-	std::vector<std::string> allowedExtensions() const { return data_.app.allowed_extensions; }
-	int taskExpiration() const { return data_.app.task_expiration; }
-	int applicationExpiration() const { return data_.app.application_expiration; }
-	std::vector<std::string> emotionCategories() const { return data_.app.emotion_categories; }
-
-	std::string redisHost() const { return data_.redis.host; }
-	int redisPort() const { return data_.redis.port; }
-	int redisDb() const { return data_.redis.db; }
-	std::string redisPassword() const { return data_.redis.password; }
-
-	bool mtcnnKeepAll() const { return data_.mtcnn.keep_all; }
-	bool mtcnnPostProcess() const { return data_.mtcnn.post_process; }
-	int mtcnnMinFaceSize() const { return data_.mtcnn.min_face_size; }
-	std::string mtcnnDevice() const { return data_.mtcnn.device; }
-
-	std::string modelBackend() const { return data_.model.backend; }
-	std::string emotionModelPath() const { return data_.model.emotion_model_path; }
-	std::string faceDetectionModelsPath() const { return data_.model.face_detection_models_path; }
-
-	// Server configuration
-	std::string serverHost() const { return data_.server.host; }
-	int serverPort() const { return data_.server.port; }
-	std::string serverType() const { return data_.server.type; }
-
-	// Logging configuration
-	std::string logLevel() const { return data_.logging.level; }
-	int logMaxFileSize() const { return data_.logging.max_file_size; }
-	int logMaxFiles() const { return data_.logging.max_files; }
-	bool logConsoleEnabled() const { return data_.logging.console_enabled; }
-	bool logFileEnabled() const { return data_.logging.file_enabled; }
-	std::string logPattern() const { return data_.logging.pattern; }
-	std::string logFilePattern() const { return data_.logging.file_pattern; }
-	std::string logFlushOnLevel() const { return data_.logging.flush_on_level; }
-
 	// Convert log level string to spdlog level
 	spdlog::level::level_enum getSpdLogLevel() const;
 	spdlog::level::level_enum getSpdLogFlushLevel() const;

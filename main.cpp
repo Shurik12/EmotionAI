@@ -51,7 +51,7 @@ int main()
 
 		// Initialize logger using configuration
 		Logger::instance().initialize(
-			config.logPath(),
+			config.paths().logs,
 			"EmotionAI-Server",
 			config.getSpdLogLevel()
 		);
@@ -61,9 +61,9 @@ int main()
 		Logger::instance().info("Server type: {}", config.server().type);
 		Logger::instance().info("Host: {}", config.server().host);
 		Logger::instance().info("Port: {}", config.server().port);
-		Logger::instance().info("Log level: {}", config.logLevel());
-		Logger::instance().info("Upload path: {}", config.uploadPath());
-		Logger::instance().info("Results path: {}", config.resultPath());
+		Logger::instance().info("Log level: {}", config.logging().level);
+		Logger::instance().info("Upload path: {}", config.paths().upload);
+		Logger::instance().info("Results path: {}", config.paths().results);
 
 		// Create server based on configuration
 		std::string server_type = config.server().type;

@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <server/ServerFactory.h>
+#include <logging/Logger.h>
 #include <config/Config.h>
 #include <client/Client.h>
 
@@ -20,18 +21,23 @@ protected:
 		}
 
 		// Setup test directories using config values
-		std::filesystem::create_directories(config.uploadPath());
-		std::filesystem::create_directories(config.resultPath());
-		std::filesystem::create_directories(config.frontendBuildPath());
-		std::filesystem::create_directories(config.logPath());
+		std::filesystem::create_directories(config.paths().upload);
+		std::filesystem::create_directories(config.paths().results);
+		std::filesystem::create_directories(config.paths().frontend);
+		std::filesystem::create_directories(config.paths().logs);
+
+		Logger::instance().initialize(
+			"/tmp/test_logs",
+			"EmotionAI-Tests",
+			spdlog::level::err);
 
 		// Create a simple index.html for static file serving
-		std::ofstream index_file(config.frontendBuildPath() + "/index.html");
+		std::ofstream index_file(config.paths().frontend + "/index.html");
 		index_file << "<html><body>Test Server</body></html>";
 		index_file.close();
 
 		// Start server in background thread
-		server_ = ServerFactory::createServer(config.serverType());
+		server_ = ServerFactory::createServer(config.server().type);
 		server_->initialize();
 		server_thread_ = std::thread([this]()
 									 { server_->start(); });
@@ -40,7 +46,7 @@ protected:
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 
 		// Create HTTP client using config values
-		client_ = std::make_unique<HttpClient>(config.serverHost(), config.serverPort());
+		client_ = std::make_unique<HttpClient>(config.server().host, config.server().port);
 	}
 
 	void TearDown() override
@@ -58,10 +64,10 @@ protected:
 		auto &config = Config::instance();
 		if (config.isLoaded())
 		{
-			std::filesystem::remove_all(config.uploadPath());
-			std::filesystem::remove_all(config.resultPath());
-			std::filesystem::remove_all(config.frontendBuildPath());
-			std::filesystem::remove_all(config.logPath());
+			std::filesystem::remove_all(config.paths().upload);
+			std::filesystem::remove_all(config.paths().results);
+			std::filesystem::remove_all(config.paths().frontend);
+			std::filesystem::remove_all(config.paths().logs);
 		}
 	}
 
