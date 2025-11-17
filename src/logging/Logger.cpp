@@ -39,8 +39,6 @@ void Logger::initialize(const std::string &log_dir,
 
 		// Flush on every log call for development
 		logger_->flush_on(level);
-
-		logger_->info("Logger initialized successfully");
 	}
 	catch (const spdlog::spdlog_ex &ex)
 	{
