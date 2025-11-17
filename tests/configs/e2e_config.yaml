@@ -17,7 +17,7 @@ app:
   emotion_categories: ["anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"]
 
 logging:
-  level: "info"
+  level: "warn"
   max_file_size: 20971520  # 20MB
   max_files: 10
   console_enabled: true

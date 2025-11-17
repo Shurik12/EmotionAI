@@ -1,12 +1,16 @@
 #include <gtest/gtest.h>
 #include <db/RedisManager.h>
+#include <logging/Logger.h>
 
 class RedisManagerTest : public ::testing::Test
 {
 protected:
 	void SetUp() override
 	{
-		// Basic setup
+		Logger::instance().initialize(
+			"/tmp/test_logs",
+			"EmotionAI-Tests",
+			spdlog::level::err);
 	}
 
 	void TearDown() override

@@ -17,14 +17,14 @@ app:
   emotion_categories: ["anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"]
 
 logging:
-  level: "info"
+  level: "warn"
   max_file_size: 10485760  # 10MB
   max_files: 5
   console_enabled: true
   file_enabled: true
   pattern: "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%n] %v"
   file_pattern: "[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] %v"
-  flush_on_level: "info"
+  flush_on_level: "warn"
 
 redis:
   host: "localhost"
