@@ -43,6 +43,13 @@ sudo docker run -p 6379:6379 --name dragonfly docker.dragonflydb.io/dragonflydb/
 sudo docker run -d -p 6379:6379 --name dragonfly docker.dragonflydb.io/dragonflydb/dragonfly
 sudo docker start dragonfly
 ```
+5. Linux statistics
+```bash
+# watch connections
+watch -n 1 'netstat -an | grep :8080 | awk '\''{print $6}'\'' | sort | uniq -c'
+# kill connections
+sudo ss -t -K sport = 8080
+```
 
 ### Contributing:
 1. Create issue: https://github.com/Shurik12/EmotionAI/issues
