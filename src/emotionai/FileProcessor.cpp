@@ -148,7 +148,7 @@ nlohmann::json FileProcessor::process_image_file(const std::string &task_id, con
 	auto [processed_image, emotion_result] = process_image(image);
 
 	// Save the processed image
-	if (!cv::imwrite(result_file_path, processed_image))
+	if (!cv::imwrite(result_file_path, image))
 	{
 		LOG_ERROR("Error: Could not save processed image to {}", result_file_path);
 		throw std::runtime_error("Failed to save processed image");
@@ -208,7 +208,7 @@ nlohmann::json FileProcessor::process_video_file(const std::string &task_id, con
 														 filename.substr(0, filename.find_last_of('.')));
 				std::string frame_file_path = (fs::path(results_path) / frame_filename).string();
 
-				if (cv::imwrite(frame_file_path, processed_frame))
+				if (cv::imwrite(frame_file_path, frame))
 				{
 					LOG_INFO("Processed frame saved successfully to {}", frame_file_path);
 				}
