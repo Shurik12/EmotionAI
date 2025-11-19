@@ -1,7 +1,7 @@
-/* Detector.css - Fixed Version */
 .processed-image {
-	filter: grayscale(100%) contrast(120%) brightness(90%);
+	filter: contrast(120%) brightness(90%);
 	border: 2px solid #333;
+	border-radius: 8px;
 }
 
 .preview-container.processed-image {
@@ -10,7 +10,6 @@
 	border-radius: 12px;
 }
 
-/* Enhanced progress container visibility */
 .progress-container {
 	display: flex !important;
 	flex-direction: column;
