@@ -32,9 +32,9 @@ private:
 		ClientContext(int socket_fd) : fd(socket_fd), headers_complete(false), content_length(0) {}
 	};
 
-	int server_fd_;
-	int epoll_fd_;
-	bool running_;
+	int server_fd_{-1};
+	int epoll_fd_{-1};
+	bool running_{false};
 	std::map<int, std::shared_ptr<ClientContext>> clients_;
 
 	// Route handlers
@@ -42,6 +42,7 @@ private:
 	std::map<std::string, std::function<void(const std::shared_ptr<ClientContext> &)>> get_routes_;
 	std::map<std::string, std::function<void(const std::shared_ptr<ClientContext> &)>> options_routes_;
 
+	// Core server methods
 	void setupRoutes();
 	void createSocket();
 	void setupEpoll();
@@ -49,12 +50,14 @@ private:
 	void acceptNewConnection();
 	void handleClientData(int client_fd);
 	void closeClient(int client_fd);
+
+	// HTTP processing
 	void processRequest(const std::shared_ptr<ClientContext> &context);
 	void parseHttpRequest(const std::shared_ptr<ClientContext> &context);
-	void sendResponse(int client_fd, int status_code, const std::string &content_type, const std::string &body);
+	void sendHttpResponse(int client_fd, int status_code, const std::string &content_type, const std::string &body);
 	void sendFileResponse(int client_fd, const fs::path &file_path);
 
-	// Thin route handler wrappers
+	// Route handlers
 	void handleUpload(const std::shared_ptr<ClientContext> &context, const std::string &body);
 	void handleUploadRealtime(const std::shared_ptr<ClientContext> &context, const std::string &body);
 	void handleProgress(const std::shared_ptr<ClientContext> &context);
@@ -66,4 +69,10 @@ private:
 	void handleServeReactFile(const std::shared_ptr<ClientContext> &context);
 	void handleRoot(const std::shared_ptr<ClientContext> &context);
 	void handleOptions(const std::shared_ptr<ClientContext> &context);
+
+	// Helper methods
+	bool isStaticAsset(const std::string &path) const;
+	bool isApiEndpoint(const std::string &path) const;
+	void sendErrorResponse(int client_fd, int status_code, const std::string &message);
+	void cleanupResources();
 };
