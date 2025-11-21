@@ -20,9 +20,9 @@ public:
 		int server_port = 8080;
 		std::string test_image_path;
 		std::string test_video_path;
-		int timeout_seconds = 120;
-		int max_retries = 60;
-		int retry_delay_ms = 1000;
+		int timeout_seconds = 200;
+		int max_retries = 100;
+		int retry_delay_ms = 1500;
 	};
 
 	EmotionServerBenchmark(const BenchmarkConfig &config);

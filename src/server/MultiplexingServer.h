@@ -60,6 +60,7 @@ private:
 	// Route handlers
 	void handleUpload(const std::shared_ptr<ClientContext> &context, const std::string &body);
 	void handleUploadRealtime(const std::shared_ptr<ClientContext> &context, const std::string &body);
+	void handleMetrics(const std::shared_ptr<ClientContext> &context);
 	void handleProgress(const std::shared_ptr<ClientContext> &context);
 	void handleBatchProgress(const std::shared_ptr<ClientContext> &context, const std::string &body);
 	void handleSubmitApplication(const std::shared_ptr<ClientContext> &context, const std::string &body);
