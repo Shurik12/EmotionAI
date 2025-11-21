@@ -1,14 +1,13 @@
 services:
-  dragonfly-master:
+  dragonfly:
     image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
-    container_name: dragonfly-master
+    container_name: dragonfly
     ports:
       - "6379:6379"
     volumes:
-      - dragonfly_master_data:/data
+      - dragonfly_data:/data
     command:
-      - "--memcached_port=0"
-      - "--logtostderr" # Enable logging to see what's happening
+      - "--memcached_port=0" # Disable memcached protocol if not needed
     networks:
       - monitoring
     restart: unless-stopped
@@ -18,52 +17,6 @@ services:
       timeout: 5s
       retries: 3
 
-  dragonfly-replica-1:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
-    container_name: dragonfly-replica-1
-    ports:
-      - "6380:6379"
-    volumes:
-      - dragonfly_replica1_data:/data
-    command:
-      - "--memcached_port=0"
-      - "--logtostderr"
-      - "--replicaof=dragonfly-master:6379" # Correct flag for replication
-    networks:
-      - monitoring
-    restart: unless-stopped
-    depends_on:
-      - dragonfly-master
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 40s
-
-  dragonfly-replica-2:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
-    container_name: dragonfly-replica-2
-    ports:
-      - "6381:6379"
-    volumes:
-      - dragonfly_replica2_data:/data
-    command:
-      - "--memcached_port=0"
-      - "--logtostderr"
-      - "--replicaof=dragonfly-master:6379" # Correct flag for replication
-    networks:
-      - monitoring
-    restart: unless-stopped
-    depends_on:
-      - dragonfly-master
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 40s
-
   emotionai-server:
     build:
       context: .
@@ -71,8 +24,8 @@ services:
     image: emotionai-server:latest
     container_name: emotionai-server
     ports:
-      - "8080:8080"
-      - "8081:8081"
+      - "8080:8080" # Main application port
+      - "8081:8081" # Metrics endpoint port
     volumes:
       - ./logs:/emotionai/logs
       - ./uploads:/emotionai/uploads
@@ -82,12 +35,12 @@ services:
       - ./build/emotionai:/emotionai/emotionai
     environment:
       - LOG_LEVEL=info
-      - DRAGONFLY_HOST=dragonfly-master
+      - DRAGONFLY_HOST=dragonfly
       - DRAGONFLY_PORT=6379
     networks:
       - monitoring
     depends_on:
-      dragonfly-master:
+      dragonfly:
         condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
@@ -166,9 +119,7 @@ services:
 volumes:
   prometheus_data:
   grafana_data:
-  dragonfly_master_data:
-  dragonfly_replica1_data:
-  dragonfly_replica2_data:
+  dragonfly_data:
 
 
 networks:
