@@ -11,8 +11,16 @@
 #include <metrics/MetricsCollector.h>
 #include "BaseServer.h"
 
+// Include cluster headers - use forward declarations in header, includes in cpp
+#ifdef WITH_CLUSTER
+#include <cluster/ClusterManager.h>
+#include <cluster/DistributedTaskManager.h>
+#endif
+
 BaseServer::BaseServer()
-	: dragonfly_manager_(nullptr), file_processor_(nullptr)
+	: dragonfly_manager_(nullptr),
+	  file_processor_(nullptr),
+	  instance_id_("")
 {
 }
 
@@ -47,6 +55,10 @@ void BaseServer::initializeComponents()
 	LOG_INFO("Initializing components...");
 	try
 	{
+		// Generate instance ID
+		instance_id_ = generateInstanceId();
+		LOG_INFO("Instance ID: {}", instance_id_);
+
 		// Create thread pool
 		unsigned int num_threads = std::max(2u, std::thread::hardware_concurrency());
 		thread_pool_ = std::make_unique<ThreadPool>(num_threads);
@@ -56,6 +68,13 @@ void BaseServer::initializeComponents()
 		dragonfly_manager_ = std::make_shared<DragonflyManager>();
 		dragonfly_manager_->initialize();
 		LOG_INFO("DragonflyManager initialized successfully");
+
+		// Initialize cluster components if enabled
+		auto &config = Config::instance();
+		if (config.cluster().enabled)
+		{
+			initializeCluster();
+		}
 
 		// Initialize TaskManager
 		auto &task_manager = TaskManager::instance();
@@ -73,8 +92,261 @@ void BaseServer::initializeComponents()
 	}
 }
 
+void BaseServer::initializeCluster()
+{
+#ifdef WITH_CLUSTER
+	auto &config = Config::instance();
+	LOG_INFO("Initializing cluster components...");
+
+	try
+	{
+		// Create cluster manager
+		cluster_manager_ = std::make_unique<ClusterManager>(dragonfly_manager_);
+		cluster_manager_->initialize();
+		LOG_INFO("ClusterManager initialized successfully");
+
+		// Create distributed task manager
+		distributed_task_manager_ = std::make_unique<DistributedTaskManager>(
+			dragonfly_manager_, instance_id_);
+		LOG_INFO("DistributedTaskManager initialized successfully");
+
+		// Register this instance
+		registerInstance();
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Failed to initialize cluster components: {}", e.what());
+		throw;
+	}
+#else
+	LOG_WARN("Cluster support not compiled in, but cluster.enabled=true in config");
+#endif
+}
+
+void BaseServer::startClusterServices()
+{
+#ifdef WITH_CLUSTER
+	auto &config = Config::instance();
+	if (config.cluster().enabled && cluster_manager_)
+	{
+		LOG_INFO("Starting cluster services...");
+		cluster_manager_->start();
+		startDistributedTaskWorkers();
+		LOG_INFO("Cluster services started successfully");
+	}
+#endif
+}
+
+void BaseServer::stopClusterServices()
+{
+#ifdef WITH_CLUSTER
+	auto &config = Config::instance();
+	if (config.cluster().enabled)
+	{
+		LOG_INFO("Stopping cluster services...");
+		stopDistributedTaskWorkers();
+		if (cluster_manager_)
+		{
+			cluster_manager_->stop();
+		}
+		unregisterInstance();
+		LOG_INFO("Cluster services stopped successfully");
+	}
+#endif
+}
+
+void BaseServer::registerInstance()
+{
+#ifdef WITH_CLUSTER
+	if (!cluster_manager_)
+		return;
+
+	try
+	{
+		// Instance info will be registered by ClusterManager
+		LOG_INFO("Instance registered with cluster: {}", instance_id_);
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Failed to register instance: {}", e.what());
+	}
+#endif
+}
+
+void BaseServer::unregisterInstance()
+{
+#ifdef WITH_CLUSTER
+	if (!cluster_manager_)
+		return;
+
+	try
+	{
+		LOG_INFO("Unregistering instance from cluster: {}", instance_id_);
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Failed to unregister instance: {}", e.what());
+	}
+#endif
+}
+
+void BaseServer::startDistributedTaskWorkers()
+{
+#ifdef WITH_CLUSTER
+	auto &config = Config::instance();
+	if (!config.cluster().enabled || !distributed_task_manager_)
+	{
+		return;
+	}
+
+	workers_running_.store(true);
+
+	// Start batch task workers
+	unsigned int num_workers = std::max(1u, std::thread::hardware_concurrency() / 2);
+
+	for (unsigned int i = 0; i < num_workers; ++i)
+	{
+		task_worker_threads_.emplace_back([this, i, &config]()
+										  {
+            LOG_INFO("Distributed task worker {} started", i);
+            
+            while (workers_running_.load()) {
+                try {
+                    // Try to get next batch task
+                    auto task = distributed_task_manager_->getNextTask(
+                        config.queue().batch_queue_name,
+                        config.queue().visibility_timeout
+                    );
+                    
+                    if (task) {
+                        processDistributedTask(*task);
+                    } else {
+                        // No task available, sleep briefly
+                        std::this_thread::sleep_for(
+                            std::chrono::milliseconds(config.queue().poll_interval_ms)
+                        );
+                    }
+                } catch (const std::exception& e) {
+                    LOG_ERROR("Error in distributed task worker {}: {}", i, e.what());
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                }
+            }
+            
+            LOG_INFO("Distributed task worker {} stopped", i); });
+	}
+
+	LOG_INFO("Started {} distributed task workers", num_workers);
+#endif
+}
+
+void BaseServer::stopDistributedTaskWorkers()
+{
+	workers_running_.store(false);
+
+	for (auto &thread : task_worker_threads_)
+	{
+		if (thread.joinable())
+		{
+			thread.join();
+		}
+	}
+	task_worker_threads_.clear();
+
+	LOG_INFO("Distributed task workers stopped");
+}
+
+void BaseServer::processDistributedTask(const nlohmann::json &task)
+{
+#ifdef WITH_CLUSTER
+	std::string task_id = task["task_id"];
+	std::string task_type = task["type"];
+	std::string file_path = task["file_path"];
+	std::string filename = task["filename"];
+
+	LOG_INFO("Processing distributed task {}: {} ({})", task_id, filename, task_type);
+
+	try
+	{
+		// Update task status to processing
+		auto &task_manager = TaskManager::instance();
+		task_manager.set_task_status(task_id, {{"task_id", task_id},
+											   {"progress", 10},
+											   {"message", "Processing started in distributed worker"},
+											   {"error", nullptr},
+											   {"complete", false},
+											   {"mode", task_type == "realtime_video" ? "realtime" : "batch"},
+											   {"instance_id", instance_id_},
+											   {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+																 std::chrono::system_clock::now().time_since_epoch())
+																 .count()}});
+
+		// Process the file based on task type
+		if (task_type == "realtime_video")
+		{
+			file_processor_->process_video_realtime(task_id, file_path, filename);
+		}
+		else
+		{
+			file_processor_->process_file(task_id, file_path, filename);
+		}
+
+		// Mark task as complete
+		if (distributed_task_manager_)
+		{
+			distributed_task_manager_->markTaskComplete(task_id);
+		}
+
+		LOG_INFO("Distributed task {} completed successfully", task_id);
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Distributed task {} failed: {}", task_id, e.what());
+
+		// Update task status with error
+		try
+		{
+			auto &task_manager = TaskManager::instance();
+			task_manager.set_task_status(task_id, {{"task_id", task_id},
+												   {"progress", 0},
+												   {"message", "Processing failed in distributed worker"},
+												   {"error", e.what()},
+												   {"complete", true},
+												   {"mode", task_type == "realtime_video" ? "realtime" : "batch"},
+												   {"instance_id", instance_id_},
+												   {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+																	 std::chrono::system_clock::now().time_since_epoch())
+																	 .count()}});
+
+			// Mark task as failed in distributed queue
+			if (distributed_task_manager_)
+			{
+				distributed_task_manager_->markTaskFailed(task_id, e.what());
+			}
+		}
+		catch (const std::exception &db_error)
+		{
+			LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
+		}
+	}
+#endif
+}
+
+std::string BaseServer::generateInstanceId()
+{
+	auto &config = Config::instance();
+
+	if (config.cluster().instance_id != "auto")
+	{
+		return config.cluster().instance_id;
+	}
+
+	// Generate UUID for this instance
+	return DragonflyManager::generate_uuid();
+}
+
 std::string BaseServer::handleUploadCommon(const std::string &file_content, const std::string &filename, bool realtime)
 {
+	auto &config = Config::instance();
 	std::string task_id = DragonflyManager::generate_uuid();
 	fs::path filepath = upload_folder_ / (task_id + "_" + filename);
 
@@ -90,7 +362,54 @@ std::string BaseServer::handleUploadCommon(const std::string &file_content, cons
 
 	LOG_INFO("File saved successfully: {}, size: {} bytes", filepath.string(), fs::file_size(filepath));
 
-	// Submit to thread pool
+	// Check if we should use distributed processing
+#ifdef WITH_CLUSTER
+	if (config.cluster().enabled && distributed_task_manager_)
+	{
+		// Use distributed task queue
+		std::string task_type = realtime ? "realtime_video" : "batch_processing";
+
+		nlohmann::json task = {
+			{"task_id", task_id},
+			{"type", task_type},
+			{"filename", filename},
+			{"file_path", filepath.string()},
+			{"instance_id", instance_id_}, // Creator instance
+			{"created_at", std::chrono::system_clock::now().time_since_epoch().count()},
+			{"status", "pending"},
+			{"retry_count", 0}};
+
+		std::string queue_name = realtime ? config.queue().realtime_queue_name : config.queue().batch_queue_name;
+
+		if (distributed_task_manager_->submitTask(queue_name, task))
+		{
+			LOG_INFO("Task {} submitted to distributed queue: {}", task_id, queue_name);
+
+			// Set initial status
+			auto &task_manager = TaskManager::instance();
+			task_manager.set_task_status(task_id, {{"task_id", task_id},
+												   {"progress", 0},
+												   {"message", realtime ? "Queued for real-time processing" : "Queued for batch processing"},
+												   {"error", nullptr},
+												   {"complete", false},
+												   {"mode", realtime ? "realtime" : "batch"},
+												   {"instance_id", instance_id_},
+												   {"queued", true},
+												   {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+																	 std::chrono::system_clock::now().time_since_epoch())
+																	 .count()}});
+
+			return task_id;
+		}
+		else
+		{
+			LOG_WARN("Failed to submit task to distributed queue, falling back to local processing");
+			// Fall through to local processing
+		}
+	}
+#endif
+
+	// Fallback to local processing (original behavior)
 	auto *file_processor = file_processor_.get();
 
 	thread_pool_->enqueue([this, file_processor, task_id, filepath, filename, realtime]()
@@ -109,6 +428,7 @@ std::string BaseServer::handleUploadCommon(const std::string &file_content, cons
                 {"error", nullptr},
                 {"complete", false},
                 {"mode", realtime ? "realtime" : "batch"},
+                {"instance_id", instance_id_},
                 {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::system_clock::now().time_since_epoch()).count()}
             });
@@ -138,6 +458,7 @@ std::string BaseServer::handleUploadCommon(const std::string &file_content, cons
                     {"error", e.what()},
                     {"complete", true},
                     {"mode", realtime ? "realtime" : "batch"},
+                    {"instance_id", instance_id_},
                     {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
                         std::chrono::system_clock::now().time_since_epoch()).count()}
                 });
@@ -417,11 +738,11 @@ std::string BaseServer::extractBoundary(const std::string &content_type)
 
 std::string BaseServer::collectMetrics()
 {
-    return MetricsCollector::instance().collectMetrics();
+	return MetricsCollector::instance().collectMetrics();
 }
 
-void BaseServer::updateRequestMetrics(const std::string& method, const std::string& endpoint, 
-                                    int status_code, double duration_seconds)
+void BaseServer::updateRequestMetrics(const std::string &method, const std::string &endpoint,
+									  int status_code, double duration_seconds)
 {
-    MetricsCollector::instance().recordRequest(method, endpoint, status_code, duration_seconds);
+	MetricsCollector::instance().recordRequest(method, endpoint, status_code, duration_seconds);
 }

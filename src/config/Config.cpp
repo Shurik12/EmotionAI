@@ -117,6 +117,41 @@ bool Config::loadFromFile(const std::string &config_path)
 			new_data.model.face_detection_models_path = model["face_detection_models_path"].as<std::string>(new_data.model.face_detection_models_path);
 		}
 
+		// NEW: Load cluster configuration
+		if (root["cluster"])
+		{
+			const auto &cluster = root["cluster"];
+			new_data.cluster.enabled = cluster["enabled"].as<bool>(new_data.cluster.enabled);
+			new_data.cluster.name = cluster["name"].as<std::string>(new_data.cluster.name);
+			new_data.cluster.instance_id = cluster["instance_id"].as<std::string>(new_data.cluster.instance_id);
+			new_data.cluster.heartbeat_interval = cluster["heartbeat_interval"].as<int>(new_data.cluster.heartbeat_interval);
+			new_data.cluster.instance_timeout = cluster["instance_timeout"].as<int>(new_data.cluster.instance_timeout);
+			new_data.cluster.leader_election_interval = cluster["leader_election_interval"].as<int>(new_data.cluster.leader_election_interval);
+			new_data.cluster.auto_cleanup = cluster["auto_cleanup"].as<bool>(new_data.cluster.auto_cleanup);
+		}
+
+		// NEW: Load queue configuration
+		if (root["queue"])
+		{
+			const auto &queue = root["queue"];
+			new_data.queue.batch_queue_name = queue["batch_queue_name"].as<std::string>(new_data.queue.batch_queue_name);
+			new_data.queue.realtime_queue_name = queue["realtime_queue_name"].as<std::string>(new_data.queue.realtime_queue_name);
+			new_data.queue.visibility_timeout = queue["visibility_timeout"].as<int>(new_data.queue.visibility_timeout);
+			new_data.queue.max_retries = queue["max_retries"].as<int>(new_data.queue.max_retries);
+			new_data.queue.batch_size = queue["batch_size"].as<int>(new_data.queue.batch_size);
+			new_data.queue.poll_interval_ms = queue["poll_interval_ms"].as<int>(new_data.queue.poll_interval_ms);
+		}
+
+		// NEW: Load task management configuration
+		if (root["task_management"])
+		{
+			const auto &task_management = root["task_management"];
+			new_data.task_management.cache_ttl = task_management["cache_ttl"].as<int>(new_data.task_management.cache_ttl);
+			new_data.task_management.max_cache_size = task_management["max_cache_size"].as<int>(new_data.task_management.max_cache_size);
+			new_data.task_management.batch_size = task_management["batch_size"].as<int>(new_data.task_management.batch_size);
+			new_data.task_management.batch_timeout_ms = task_management["batch_timeout_ms"].as<int>(new_data.task_management.batch_timeout_ms);
+		}
+
 		data_ = std::move(new_data);
 		loaded_.store(true);
 
@@ -157,6 +192,25 @@ bool Config::loadFromFile(const std::string &config_path)
 		spdlog::info("  Backend: {}", data_.model.backend);
 		spdlog::info("  Emotion Model: {}", data_.model.emotion_model_path);
 		spdlog::info("  Face Detection Models: {}", data_.model.face_detection_models_path);
+
+		// NEW: Log cluster configuration
+		spdlog::info("Cluster configuration:");
+		spdlog::info("  Enabled: {}", data_.cluster.enabled);
+		spdlog::info("  Name: {}", data_.cluster.name);
+		spdlog::info("  Instance ID: {}", data_.cluster.instance_id);
+		spdlog::info("  Heartbeat Interval: {}s", data_.cluster.heartbeat_interval);
+		spdlog::info("  Instance Timeout: {}s", data_.cluster.instance_timeout);
+		spdlog::info("  Leader Election Interval: {}s", data_.cluster.leader_election_interval);
+		spdlog::info("  Auto Cleanup: {}", data_.cluster.auto_cleanup);
+
+		// NEW: Log queue configuration
+		spdlog::info("Queue configuration:");
+		spdlog::info("  Batch Queue: {}", data_.queue.batch_queue_name);
+		spdlog::info("  Realtime Queue: {}", data_.queue.realtime_queue_name);
+		spdlog::info("  Visibility Timeout: {}s", data_.queue.visibility_timeout);
+		spdlog::info("  Max Retries: {}", data_.queue.max_retries);
+		spdlog::info("  Batch Size: {}", data_.queue.batch_size);
+		spdlog::info("  Poll Interval: {}ms", data_.queue.poll_interval_ms);
 
 		return true;
 	}
@@ -292,6 +346,32 @@ bool Config::validate() const
 	if (data_.logging.max_files <= 0)
 	{
 		spdlog::error("Invalid max files: {}", data_.logging.max_files);
+		return false;
+	}
+
+	// NEW: Validate cluster configuration
+	if (data_.cluster.heartbeat_interval <= 0)
+	{
+		spdlog::error("Invalid heartbeat interval: {}", data_.cluster.heartbeat_interval);
+		return false;
+	}
+
+	if (data_.cluster.instance_timeout <= data_.cluster.heartbeat_interval)
+	{
+		spdlog::error("Instance timeout must be greater than heartbeat interval");
+		return false;
+	}
+
+	// NEW: Validate queue configuration
+	if (data_.queue.visibility_timeout <= 0)
+	{
+		spdlog::error("Invalid visibility timeout: {}", data_.queue.visibility_timeout);
+		return false;
+	}
+
+	if (data_.queue.max_retries < 0)
+	{
+		spdlog::error("Invalid max retries: {}", data_.queue.max_retries);
 		return false;
 	}
 

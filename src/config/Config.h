@@ -41,6 +41,8 @@ public:
 	const auto &mtcnn() const { return data_.mtcnn; }
 	const auto &model() const { return data_.model; }
 	const auto &logging() const { return data_.logging; }
+	const auto &cluster() const { return data_.cluster; }
+	const auto &queue() const { return data_.queue; }
 
 	// Check if config is loaded
 	bool isLoaded() const { return loaded_.load(); }
@@ -119,6 +121,35 @@ private:
 		std::string face_detection_models_path = "";
 	};
 
+	struct ClusterConfig
+	{
+		bool enabled{false};
+		std::string name{"emotionai-cluster"};
+		std::string instance_id{"auto"};  // "auto" means generate UUID automatically
+		int heartbeat_interval{30};		  // seconds
+		int instance_timeout{120};		  // seconds
+		int leader_election_interval{60}; // seconds
+		bool auto_cleanup{true};
+	};
+
+	struct QueueConfig
+	{
+		std::string batch_queue_name{"tasks:batch"};
+		std::string realtime_queue_name{"tasks:realtime"};
+		int visibility_timeout{300}; // 5 minutes
+		int max_retries{3};
+		int batch_size{50};
+		int poll_interval_ms{100};
+	};
+
+	struct TaskManagementConfig
+	{
+		int cache_ttl{300}; // 5 minutes in seconds
+		int max_cache_size{10000};
+		int batch_size{50};
+		int batch_timeout_ms{100};
+	};
+
 	struct ConfigData
 	{
 		ServerConfig server;
@@ -129,6 +160,9 @@ private:
 		DragonflyConfig dragonfly;
 		MtcnnConfig mtcnn;
 		ModelConfig model;
+		ClusterConfig cluster;
+		QueueConfig queue;
+		TaskManagementConfig task_management;
 	};
 
 	ConfigData data_;
