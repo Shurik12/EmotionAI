@@ -103,6 +103,8 @@ void MultiplexingServer::setupRoutes()
 
 	// GET routes
 	get_routes_ = {
+		{"/api/metrics", [this](auto &&ctx)
+		 { handleMetrics(ctx); }},
 		{"/api/progress", [this](auto &&ctx)
 		 { handleProgress(ctx); }},
 		{"/api/results", [this](auto &&ctx)
@@ -558,13 +560,18 @@ void MultiplexingServer::sendFileResponse(int client_fd, const fs::path &file_pa
 
 void MultiplexingServer::closeClient(int client_fd)
 {
-	if (auto it = clients_.find(client_fd); it != clients_.end())
-	{
-		epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_fd, nullptr);
-		close(client_fd);
-		clients_.erase(it);
-		LOG_DEBUG("Client disconnected: fd={}", client_fd);
-	}
+    if (auto it = clients_.find(client_fd); it != clients_.end())
+    {
+        epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_fd, nullptr);
+        close(client_fd);
+        
+        // Clear the buffer to free memory
+        it->second->buffer.clear();
+        it->second->buffer.shrink_to_fit();
+        
+        clients_.erase(it);
+        LOG_DEBUG("Client disconnected: fd={}", client_fd);
+    }
 }
 
 // Helper methods
@@ -694,6 +701,20 @@ void MultiplexingServer::handleUploadRealtime(const std::shared_ptr<ClientContex
 	catch (const std::exception &e)
 	{
 		LOG_ERROR("Exception in real-time upload from client {}: {}", context->fd, e.what());
+		sendErrorResponse(context->fd, 500, "Internal server error");
+	}
+}
+
+void MultiplexingServer::handleMetrics(const std::shared_ptr<ClientContext> &context)
+{
+	try
+	{
+		auto metrics = collectMetrics();
+		sendHttpResponse(context->fd, 200, "text/plain; version=0.0.4", metrics);
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Metrics error: {}", e.what());
 		sendErrorResponse(context->fd, 500, "Internal server error");
 	}
 }
