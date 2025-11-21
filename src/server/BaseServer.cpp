@@ -1,12 +1,15 @@
-#include "BaseServer.h"
+#include <sstream>
+#include <algorithm>
+#include <fstream>
+#include <sys/resource.h>
+
 #include <config/Config.h>
 #include <logging/Logger.h>
 #include <common/uuid.h>
 #include <db/TaskManager.h>
 #include <emotionai/FileProcessor.h>
-#include <sstream>
-#include <algorithm>
-#include <fstream>
+#include <metrics/MetricsCollector.h>
+#include "BaseServer.h"
 
 BaseServer::BaseServer()
 	: dragonfly_manager_(nullptr), file_processor_(nullptr)
@@ -410,4 +413,15 @@ std::string BaseServer::extractBoundary(const std::string &content_type)
 
 	LOG_DEBUG("Extracted boundary: '{}'", boundary);
 	return "--" + boundary;
+}
+
+std::string BaseServer::collectMetrics()
+{
+    return MetricsCollector::instance().collectMetrics();
+}
+
+void BaseServer::updateRequestMetrics(const std::string& method, const std::string& endpoint, 
+                                    int status_code, double duration_seconds)
+{
+    MetricsCollector::instance().recordRequest(method, endpoint, status_code, duration_seconds);
 }

@@ -11,16 +11,26 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "cadvisor"
+  - job_name: "emotionai-server"
     static_configs:
-      - targets: ["cadvisor:8080"]
-
-  - job_name: "node-exporter"
-    static_configs:
-      - targets: ["node-exporter:9100"]
-
-  - job_name: "emotionai"
-    static_configs:
-      - targets: ["host.docker.internal:8081"] # Your application metrics endpoint
+      - targets: ["emotionai-server:8080"]
+    metrics_path: /api/metrics
     scrape_interval: 10s
-    metrics_path: "/metrics"
+    scrape_timeout: 5s
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 15s
+
+  - job_name: "dragonfly"
+    static_configs:
+      - targets: ["dragonfly:6379"]
+    metrics_path: /metrics
+    # Note: Dragonfly needs to be built with metrics support
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093

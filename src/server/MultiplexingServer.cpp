@@ -1,4 +1,3 @@
-// File: MultiplexingServer.cpp (refactored)
 #include <filesystem>
 #include <fstream>
 #include <vector>
@@ -11,12 +10,14 @@
 #include <fmt/format.h>
 #include <nlohmann/json.hpp>
 
-#include <server/MultiplexingServer.h>
+#include <metrics/MetricsCollector.h>
+#include <metrics/MetricsMiddleware.h>
 #include <config/Config.h>
 #include <logging/Logger.h>
 #include <common/uuid.h>
 #include <db/TaskManager.h>
 #include <emotionai/FileProcessor.h>
+#include "MultiplexingServer.h"
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -103,6 +104,8 @@ void MultiplexingServer::setupRoutes()
 
 	// GET routes
 	get_routes_ = {
+		{"/api/metrics", [this](auto &&ctx)
+		 { handleMetrics(ctx); }},
 		{"/api/progress", [this](auto &&ctx)
 		 { handleProgress(ctx); }},
 		{"/api/results", [this](auto &&ctx)
@@ -199,32 +202,35 @@ void MultiplexingServer::handleEvents()
 
 void MultiplexingServer::acceptNewConnection()
 {
-	sockaddr_in client_addr{};
-	socklen_t client_len = sizeof(client_addr);
+    sockaddr_in client_addr{};
+    socklen_t client_len = sizeof(client_addr);
 
-	int client_fd = accept4(server_fd_, reinterpret_cast<sockaddr *>(&client_addr), &client_len, SOCK_NONBLOCK);
-	if (client_fd == -1)
-	{
-		LOG_ERROR("Failed to accept connection: {}", strerror(errno));
-		return;
-	}
+    int client_fd = accept4(server_fd_, reinterpret_cast<sockaddr*>(&client_addr), &client_len, SOCK_NONBLOCK);
+    if (client_fd == -1)
+    {
+        LOG_ERROR("Failed to accept connection: {}", strerror(errno));
+        return;
+    }
 
-	auto context = std::make_shared<ClientContext>(client_fd);
-	clients_[client_fd] = context;
+    auto context = std::make_shared<ClientContext>(client_fd);
+    clients_[client_fd] = context;
 
-	epoll_event event{};
-	event.events = EPOLLIN;
-	event.data.fd = client_fd;
+    // Metrics: increment active connections
+    MetricsCollector::instance().incrementActiveConnections();
 
-	if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, client_fd, &event) == -1)
-	{
-		LOG_ERROR("Failed to add client to epoll: {}", strerror(errno));
-		closeClient(client_fd);
-	}
-	else
-	{
-		LOG_DEBUG("New client connected: fd={}", client_fd);
-	}
+    epoll_event event{};
+    event.events = EPOLLIN;
+    event.data.fd = client_fd;
+
+    if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, client_fd, &event) == -1)
+    {
+        LOG_ERROR("Failed to add client to epoll: {}", strerror(errno));
+        closeClient(client_fd);
+    }
+    else
+    {
+        LOG_DEBUG("New client connected: fd={}", client_fd);
+    }
 }
 
 void MultiplexingServer::handleClientData(int client_fd)
@@ -360,9 +366,11 @@ void MultiplexingServer::parseHttpRequest(const std::shared_ptr<ClientContext> &
 void MultiplexingServer::processRequest(const std::shared_ptr<ClientContext> &context)
 {
 	LOG_DEBUG("Processing: {} {}", context->method, context->path);
+	auto start_time = std::chrono::steady_clock::now();
 
 	try
 	{
+
 		if (context->method == "OPTIONS")
 		{
 			auto it = options_routes_.find(context->path);
@@ -422,11 +430,26 @@ void MultiplexingServer::processRequest(const std::shared_ptr<ClientContext> &co
 		{
 			sendErrorResponse(context->fd, 405, "Method not allowed");
 		}
+
+		// Record metrics
+		auto end_time = std::chrono::steady_clock::now();
+        double duration = std::chrono::duration<double>(end_time - start_time).count();
+        
+        MetricsCollector::instance().recordRequest(
+            context->method, context->path, 200, duration
+        );
 	}
 	catch (const std::exception &e)
 	{
-		LOG_ERROR("Error processing request: {}", e.what());
-		sendErrorResponse(context->fd, 500, "Internal server error");
+        auto end_time = std::chrono::steady_clock::now();
+        double duration = std::chrono::duration<double>(end_time - start_time).count();
+        
+        MetricsCollector::instance().recordRequest(
+            context->method, context->path, 500, duration
+        );
+        
+        LOG_ERROR("Error processing request: {}", e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
 	}
 }
 
@@ -558,13 +581,20 @@ void MultiplexingServer::sendFileResponse(int client_fd, const fs::path &file_pa
 
 void MultiplexingServer::closeClient(int client_fd)
 {
-	if (auto it = clients_.find(client_fd); it != clients_.end())
-	{
-		epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_fd, nullptr);
-		close(client_fd);
-		clients_.erase(it);
-		LOG_DEBUG("Client disconnected: fd={}", client_fd);
-	}
+    if (auto it = clients_.find(client_fd); it != clients_.end())
+    {
+        MetricsCollector::instance().decrementActiveConnections();
+        
+        epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, client_fd, nullptr);
+        close(client_fd);
+        
+        // Clear the buffer to free memory
+        it->second->buffer.clear();
+        it->second->buffer.shrink_to_fit();
+        
+        clients_.erase(it);
+        LOG_DEBUG("Client disconnected: fd={}", client_fd);
+    }
 }
 
 // Helper methods
@@ -694,6 +724,20 @@ void MultiplexingServer::handleUploadRealtime(const std::shared_ptr<ClientContex
 	catch (const std::exception &e)
 	{
 		LOG_ERROR("Exception in real-time upload from client {}: {}", context->fd, e.what());
+		sendErrorResponse(context->fd, 500, "Internal server error");
+	}
+}
+
+void MultiplexingServer::handleMetrics(const std::shared_ptr<ClientContext> &context)
+{
+	try
+	{
+		auto metrics = collectMetrics();
+		sendHttpResponse(context->fd, 200, "text/plain; version=0.0.4", metrics);
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Metrics error: {}", e.what());
 		sendErrorResponse(context->fd, 500, "Internal server error");
 	}
 }
