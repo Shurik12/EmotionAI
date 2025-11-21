@@ -60,6 +60,7 @@ set(SRC_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/db
     ${CMAKE_CURRENT_SOURCE_DIR}/src/emotionai
     ${CMAKE_CURRENT_SOURCE_DIR}/src/logging
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/metrics
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mtcnn
     ${CMAKE_CURRENT_SOURCE_DIR}/src/server
 )

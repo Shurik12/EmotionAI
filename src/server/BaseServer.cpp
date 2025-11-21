@@ -1,13 +1,15 @@
-#include "BaseServer.h"
+#include <sstream>
+#include <algorithm>
+#include <fstream>
+#include <sys/resource.h>
+
 #include <config/Config.h>
 #include <logging/Logger.h>
 #include <common/uuid.h>
 #include <db/TaskManager.h>
 #include <emotionai/FileProcessor.h>
-#include <sstream>
-#include <algorithm>
-#include <fstream>
-#include <sys/resource.h>
+#include <metrics/MetricsCollector.h>
+#include "BaseServer.h"
 
 BaseServer::BaseServer()
 	: dragonfly_manager_(nullptr), file_processor_(nullptr)
@@ -415,84 +417,11 @@ std::string BaseServer::extractBoundary(const std::string &content_type)
 
 std::string BaseServer::collectMetrics()
 {
-	std::stringstream metrics;
-
-	// Process metrics
-	struct rusage usage;
-	getrusage(RUSAGE_SELF, &usage);
-
-	// CPU metrics
-	metrics << "# HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.\n";
-	metrics << "# TYPE process_cpu_seconds_total counter\n";
-	metrics << "process_cpu_seconds_total "
-			<< (usage.ru_utime.tv_sec + usage.ru_utime.tv_usec / 1000000.0 +
-				usage.ru_stime.tv_sec + usage.ru_stime.tv_usec / 1000000.0)
-			<< "\n";
-
-	// Memory metrics
-	metrics << "# HELP process_resident_memory_bytes Resident memory size in bytes.\n";
-	metrics << "# TYPE process_resident_memory_bytes gauge\n";
-	metrics << "process_resident_memory_bytes " << usage.ru_maxrss * 1024 << "\n";
-
-	// Thread pool metrics
-	if (thread_pool_)
-	{
-		metrics << "# HELP thread_pool_pending_tasks Number of pending tasks in thread pool.\n";
-		metrics << "# TYPE thread_pool_pending_tasks gauge\n";
-		metrics << "thread_pool_pending_tasks " << thread_pool_->get_pending_tasks() << "\n";
-
-		metrics << "# HELP thread_pool_active_threads Number of active threads in thread pool.\n";
-		metrics << "# TYPE thread_pool_active_threads gauge\n";
-		metrics << "thread_pool_active_threads " << thread_pool_->get_active_threads() << "\n";
-	}
-
-	// Request metrics
-	metrics << "# HELP http_requests_total Total number of HTTP requests.\n";
-	metrics << "# TYPE http_requests_total counter\n";
-	metrics << "http_requests_total " << total_requests_.load() << "\n";
-
-	metrics << "# HELP http_active_connections Current number of active connections.\n";
-	metrics << "# TYPE http_active_connections gauge\n";
-	metrics << "http_active_connections " << active_connections_.load() << "\n";
-
-	// Endpoint-specific metrics
-	std::lock_guard lock(metrics_mutex_);
-	for (const auto &[endpoint, count] : endpoint_requests_)
-	{
-		metrics << "# HELP http_endpoint_requests_total Total requests per endpoint.\n";
-		metrics << "# TYPE http_endpoint_requests_total counter\n";
-		metrics << "http_endpoint_requests_total{endpoint=\"" << endpoint << "\"} " << count.load() << "\n";
-	}
-
-	// Status code metrics
-	for (const auto &[code, count] : status_codes_)
-	{
-		metrics << "# HELP http_response_status_total Total responses by status code.\n";
-		metrics << "# TYPE http_response_status_total counter\n";
-		metrics << "http_response_status_total{code=\"" << code << "\"} " << count.load() << "\n";
-	}
-
-	// Dragonfly metrics (if available)
-	if (dragonfly_manager_)
-	{
-		// Add Dragonfly connection metrics here
-		metrics << "# HELP dragonfly_connections Dragonfly connection status.\n";
-		metrics << "# TYPE dragonfly_connections gauge\n";
-		metrics << "dragonfly_connections 1\n"; // Simplified - implement actual check
-	}
-
-	return metrics.str();
+    return MetricsCollector::instance().collectMetrics();
 }
 
-void BaseServer::updateRequestMetrics(const std::string &method, const std::string &endpoint, int status_code, double duration_seconds)
+void BaseServer::updateRequestMetrics(const std::string& method, const std::string& endpoint, 
+                                    int status_code, double duration_seconds)
 {
-	total_requests_++;
-
-	std::string key = method + ":" + endpoint;
-
-	{
-		std::lock_guard lock(metrics_mutex_);
-		endpoint_requests_[key]++;
-		status_codes_[status_code]++;
-	}
+    MetricsCollector::instance().recordRequest(method, endpoint, status_code, duration_seconds);
 }
