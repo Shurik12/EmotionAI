@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <nlohmann/json.hpp>
 #include <db/DragonflyManager.h>
+#include <config/Config.h>
+#include <logging/Logger.h>
 
 class ClusterManager
 {

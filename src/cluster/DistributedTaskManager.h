@@ -4,6 +4,8 @@
 #include <optional>
 #include <nlohmann/json.hpp>
 #include <db/DragonflyManager.h>
+#include <config/Config.h>
+#include <logging/Logger.h>
 
 class DistributedTaskManager
 {
@@ -30,6 +32,7 @@ public:
 private:
 	std::string makeProcessingKey(const std::string &task_id);
 	std::string makeDeadLetterKey(const std::string &task_id);
+	std::string getMainQueueName(const std::string &processing_queue);
 
 	std::shared_ptr<DragonflyManager> dragonfly_;
 	std::string instance_id_;

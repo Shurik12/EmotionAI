@@ -1,0 +1,176 @@
+services:
+  dragonfly-master:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    container_name: dragonfly-master
+    ports:
+      - "6379:6379"
+    volumes:
+      - dragonfly_master_data:/data
+    command:
+      - "--memcached_port=0"
+      - "--logtostderr" # Enable logging to see what's happening
+    networks:
+      - monitoring
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  dragonfly-replica-1:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    container_name: dragonfly-replica-1
+    ports:
+      - "6380:6379"
+    volumes:
+      - dragonfly_replica1_data:/data
+    command:
+      - "--memcached_port=0"
+      - "--logtostderr"
+      - "--replicaof=dragonfly-master:6379" # Correct flag for replication
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - dragonfly-master
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  dragonfly-replica-2:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    container_name: dragonfly-replica-2
+    ports:
+      - "6381:6379"
+    volumes:
+      - dragonfly_replica2_data:/data
+    command:
+      - "--memcached_port=0"
+      - "--logtostderr"
+      - "--replicaof=dragonfly-master:6379" # Correct flag for replication
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - dragonfly-master
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  emotionai-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: emotionai-server:latest
+    container_name: emotionai-server
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - ./logs:/emotionai/logs
+      - ./uploads:/emotionai/uploads
+      - ./results:/emotionai/results
+      - ./frontend/build:/emotionai/frontend
+      - ./config.yaml:/emotionai/config.yaml
+      - ./build/emotionai:/emotionai/emotionai
+    environment:
+      - LOG_LEVEL=info
+      - DRAGONFLY_HOST=dragonfly-master
+      - DRAGONFLY_PORT=6379
+    networks:
+      - monitoring
+    depends_on:
+      dragonfly-master:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8082:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/console_templates'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - cadvisor
+      - emotionai-server
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  dragonfly_master_data:
+  dragonfly_replica1_data:
+  dragonfly_replica2_data:
+
+
+networks:
+  monitoring:
+    driver: bridge
