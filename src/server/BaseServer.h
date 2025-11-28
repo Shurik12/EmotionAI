@@ -15,6 +15,8 @@
 #include <db/DragonflyManager.h>
 #include <emotionai/FileProcessor.h>
 #include <server/ThreadPool.h>
+#include <storage/FileStorage.h>
+#include <storage/FileStorageFactory.h>
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -64,6 +66,8 @@ protected:
 															  const std::string &boundary);
 	std::string extractBoundary(const std::string &content_type);
 
+	void initializeStorage();
+
 	// Common components
 	std::shared_ptr<DragonflyManager> dragonfly_manager_;
 	std::unique_ptr<FileProcessor> file_processor_;
@@ -71,6 +75,9 @@ protected:
 
 	// Cluster components
 	std::string instance_id_;
+
+	// Storage components
+	std::shared_ptr<FileStorage> file_storage_;
 
 #ifdef WITH_CLUSTER
 	std::unique_ptr<ClusterManager> cluster_manager_;
