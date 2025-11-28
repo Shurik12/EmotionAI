@@ -43,6 +43,7 @@ public:
 	const auto &logging() const { return data_.logging; }
 	const auto &cluster() const { return data_.cluster; }
 	const auto &queue() const { return data_.queue; }
+	const auto &storage() const { return data_.storage; }
 
 	// Check if config is loaded
 	bool isLoaded() const { return loaded_.load(); }
@@ -150,6 +151,18 @@ private:
 		int batch_timeout_ms{100};
 	};
 
+	struct StorageConfig
+	{
+		std::string type = "local"; // "local" or "s3"
+		std::string base_path = "./storage";
+		std::string s3_endpoint = "";
+		std::string s3_access_key = "";
+		std::string s3_secret_key = "";
+		std::string s3_bucket = "";
+		std::string s3_region = "us-east-1";
+		bool s3_use_ssl = true;
+	};
+
 	struct ConfigData
 	{
 		ServerConfig server;
@@ -163,6 +176,7 @@ private:
 		ClusterConfig cluster;
 		QueueConfig queue;
 		TaskManagementConfig task_management;
+		StorageConfig storage;
 	};
 
 	ConfigData data_;
