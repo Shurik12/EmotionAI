@@ -64,10 +64,10 @@ private:
 
 	struct PathsConfig
 	{
-		std::string upload = "./uploads";
-		std::string results = "./results";
+		std::string uploads = "uploads";
+		std::string results = "results";
 		std::string frontend = "../frontend/build";
-		std::string logs = "./logs";
+		std::string logs = "logs";
 	};
 
 	struct AppConfig

@@ -21,6 +21,7 @@ RUN ldconfig
 
 WORKDIR /emotionai
 
+COPY ./build/emotionai ./
 COPY ./contrib/emotiefflib/models/emotieffcpplib_prepared_models/* ./models/
 COPY ./contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/data/models/* ./models/
 

@@ -1,0 +1,52 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+  type: "non-blocking"  # blocking or non-blocking
+  
+paths:
+  upload: "./uploads"
+  results: "./results"
+  logs: "./logs"
+  frontend: "./frontend"
+
+app:
+  max_content_length: 52428800  # 50MB in bytes
+  allowed_extensions: ["png", "jpg", "jpeg", "mp4", "avi", "webm", "mp3"]
+  task_expiration: 3600  # 1 hour in seconds
+  application_expiration: 2592000  # 30 days in seconds
+
+logging:
+  level: "info"  # trace, debug, info, warn, error, critical
+  max_file_size: 20971520  # 20MB in bytes
+  max_files: 5
+  console_enabled: true
+  file_enabled: true
+  pattern: "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%n] %v"  # Console pattern with colors
+  file_pattern: "[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] %v"  # File pattern without colors
+  flush_on_level: "info"  # Level at which to flush immediately
+
+# Enhanced task management for distributed environment
+task_management:
+  cache_ttl: 300          # 5 minutes in seconds
+  max_cache_size: 10000
+  batch_size: 50
+  batch_timeout_ms: 100
+
+dragonfly:
+  host: "localhost"
+  port: 6379
+  db: 0
+  password: ""
+  pool_size: 100
+  pipeline_enabled: true
+
+mtcnn:
+  keep_all: false
+  post_process: false
+  min_face_size: 40
+  device: "cpu"
+
+model:
+  backend: "torch"
+  emotion_model_path: "models/enet_b0_8_va_mtl.pt" # enet_b2_7.pt
+  face_detection_models_path: "models/"
