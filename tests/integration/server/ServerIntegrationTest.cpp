@@ -21,7 +21,7 @@ protected:
 		}
 
 		// Setup test directories using config values
-		std::filesystem::create_directories(config.paths().upload);
+		std::filesystem::create_directories(config.paths().uploads);
 		std::filesystem::create_directories(config.paths().results);
 		std::filesystem::create_directories(config.paths().frontend);
 		std::filesystem::create_directories(config.paths().logs);
@@ -64,7 +64,7 @@ protected:
 		auto &config = Config::instance();
 		if (config.isLoaded())
 		{
-			std::filesystem::remove_all(config.paths().upload);
+			std::filesystem::remove_all(config.paths().uploads);
 			std::filesystem::remove_all(config.paths().results);
 			std::filesystem::remove_all(config.paths().frontend);
 			std::filesystem::remove_all(config.paths().logs);

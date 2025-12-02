@@ -25,12 +25,11 @@ find_package(pugixml REQUIRED)
 find_path(HIREDIS_INCLUDE_DIR hiredis/hiredis.h)
 find_library(HIREDIS_LIBRARY NAMES hiredis)
 
-# Handle contrib dependencies
-add_subdirectory(contrib)
-
-# TORCH + ONNX
 set(WITH_TORCH "${CMAKE_CURRENT_SOURCE_DIR}/contrib/libtorch" CACHE PATH "Path to LibTorch")
 set(WITH_ONNX "${CMAKE_CURRENT_SOURCE_DIR}/contrib/onnxruntime" CACHE PATH "Path to onnxruntime")
+
+add_subdirectory(contrib)
+
 if(EXISTS ${WITH_TORCH})
     find_package(Torch REQUIRED PATHS ${WITH_TORCH})
     message(STATUS "LibTorch found at: ${WITH_TORCH}")

@@ -145,7 +145,6 @@ services:
       - shared_logs:/emotionai/logs
       - ./frontend/build:/emotionai/frontend
       - ./config.yaml:/emotionai/config.yaml
-      - ./build/emotionai:/emotionai/emotionai
       - ./models:/emotionai/models
     environment:
       - LOG_LEVEL=info
@@ -192,7 +191,6 @@ services:
       - shared_logs:/emotionai/logs
       - ./frontend/build:/emotionai/frontend
       - ./config.yaml:/emotionai/config.yaml
-      - ./build/emotionai:/emotionai/emotionai
       - ./models:/emotionai/models
     environment:
       - LOG_LEVEL=info
@@ -238,7 +236,6 @@ services:
       - shared_logs:/emotionai/logs
       - ./frontend/build:/emotionai/frontend
       - ./config.yaml:/emotionai/config.yaml
-      - ./build/emotionai:/emotionai/emotionai
       - ./models:/emotionai/models
     environment:
       - LOG_LEVEL=info

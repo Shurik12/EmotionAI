@@ -29,7 +29,7 @@ void BaseServer::loadConfiguration()
     auto &config = Config::instance();
     log_folder_ = config.paths().logs;
     static_files_root_ = config.paths().frontend;
-    upload_folder_ = config.paths().upload;
+    upload_folder_ = config.paths().uploads;
     results_folder_ = config.paths().results;
 }
 

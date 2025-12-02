@@ -46,7 +46,7 @@ bool Config::loadFromFile(const std::string &config_path)
         if (root["paths"])
         {
             const auto &paths = root["paths"];
-            new_data.paths.upload = paths["upload"].as<std::string>(new_data.paths.upload);
+            new_data.paths.uploads = paths["uploads"].as<std::string>(new_data.paths.uploads);
             new_data.paths.results = paths["results"].as<std::string>(new_data.paths.results);
             new_data.paths.logs = paths["logs"].as<std::string>(new_data.paths.logs);
             new_data.paths.frontend = paths["frontend"].as<std::string>(new_data.paths.frontend);
@@ -173,7 +173,7 @@ bool Config::loadFromFile(const std::string &config_path)
         spdlog::info("  Type: {}", data_.server.type);
 
         spdlog::info("Paths configuration:");
-        spdlog::info("  Upload: {}", data_.paths.upload);
+        spdlog::info("  Upload: {}", data_.paths.uploads);
         spdlog::info("  Results: {}", data_.paths.results);
         spdlog::info("  Logs: {}", data_.paths.logs);
         spdlog::info("  Frontend: {}", data_.paths.frontend);
@@ -257,13 +257,13 @@ bool Config::setupApplicationEnvironment()
     try
     {
         // Create necessary directories
-        fs::create_directories(data_.paths.upload);
+        fs::create_directories(data_.paths.uploads);
         fs::create_directories(data_.paths.results);
         fs::create_directories(data_.paths.logs);
         fs::create_directories(data_.paths.frontend);
 
         spdlog::info("Application environment setup completed");
-        spdlog::info("Upload folder: {}", data_.paths.upload);
+        spdlog::info("Upload folder: {}", data_.paths.uploads);
         spdlog::info("Results folder: {}", data_.paths.results);
         spdlog::info("Log folder: {}", data_.paths.logs);
         spdlog::info("Frontend folder: {}", data_.paths.frontend);
