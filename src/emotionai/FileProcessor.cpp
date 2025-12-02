@@ -157,31 +157,24 @@ nlohmann::json FileProcessor::process_image_file(const std::string &task_id, con
 
     // Create Image object from cv::Mat
     Image input_image(image);
+
+    // Convert processed image to buffer and write to storage
+    std::vector<uchar> buffer;
+    cv::imencode(".jpg", image, buffer);
+    std::string storage_path = "results/result_" + filename;
+    std::vector<uint8_t> content(buffer.begin(), buffer.end());
+    if (!file_storage_->saveFile(content, storage_path))
+        throw std::runtime_error("Failed to save processed image to storage");
+    LOG_INFO("Image saved successfully to storage: {}", storage_path);
     
     // Process the image
     auto [processed_image, emotion_result] = process_image(image);
 
-    // Save processed image to shared storage instead of local filesystem
-    std::string result_filename = "result_" + filename;
-    std::string result_storage_path = "results/" + result_filename;
-
-    // Convert processed image to buffer
-    std::vector<uchar> result_buffer;
-    cv::imencode(".jpg", processed_image, result_buffer);
-    std::vector<uint8_t> result_content(result_buffer.begin(), result_buffer.end());
-
-    if (!file_storage_->saveFile(result_content, result_storage_path))
-    {
-        throw std::runtime_error("Failed to save processed image to storage");
-    }
-
-    LOG_INFO("Processed image saved successfully to storage: {}", result_storage_path);
-
     // Build the complete result JSON
     nlohmann::json result = {
         {"type", "image"},
-        {"image_url", file_storage_->getFileUrl(result_storage_path)}, // Use storage URL
-        {"storage_path", result_storage_path},
+        {"image_url", file_storage_->getFileUrl(storage_path)}, // Use storage URL
+        {"storage_path", storage_path},
         {"result", emotion_result}};
 
     return result;
@@ -224,25 +217,31 @@ nlohmann::json FileProcessor::process_video_file(const std::string &task_id, con
         {
             try
             {
-                auto [processed_frame, result] = process_image(frame);
-
+                // Save frame to storage instead of local filesystem
                 std::string frame_filename = fmt::format("frame_{}_{}.jpg", processed_count,
                                                          filename.substr(0, filename.find_last_of('.')));
-                std::string frame_file_path = (fs::path(results_path) / frame_filename).string();
-
-                if (cv::imwrite(frame_file_path, frame))
+                std::string storage_path = "results/" + frame_filename;
+                
+                // Convert frame to buffer
+                std::vector<uchar> buffer;
+                cv::imencode(".jpg", frame, buffer);
+                std::vector<uint8_t> content(buffer.begin(), buffer.end());
+                
+                // Save to storage
+                if (file_storage_->saveFile(content, storage_path))
                 {
-                    LOG_INFO("Processed frame saved successfully to {}", frame_file_path);
+                    LOG_INFO("Processed frame saved to storage: {}", storage_path);
                 }
                 else
                 {
-                    LOG_ERROR("Error: Could not save processed frame to {}", frame_file_path);
-                    // Continue processing even if frame save fails
+                    LOG_ERROR("Failed to save frame to storage: {}", storage_path);
                 }
+
+                auto [processed_frame, result] = process_image(frame);
 
                 nlohmann::json frame_result;
                 frame_result["frame"] = frame_count;
-                frame_result["image_url"] = "/api/results/" + frame_filename;
+                frame_result["image_url"] = file_storage_->getFileUrl(storage_path);  // Use storage URL
                 frame_result["result"] = result;
                 results.push_back(frame_result);
 
@@ -364,29 +363,27 @@ void FileProcessor::process_video_realtime(const std::string &task_id,
 
             try
             {
-                LOG_DEBUG("Processing frame {} for real-time analysis", frame_count);
+                // Save the processed frame image to storage
+                std::string frame_filename = fmt::format("realtime_{}_frame_{}.jpg", task_id, processed_count);
+                std::string storage_path = "results/" + frame_filename;
+
+                // Convert frame to buffer
+                std::vector<uchar> buffer;
+                cv::imencode(".jpg", frame, buffer);
+                std::vector<uint8_t> content(buffer.begin(), buffer.end());
+
+                if (file_storage_->saveFile(content, storage_path))
+                    LOG_DEBUG("Real-time frame saved to storage: {}", storage_path);
+                else
+                    LOG_WARN("Failed to save real-time frame to storage: {}", storage_path);
 
                 auto [processed_frame, result] = process_image(frame);
-
-                // Save the processed frame image
-                std::string frame_filename = fmt::format("realtime_{}_frame_{}.jpg",
-                                                         task_id, processed_count);
-                std::string frame_file_path = (fs::path(results_path) / frame_filename).string();
-
-                if (cv::imwrite(frame_file_path, frame))
-                {
-                    LOG_DEBUG("Real-time frame saved: {}", frame_file_path);
-                }
-                else
-                {
-                    LOG_WARN("Failed to save real-time frame: {}", frame_file_path);
-                }
 
                 // Store frame result with timestamp and image URL
                 nlohmann::json frame_result;
                 frame_result["frame_number"] = frame_count;
                 frame_result["timestamp"] = frame_count / fps; // seconds
-                frame_result["image_url"] = "/api/results/" + frame_filename;
+                frame_result["image_url"] = file_storage_->getFileUrl(storage_path);  // Use storage URL
                 frame_result["result"] = result;
 
                 // Extract valence and arousal if available
