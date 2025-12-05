@@ -5,6 +5,7 @@ flask-limiter==3.5.0
 redis==5.0.1
 opencv-python==4.8.1.78
 numpy==1.26.0
+pandas==2.3.3
 torch==2.8.0
 torchaudio==2.8.0
 torchvision==0.23.0
