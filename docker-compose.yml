@@ -6,7 +6,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - dragonfly_master_data:/data
+      - ./data/dragonfly_master:/data
     command:
       - "--memcached_port=0"
       - "--logtostderr"
@@ -27,7 +27,7 @@ services:
     ports:
       - "6380:6379"
     volumes:
-      - dragonfly_replica1_data:/data
+      - ./data/dragonfly_replica1:/data
     command:
       - "--memcached_port=0"
       - "--logtostderr"
@@ -51,7 +51,7 @@ services:
     ports:
       - "6381:6379"
     volumes:
-      - dragonfly_replica2_data:/data
+      - ./data/dragonfly_replica2:/data
     command:
       - "--memcached_port=0"
       - "--logtostderr"
@@ -77,7 +77,7 @@ services:
       - "9000:9000" # API port
       - "9001:9001" # Console port
     volumes:
-      - minio_data:/data
+      - ./data/minio:/data
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
@@ -142,7 +142,7 @@ services:
     ports:
       - "8081:8080"
     volumes:
-      - shared_logs:/emotionai/logs
+      - ./logs/server1:/emotionai/logs
       - ./frontend/build:/emotionai/frontend
       - ./config.yaml:/emotionai/config.yaml
       - ./models:/emotionai/models
@@ -188,7 +188,7 @@ services:
     ports:
       - "8082:8080"
     volumes:
-      - shared_logs:/emotionai/logs
+      - ./logs/server2:/emotionai/logs
       - ./frontend/build:/emotionai/frontend
       - ./config.yaml:/emotionai/config.yaml
       - ./models:/emotionai/models
@@ -233,7 +233,7 @@ services:
     ports:
       - "8083:8080"
     volumes:
-      - shared_logs:/emotionai/logs
+      - ./logs/server3:/emotionai/logs
       - ./frontend/build:/emotionai/frontend
       - ./config.yaml:/emotionai/config.yaml
       - ./models:/emotionai/models
@@ -295,7 +295,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
+      - ./data/prometheus:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -318,7 +318,7 @@ services:
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
-      - grafana_data:/var/lib/grafana
+      - ./data/grafana:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
