@@ -18,5 +18,5 @@
 cp from_source_folder/enet_b0_8_va_mtl.pt ./pretrained_model.pt
 touch train.tsv test.tsv
 python3 process_images.py
-python3 train_multitask.p
+python3 train_multitask.py
 ```

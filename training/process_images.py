@@ -32,15 +32,61 @@ def recognize_faces(frame: np.ndarray) -> List[np.ndarray]:
 
 
 def main():
-    input = "images/"
-    output = "processed_images/"
-    files = os.listdir(input)
-    for i in tqdm(range(len(files))):
-        file = files[i]
-        image = cv2.imread(os.path.join(input, file))
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        face = recognize_faces(image_rgb)[0]
-        cv2.imwrite(os.path.join(output, file), cv2.cvtColor(face, cv2.COLOR_RGB2BGR))
+    input_root = "images/"
+    output_root = "processed_images/"
+    
+    # Emotion folder names
+    emotion_folders = ["Anger", "Disgust", "Fear", "Happiness", "Neutral", "Sadness", "Surprise"]
+    
+    # Process each emotion folder
+    for emotion_folder in emotion_folders:
+        input_folder = os.path.join(input_root, emotion_folder)
+        print (input_folder)
+        output_folder = os.path.join(output_root, emotion_folder)
+        
+        # Skip if input folder doesn't exist
+        if not os.path.exists(input_folder):
+            print(f"Warning: Input folder '{input_folder}' does not exist. Skipping...")
+            continue
+            
+        # Create output folder if it doesn't exist
+        os.makedirs(output_folder, exist_ok=True)
+        
+        # Get all image files in the emotion folder
+        files = [f for f in os.listdir(input_folder) 
+                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))]
+        
+        print(f"Processing folder: {emotion_folder} ({len(files)} images)")
+        
+        # Process each image in the folder
+        for file in tqdm(files, desc=f"Processing {emotion_folder}"):
+            input_path = os.path.join(input_folder, file)
+            output_path = os.path.join(output_folder, file)
+            
+            try:
+                # Read and process image
+                image = cv2.imread(input_path)
+                if image is None:
+                    # print(f"Warning: Could not read image {input_path}. Skipping...")
+                    continue
+                    
+                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                faces = recognize_faces(image_rgb)
+                
+                # Skip if no faces detected
+                if len(faces) == 0:
+                    # print(f"Warning: No faces detected in {input_path}. Skipping...")
+                    continue
+                
+                # Save the first detected face
+                face = faces[0]
+                cv2.imwrite(output_path, cv2.cvtColor(face, cv2.COLOR_RGB2BGR))
+                
+            except Exception as e:
+                print(f"Error processing {input_path}: {str(e)}")
+                continue
+    
+    print("Processing complete!")
 
 
 if __name__ == "__main__":

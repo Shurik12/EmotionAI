@@ -1,6 +1,10 @@
-
 .vscode/
 a.txt
+data/
+logs/
+models/
+results/
+uploads/
 build/
 config.yaml
 contrib/emotiefflib/
@@ -14,3 +18,7 @@ results.txt
 src/emotion_detection_app.egg-info/
 src/source/pytorch_utils/
 venv/
+training/pretrained_model.pt
+training/model_v0.0.1.pt
+training/images/
+training/processed_images/
