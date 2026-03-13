@@ -25,6 +25,9 @@ sudo apt-get install -y \
     libopencv-dev \
     libyaml-cpp-dev \
     libspdlog-dev \
+    libcurl4-openssl-dev \
+    libcurlpp-dev \
+    libpugixml-dev \
     libfmt-dev \
     nlohmann-json3-dev \
     libhiredis-dev \
@@ -34,7 +37,16 @@ sudo apt-get install -y \
 # Install submodules
 echo "Installing git submodules..."
 git submodule update --init --recursive
+
+# Apply patch to emotiefflib
+echo "Applying emotiefflib patch..."
 git apply emotiefflib.patch
+
+# Handle nested submodules in emotiefflib
+echo "Initializing emotiefflib submodules..."
+cd contrib/emotiefflib
+git submodule update --init --recursive
+cd ../..
 
 # Install onnx
 echo "Installing onnx..."
