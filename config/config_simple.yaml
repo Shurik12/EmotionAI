@@ -25,6 +25,17 @@ logging:
   file_pattern: "[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] %v"  # File pattern without colors
   flush_on_level: "info"  # Level at which to flush immediately
 
+cluster:
+  enabled: false
+
+queue:
+  batch_queue_name: "tasks:batch"
+  realtime_queue_name: "tasks:realtime"
+  visibility_timeout: 300  # 5 minutes - task invisible to others during processing
+  max_retries: 3          # maximum retries for failed tasks
+  batch_size: 50          # number of tasks to process in batch operations
+  poll_interval_ms: 100   # milliseconds between queue polls
+
 # Enhanced task management for distributed environment
 task_management:
   cache_ttl: 300          # 5 minutes in seconds
@@ -33,12 +44,16 @@ task_management:
   batch_timeout_ms: 100
 
 dragonfly:
-  host: "localhost"
+  host: "dragonfly"
   port: 6379
   db: 0
   password: ""
   pool_size: 100
   pipeline_enabled: true
+
+storage:
+  type: "local"
+  base_path: "./storage"
 
 mtcnn:
   keep_all: false
