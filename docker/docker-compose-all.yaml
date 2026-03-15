@@ -1,0 +1,364 @@
+services:
+  # DragonflyDB Cluster
+  dragonfly-master:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    container_name: dragonfly-master
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/dragonfly_master:/data
+    command:
+      - "--memcached_port=0"
+      - "--logtostderr"
+      - "--maxmemory=4G"
+      - "--cache_mode=true"
+      - "--proactor_threads=8"
+    networks:
+      - emotionai-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  dragonfly-replica-1:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    container_name: dragonfly-replica-1
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./data/dragonfly_replica1:/data
+    command:
+      - "--memcached_port=0"
+      - "--logtostderr"
+      - "--maxmemory=3G"
+      - "--replicaof=dragonfly-master:6379"
+      - "--proactor_threads=6"
+    networks:
+      - emotionai-network
+    restart: unless-stopped
+    depends_on:
+      - dragonfly-master
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  dragonfly-replica-2:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    container_name: dragonfly-replica-2
+    ports:
+      - "6381:6379"
+    volumes:
+      - ./data/dragonfly_replica2:/data
+    command:
+      - "--memcached_port=0"
+      - "--logtostderr"
+      - "--maxmemory=3G"
+      - "--replicaof=dragonfly-master:6379"
+      - "--proactor_threads=6"
+    networks:
+      - emotionai-network
+    restart: unless-stopped
+    depends_on:
+      - dragonfly-master
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  # MinIO S3 Storage
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000" # API port
+      - "9001:9001" # Console port
+    volumes:
+      - ./data/minio:/data
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_DEFAULT_BUCKETS=emotionai
+    command: server /data --console-address ":9001"
+    networks:
+      - emotionai-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Create bucket on startup
+  minio-create-buckets:
+    image: minio/mc:latest
+    container_name: minio-create-buckets
+    depends_on:
+      - minio
+    entrypoint: |
+      sh -c "
+      until mc alias set emotionai http://minio:9000 minioadmin minioadmin; do
+        echo 'Waiting for MinIO...'
+        sleep 5
+      done
+      mc mb emotionai/emotionai --ignore-existing
+      mc anonymous set public emotionai/emotionai
+      echo 'MinIO bucket created and configured'
+      "
+    networks:
+      - emotionai-network
+
+  # Load balancer for EmotionAI servers
+  nginx-loadbalancer:
+    image: nginx:latest
+    container_name: nginx-loadbalancer
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    networks:
+      - emotionai-network
+    depends_on:
+      - emotionai-server-1
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "nginx", "-t" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Multiple EmotionAI server instances for horizontal scaling
+  emotionai-server-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: emotionai-server:latest
+    container_name: emotionai-server-1
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./logs/server1:/emotionai/logs
+      - ./frontend/build:/emotionai/frontend
+      - ./config.yaml:/emotionai/config.yaml
+      - ./models:/emotionai/models
+    environment:
+      - LOG_LEVEL=info
+      - DRAGONFLY_HOST=dragonfly-master
+      - DRAGONFLY_PORT=6379
+      - INSTANCE_ID=emotionai-server-1
+      - CLUSTER_ENABLED=true
+      - S3_ENDPOINT=minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=emotionai
+      - S3_USE_SSL=false
+    networks:
+      - emotionai-network
+    depends_on:
+      dragonfly-master:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '1.5'
+        reservations:
+          memory: 2G
+          cpus: '0.5'
+
+  emotionai-server-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: emotionai-server:latest
+    container_name: emotionai-server-2
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./logs/server2:/emotionai/logs
+      - ./frontend/build:/emotionai/frontend
+      - ./config.yaml:/emotionai/config.yaml
+      - ./models:/emotionai/models
+    environment:
+      - LOG_LEVEL=info
+      - DRAGONFLY_HOST=dragonfly-master
+      - DRAGONFLY_PORT=6379
+      - INSTANCE_ID=emotionai-server-2
+      - CLUSTER_ENABLED=true
+      - S3_ENDPOINT=minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=emotionai
+      - S3_USE_SSL=false
+    networks:
+      - emotionai-network
+    depends_on:
+      - dragonfly-master
+      - minio
+      - emotionai-server-1
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '1.5'
+        reservations:
+          memory: 2G
+          cpus: '0.5'
+
+  emotionai-server-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: emotionai-server:latest
+    container_name: emotionai-server-3
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./logs/server3:/emotionai/logs
+      - ./frontend/build:/emotionai/frontend
+      - ./config.yaml:/emotionai/config.yaml
+      - ./models:/emotionai/models
+    environment:
+      - LOG_LEVEL=info
+      - DRAGONFLY_HOST=dragonfly-master
+      - DRAGONFLY_PORT=6379
+      - INSTANCE_ID=emotionai-server-3
+      - CLUSTER_ENABLED=true
+      - S3_ENDPOINT=minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=emotionai
+      - S3_USE_SSL=false
+    networks:
+      - emotionai-network
+    depends_on:
+      - dragonfly-master
+      - minio
+      - emotionai-server-1
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '1.5'
+        reservations:
+          memory: 2G
+          cpus: '0.5'
+
+  # Monitoring stack
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - emotionai-network
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./data/prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/console_templates'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - emotionai-network
+    restart: unless-stopped
+    depends_on:
+      - cadvisor
+      - emotionai-server-1
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./data/grafana:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - emotionai-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  # Redis Commander for DragonflyDB monitoring
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    ports:
+      - "8084:8081"
+    environment:
+      - REDIS_HOSTS=local:dragonfly-master:6379,replica1:dragonfly-replica-1:6379,replica2:dragonfly-replica-2:6379
+    networks:
+      - emotionai-network
+    restart: unless-stopped
+    depends_on:
+      - dragonfly-master
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  dragonfly_master_data:
+  dragonfly_replica1_data:
+  dragonfly_replica2_data:
+  shared_logs:
+  minio_data:
+
+
+networks:
+  emotionai-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

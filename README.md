@@ -51,5 +51,10 @@ watch -n 1 'netstat -an | grep :8080 | awk '\''{print $6}'\'' | sort | uniq -c'
 sudo ss -t -K sport = 8080
 ```
 
+### Hierarchy
+README.md
+config/README.md
+docker/README.md
+
 ### Contributing:
 1. Create issue: https://github.com/Shurik12/EmotionAI/issues

@@ -1,3 +1,9 @@
 [submodule "contrib/emotiefflib"]
 	path = contrib/emotiefflib
 	url = https://github.com/sb-ai-lab/EmotiEffLib.git
+[submodule "contrib/minio-cpp"]
+	path = contrib/minio-cpp
+	url = https://github.com/minio/minio-cpp.git
+[submodule "contrib/inih"]
+	path = contrib/inih
+	url = https://github.com/benhoyt/inih.git

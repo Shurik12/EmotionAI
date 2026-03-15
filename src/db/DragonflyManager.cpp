@@ -66,7 +66,7 @@ void DragonflyManager::loadConfiguration()
 	port_ = config.dragonfly().port;
 	db_ = config.dragonfly().db;
 	password_ = config.dragonfly().password;
-	upload_folder_ = config.paths().upload;
+	upload_folder_ = config.paths().uploads;
 	task_expiration_ = config.app().task_expiration;
 
 	LOG_INFO("DragonflyDB configuration loaded: {}:{} (DB: {})", host_, port_, db_);
