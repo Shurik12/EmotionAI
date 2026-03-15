@@ -41,6 +41,9 @@ public:
 	const auto &mtcnn() const { return data_.mtcnn; }
 	const auto &model() const { return data_.model; }
 	const auto &logging() const { return data_.logging; }
+	const auto &cluster() const { return data_.cluster; }
+	const auto &queue() const { return data_.queue; }
+	const auto &storage() const { return data_.storage; }
 
 	// Check if config is loaded
 	bool isLoaded() const { return loaded_.load(); }
@@ -61,10 +64,10 @@ private:
 
 	struct PathsConfig
 	{
-		std::string upload = "./uploads";
-		std::string results = "./results";
+		std::string uploads = "uploads";
+		std::string results = "results";
 		std::string frontend = "../frontend/build";
-		std::string logs = "./logs";
+		std::string logs = "logs";
 	};
 
 	struct AppConfig
@@ -119,6 +122,47 @@ private:
 		std::string face_detection_models_path = "";
 	};
 
+	struct ClusterConfig
+	{
+		bool enabled{false};
+		std::string name{"emotionai-cluster"};
+		std::string instance_id{"auto"};  // "auto" means generate UUID automatically
+		int heartbeat_interval{30};		  // seconds
+		int instance_timeout{120};		  // seconds
+		int leader_election_interval{60}; // seconds
+		bool auto_cleanup{true};
+	};
+
+	struct QueueConfig
+	{
+		std::string batch_queue_name{"tasks:batch"};
+		std::string realtime_queue_name{"tasks:realtime"};
+		int visibility_timeout{300}; // 5 minutes
+		int max_retries{3};
+		int batch_size{50};
+		int poll_interval_ms{100};
+	};
+
+	struct TaskManagementConfig
+	{
+		int cache_ttl{300}; // 5 minutes in seconds
+		int max_cache_size{10000};
+		int batch_size{50};
+		int batch_timeout_ms{100};
+	};
+
+	struct StorageConfig
+	{
+		std::string type = "local"; // "local" or "s3"
+		std::string base_path = "./storage";
+		std::string s3_endpoint = "";
+		std::string s3_access_key = "";
+		std::string s3_secret_key = "";
+		std::string s3_bucket = "";
+		std::string s3_region = "us-east-1";
+		bool s3_use_ssl = true;
+	};
+
 	struct ConfigData
 	{
 		ServerConfig server;
@@ -129,6 +173,10 @@ private:
 		DragonflyConfig dragonfly;
 		MtcnnConfig mtcnn;
 		ModelConfig model;
+		ClusterConfig cluster;
+		QueueConfig queue;
+		TaskManagementConfig task_management;
+		StorageConfig storage;
 	};
 
 	ConfigData data_;

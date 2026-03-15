@@ -62,7 +62,7 @@ int main()
 		Logger::instance().info("Host: {}", config.server().host);
 		Logger::instance().info("Port: {}", config.server().port);
 		Logger::instance().info("Log level: {}", config.logging().level);
-		Logger::instance().info("Upload path: {}", config.paths().upload);
+		Logger::instance().info("Upload path: {}", config.paths().uploads);
 		Logger::instance().info("Results path: {}", config.paths().results);
 
 		// Create server based on configuration
