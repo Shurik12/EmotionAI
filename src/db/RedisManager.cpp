@@ -68,7 +68,7 @@ namespace db
 		redis_port_ = config.redis().port;
 		redis_db_ = config.redis().db;
 		redis_password_ = config.redis().password;
-		upload_folder_ = config.paths().upload;
+		upload_folder_ = config.paths().uploads;
 		task_expiration_ = config.app().task_expiration;
 
 		LOG_INFO("Redis configuration loaded: {}:{} (DB: {})", redis_host_, redis_port_, redis_db_);
