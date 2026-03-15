@@ -100,6 +100,9 @@ production_status:
 	@echo "=== Nginx Configuration Test ==="
 	sudo nginx -t
 
+clean-pyc:
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+
 clean:
 	rm -rf \
 		$(BUILD_DIR) \
