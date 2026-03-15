@@ -114,8 +114,7 @@ target_compile_definitions(emotionai_lib PUBLIC
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE emotionai_lib)
 
-# Testing and benchmarking
-# enable_testing()
+enable_testing()
 
 # if(BUILD_TESTS)
 #     add_subdirectory(tests)
