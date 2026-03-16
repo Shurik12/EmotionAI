@@ -44,6 +44,7 @@ public:
 	const auto &cluster() const { return data_.cluster; }
 	const auto &queue() const { return data_.queue; }
 	const auto &storage() const { return data_.storage; }
+	const auto &gigachat() const { return data_.gigachat; }
 
 	// Check if config is loaded
 	bool isLoaded() const { return loaded_.load(); }
@@ -163,6 +164,22 @@ private:
 		bool s3_use_ssl = true;
 	};
 
+	struct GigaChatConfig
+	{
+		bool enabled{false};
+		std::string auth_key;
+		std::string model{"GigaChat"};
+		std::string api_url{"https://gigachat.devices.sberbank.ru/api/v1"};
+		std::string auth_url{"https://ngw.devices.sberbank.ru:9443/api/v2/oauth"};
+		bool verify_ssl{false};
+		float min_confidence{0.3f};
+		std::string prompt_template{R"(Опираясь на входной json данных вынеси вердикт: да или нет и вероятность ответа того, 
+			готов ли сотрудник приступить к заданию. Информация - это вероятности эмоций человеческого лица
+			{emotions}
+			Ответ должен быть в формате JSON: {"verdict": "да/нет", "probability": 0.0-1.0, "reasoning": "краткое пояснение"})"
+		};
+	};
+
 	struct ConfigData
 	{
 		ServerConfig server;
@@ -177,6 +194,7 @@ private:
 		QueueConfig queue;
 		TaskManagementConfig task_management;
 		StorageConfig storage;
+		GigaChatConfig gigachat;
 	};
 
 	ConfigData data_;

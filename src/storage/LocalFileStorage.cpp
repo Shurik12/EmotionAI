@@ -16,22 +16,31 @@ LocalFileStorage::LocalFileStorage(const std::string &base_path)
 
 fs::path LocalFileStorage::resolvePath(const std::string &file_path)
 {
+    LOG_DEBUG("LocalFileStorage::resolvePath called with: {}", file_path);
+    
     if (file_path.empty() || file_path == "/")
     {
         return base_path_;
     }
 
-    // Prevent directory traversal attacks
-    fs::path resolved_path = base_path_ / file_path;
-    fs::path canonical_path = fs::weakly_canonical(resolved_path);
-
-    // Ensure the resolved path is within base path
-    if (canonical_path.string().find(base_path_.string()) != 0)
-    {
+    // Simple path traversal check
+    if (file_path.find("..") != std::string::npos) {
+        LOG_ERROR("Path traversal attempt detected: {} contains '..'", file_path);
         throw std::runtime_error("Path traversal attempt detected: " + file_path);
     }
-
-    return canonical_path;
+    
+    // Just combine the paths - no complex normalization
+    fs::path full_path = base_path_ / file_path;
+    LOG_DEBUG("Full path: {}", full_path.string());
+    
+    // Create parent directories
+    fs::path parent = full_path.parent_path();
+    if (!fs::exists(parent)) {
+        LOG_DEBUG("Creating parent directory: {}", parent.string());
+        fs::create_directories(parent);
+    }
+    
+    return full_path;
 }
 
 bool LocalFileStorage::saveFile(const std::string &file_content, const std::string &file_path)
@@ -333,7 +342,7 @@ std::string LocalFileStorage::getFileHash(const std::string &file_path)
 std::string LocalFileStorage::getFileUrl(const std::string &file_path)
 {
     // For local storage, return a relative URL that can be served by the web server
-    return "/api/storage/" + file_path;
+    return "/api/" + file_path;
 }
 
 nlohmann::json LocalFileStorage::getStorageInfo()

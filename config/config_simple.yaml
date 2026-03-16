@@ -53,7 +53,7 @@ dragonfly:
 
 storage:
   type: "local"
-  base_path: "./storage"
+  base_path: "storage"
 
 mtcnn:
   keep_all: false
@@ -65,3 +65,13 @@ model:
   backend: "torch"
   emotion_model_path: "models/enet_b0_8_va_mtl.pt" # enet_b2_7.pt
   face_detection_models_path: "models/"
+
+# GigaChat Configuration
+gigachat:
+  enabled: false
+  auth_key: ""
+  model: "GigaChat"  # Model to use
+  api_url: "https://gigachat.devices.sberbank.ru/api/v1"
+  auth_url: "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
+  verify_ssl: false  # For development only
+  min_confidence: 0.3  # Minimum emotion confidence to trigger GigaChat

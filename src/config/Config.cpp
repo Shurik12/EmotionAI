@@ -162,6 +162,20 @@ bool Config::loadFromFile(const std::string &config_path)
             new_data.storage.s3_use_ssl = storage["s3_use_ssl"].as<bool>(new_data.storage.s3_use_ssl);
         }
 
+        if (root["gigachat"])
+        {
+            const auto &gigachat = root["gigachat"];
+            new_data.gigachat.enabled = gigachat["enabled"].as<bool>(new_data.gigachat.enabled);
+            new_data.gigachat.auth_key = gigachat["auth_key"].as<std::string>(new_data.gigachat.auth_key);
+            new_data.gigachat.model = gigachat["model"].as<std::string>(new_data.gigachat.model);
+            new_data.gigachat.api_url = gigachat["api_url"].as<std::string>(new_data.gigachat.api_url);
+            new_data.gigachat.auth_url = gigachat["auth_url"].as<std::string>(new_data.gigachat.auth_url);
+            new_data.gigachat.verify_ssl = gigachat["verify_ssl"].as<bool>(new_data.gigachat.verify_ssl);
+            new_data.gigachat.min_confidence = gigachat["min_confidence"].as<float>(new_data.gigachat.min_confidence);
+            if (gigachat["prompt_template"])
+                new_data.gigachat.prompt_template = gigachat["prompt_template"].as<std::string>();
+        }
+
         data_ = std::move(new_data);
         loaded_.store(true);
 
@@ -229,6 +243,14 @@ bool Config::loadFromFile(const std::string &config_path)
             spdlog::info("  S3 Bucket: {}", data_.storage.s3_bucket);
             spdlog::info("  S3 Region: {}", data_.storage.s3_region);
             spdlog::info("  S3 Use SSL: {}", data_.storage.s3_use_ssl);
+        }
+
+        spdlog::info("GigaChat configuration:");
+        spdlog::info("  Enabled: {}", new_data.gigachat.enabled);
+        if (new_data.gigachat.enabled) 
+        {
+            spdlog::info("  Model: {}", new_data.gigachat.model);
+            spdlog::info("  Min Confidence: {}", new_data.gigachat.min_confidence);
         }
 
         return true;
