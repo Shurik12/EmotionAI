@@ -86,8 +86,27 @@ void BaseServer::initializeComponents()
 
         // Create FileProcessor with storage
         file_processor_ = std::make_unique<FileProcessor>(dragonfly_manager_, file_storage_);
-        LOG_INFO("FileProcessor initialized successfully with {} storage",
-                 file_storage_->getStorageType());
+        LOG_INFO("FileProcessor initialized successfully with {} storage", file_storage_->getStorageType());
+
+        if (config.gigachat().enabled && !config.gigachat().auth_key.empty())
+        {
+            LOG_INFO("Initializing GigaChat client...");
+
+            emotionai::gigachat::GigaChatConfig gigaConfig;
+            gigaConfig.enabled = true;
+            gigaConfig.authKey = config.gigachat().auth_key;
+            gigaConfig.model = config.gigachat().model;
+            gigaConfig.apiUrl = config.gigachat().api_url;
+            gigaConfig.authUrl = config.gigachat().auth_url;
+            gigaConfig.verifySsl = config.gigachat().verify_ssl;
+
+            auto gigachat_client = std::make_unique<emotionai::gigachat::GigaChatClient>(gigaConfig);
+            file_processor_->setGigaChatClient(std::move(gigachat_client));
+
+            LOG_INFO("GigaChat client initialized successfully");
+        }
+
+        LOG_INFO("FileProcessor initialized successfully");
     }
     catch (const std::exception &e)
     {
@@ -370,27 +389,58 @@ std::string BaseServer::generateInstanceId()
     return DragonflyManager::generate_uuid();
 }
 
-std::string BaseServer::handleUploadCommon(const std::string &file_content, const std::string &filename, bool realtime)
+std::string BaseServer::handleUploadCommon(const std::string &file_content, 
+                                          const std::string &filename, 
+                                          bool realtime)
 {
     auto &config = Config::instance();
     std::string task_id = DragonflyManager::generate_uuid();
-
-    // Save to shared storage instead of local filesystem
-    std::string storage_path = "uploads/" + task_id + "_" + filename;
-
+    
+    // Get extension
+    std::string extension;
+    size_t dot_pos = filename.find_last_of('.');
+    if (dot_pos != std::string::npos) {
+        extension = filename.substr(dot_pos);
+    } else {
+        extension = ".bin";
+    }
+    
+    std::string safe_filename = task_id + extension;
+    std::string storage_path = "uploads/" + safe_filename;
+    
+    LOG_INFO("Saving file to storage: {} (original: {})", storage_path, filename);
+    LOG_INFO("Storage base path: ./uploads, full path will be: /emotionai/./uploads/{}", storage_path);
+    
     if (!file_storage_->saveFile(file_content, storage_path))
     {
         throw std::runtime_error("Failed to save uploaded file to storage");
     }
-
+    
     // Verify file was saved
     if (!file_storage_->fileExists(storage_path))
     {
         throw std::runtime_error("Failed to verify uploaded file in storage");
     }
-
-    LOG_INFO("File saved successfully to storage: {}, size: {} bytes", storage_path, file_content.size());
-
+    
+    LOG_INFO("File saved successfully to storage: {}, size: {} bytes", 
+             storage_path, file_content.size());
+    
+    // For file processor, we still need a local path in the uploads folder
+    fs::path local_path = upload_folder_ / safe_filename;
+    
+    // Copy from storage to local uploads folder for processing
+    try {
+        std::string file_content_from_storage = file_storage_->readFile(storage_path);
+        fs::create_directories(local_path.parent_path());
+        std::ofstream local_file(local_path, std::ios::binary);
+        local_file.write(file_content_from_storage.data(), file_content_from_storage.size());
+        local_file.close();
+        LOG_INFO("Copied file to local path for processing: {}", local_path.string());
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to copy file to local path: {}", e.what());
+        throw std::runtime_error("Failed to prepare file for processing");
+    }
+    
     // Check if we should use distributed processing
 #ifdef WITH_CLUSTER
     if (config.cluster().enabled && distributed_task_manager_)
@@ -402,8 +452,9 @@ std::string BaseServer::handleUploadCommon(const std::string &file_content, cons
             {"task_id", task_id},
             {"type", task_type},
             {"filename", filename},
-            {"file_path", storage_path},   // Use storage path instead of local path
-            {"instance_id", instance_id_}, // Creator instance
+            {"file_path", local_path.string()},  // Use local path for processing
+            {"storage_path", storage_path},      // Store storage path for reference
+            {"instance_id", instance_id_},
             {"created_at", std::chrono::system_clock::now().time_since_epoch().count()},
             {"status", "pending"},
             {"retry_count", 0}};
@@ -413,8 +464,7 @@ std::string BaseServer::handleUploadCommon(const std::string &file_content, cons
         if (distributed_task_manager_->submitTask(queue_name, task))
         {
             LOG_INFO("Task {} submitted to distributed queue: {}", task_id, queue_name);
-
-            // Set initial status
+            
             auto &task_manager = TaskManager::instance();
             task_manager.set_task_status(task_id, {{"task_id", task_id},
                                                    {"progress", 0},
@@ -431,18 +481,13 @@ std::string BaseServer::handleUploadCommon(const std::string &file_content, cons
 
             return task_id;
         }
-        else
-        {
-            LOG_WARN("Failed to submit task to distributed queue, falling back to local processing");
-            // Fall through to local processing
-        }
     }
 #endif
 
-    // Fallback to local processing (with storage integration)
+    // Fallback to local processing
     auto *file_processor = file_processor_.get();
 
-    thread_pool_->enqueue([this, file_processor, task_id, storage_path, filename, realtime]()
+    thread_pool_->enqueue([this, file_processor, task_id, local_path, filename, realtime, storage_path]()
                           {
         try
         {
@@ -450,7 +495,6 @@ std::string BaseServer::handleUploadCommon(const std::string &file_content, cons
             
             auto& task_manager = TaskManager::instance();
             
-            // Set initial status
             task_manager.set_task_status(task_id, {
                 {"task_id", task_id},
                 {"progress", 0},
@@ -464,31 +508,14 @@ std::string BaseServer::handleUploadCommon(const std::string &file_content, cons
                     std::chrono::system_clock::now().time_since_epoch()).count()}
             });
             
-            // Read file from storage for processing
-            std::string file_content = file_storage_->readFile(storage_path);
-            if (file_content.empty()) {
-                throw std::runtime_error("Could not read file from storage");
-            }
-            
-            // Create temporary local file for processing (transition approach)
-            // In the future, FileProcessor could be modified to work directly with storage
-            fs::path temp_path = upload_folder_ / (task_id + "_" + filename);
-            std::ofstream temp_file(temp_path, std::ios::binary);
-            temp_file.write(file_content.data(), file_content.size());
-            temp_file.close();
-            
-            // Process using temporary file
             if (realtime)
             {
-                file_processor->process_video_realtime(task_id, temp_path.string(), filename);
+                file_processor->process_video_realtime(task_id, local_path.string(), filename);
             }
             else
             {
-                file_processor->process_file(task_id, temp_path.string(), filename);
+                file_processor->process_file(task_id, local_path.string(), filename);
             }
-            
-            // Clean up temporary file
-            fs::remove(temp_path);
             
             LOG_INFO("Processing completed for task: {}", task_id);
         }
@@ -515,7 +542,7 @@ std::string BaseServer::handleUploadCommon(const std::string &file_content, cons
             }
         } });
 
-    return task_id; // Return the task_id so the caller can use it in the response
+    return task_id;
 }
 
 std::string BaseServer::handleSubmitApplicationCommon(const std::string &body)
