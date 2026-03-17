@@ -39,17 +39,24 @@ SERVICE_TARGET := /etc/systemd/system/emotion-ai.service
 install:
 	bash install_deps.sh
 
-build_frontend:
-	cd $(FRONTEND_DIR) && npm install && npm run build
-
 configure:
 	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake .. -G Ninja
 
 build_backend:
 	cd $(BUILD_DIR) && ninja -j4
 
-restart:
-	docker compose down && docker compose up -d 
+build_frontend:
+	cd $(FRONTEND_DIR) && npm install && npm run build
+
+build: configure build_backend build_frontend
+
+up:
+	docker compose up -d
+
+down:
+	docker compose down
+
+restart: down up
 
 unit_tests:
 	cd build && ./tests/EmotionAI_UnitTests
@@ -65,8 +72,6 @@ $(VENV_DIR):
 
 models: python_env
 	. $(VENV_DIR)/bin/activate && cd $(MODELS_DIR) && python3 prepare_models_for_emotieffcpplib.py
-
-build: configure build_backend build_frontend
 
 deploy_production: build
 	@echo "Deploying to production..."
