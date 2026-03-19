@@ -487,7 +487,7 @@ std::string BaseServer::handleUploadCommon(const std::string &file_content,
     // Fallback to local processing
     auto *file_processor = file_processor_.get();
 
-    thread_pool_->enqueue([this, file_processor, task_id, local_path, filename, realtime, storage_path]()
+    thread_pool_->enqueue([this, file_processor, task_id, local_path, safe_filename, realtime, storage_path]()
                           {
         try
         {
@@ -510,11 +510,11 @@ std::string BaseServer::handleUploadCommon(const std::string &file_content,
             
             if (realtime)
             {
-                file_processor->process_video_realtime(task_id, local_path.string(), filename);
+                file_processor->process_video_realtime(task_id, local_path.string(), safe_filename);
             }
             else
             {
-                file_processor->process_file(task_id, local_path.string(), filename);
+                file_processor->process_file(task_id, local_path.string(), safe_filename);
             }
             
             LOG_INFO("Processing completed for task: {}", task_id);
