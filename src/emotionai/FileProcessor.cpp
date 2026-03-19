@@ -162,7 +162,7 @@ nlohmann::json FileProcessor::process_image_file(const std::string &task_id, con
     // Convert processed image to buffer and write to storage
     std::vector<uchar> buffer;
     cv::imencode(".jpg", image, buffer);
-    std::string storage_path = "results/result_" + filename;
+    std::string storage_path = "results/" + filename;
     std::vector<uint8_t> content(buffer.begin(), buffer.end());
     if (!file_storage_->saveFile(content, storage_path))
         throw std::runtime_error("Failed to save processed image to storage");
