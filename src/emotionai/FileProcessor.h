@@ -10,6 +10,7 @@
 #include <db/DragonflyManager.h>
 #include <emotionai/Image.h>
 #include <storage/FileStorage.h>
+#include <gigachat/GigaChatClient.h>
 
 class FileProcessor
 {
@@ -38,6 +39,13 @@ public:
                                 const std::string &filename,
                                 ProgressCallback progress_callback = nullptr);
 
+    // Getter for GigaChat client
+    bool isGigaChatEnabled() const { return gigachat_client_ && gigachat_client_->isEnabled(); }
+    void setGigaChatClient(std::unique_ptr<emotionai::gigachat::GigaChatClient> client)
+    {
+        gigachat_client_ = std::move(client);
+    }
+
 private:
     std::shared_ptr<DragonflyManager> dragonfly_manager_;
     std::shared_ptr<FileStorage> file_storage_;
@@ -46,10 +54,16 @@ private:
     bool model_loaded_;
     std::mutex model_mutex_;
 
+    std::unique_ptr<emotionai::gigachat::GigaChatClient> gigachat_client_;
+
     void cleanup_file(const std::string &filepath);
     std::pair<cv::Mat, nlohmann::json> process_image(const cv::Mat &image);
     nlohmann::json process_image_file(const std::string &task_id, const std::string &filepath, const std::string &filename);
     nlohmann::json process_video_file(const std::string &task_id, const std::string &filepath, const std::string &filename);
+
+    void addGigaChatAnalysis(nlohmann::json& result, 
+                            const std::string& task_id, 
+                            int frame_number = -1);
 
     // Helper functions
     void initialize_models();

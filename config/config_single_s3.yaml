@@ -52,8 +52,14 @@ dragonfly:
   pipeline_enabled: true
 
 storage:
-  type: "local"
-  base_path: "./storage"
+  type: "s3"
+  base_path: "./storage"  # Fallback for local operations
+  s3_endpoint: "minio:9000"
+  s3_access_key: "minioadmin"
+  s3_secret_key: "minioadmin"
+  s3_bucket: "emotionai"
+  s3_region: "us-east-1"
+  s3_use_ssl: false
 
 mtcnn:
   keep_all: false
@@ -65,3 +71,13 @@ model:
   backend: "torch"
   emotion_model_path: "models/enet_b0_8_va_mtl.pt" # enet_b2_7.pt
   face_detection_models_path: "models/"
+
+# GigaChat Configuration
+gigachat:
+  enabled: false
+  auth_key: ""
+  model: "GigaChat"  # Model to use
+  api_url: "https://gigachat.devices.sberbank.ru/api/v1"
+  auth_url: "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
+  verify_ssl: false  # For development only
+  min_confidence: 0.3  # Minimum emotion confidence to trigger GigaChat
