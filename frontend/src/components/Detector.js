@@ -498,6 +498,55 @@ const Detector = () => {
 							</div>
 						);
 					})}
+					{result.gigachat && (
+						<div className="gigachat-analysis">
+							<h4>AI Analysis</h4>
+							{typeof result.gigachat === 'string' ? (
+								// If it's a string, try to parse it or display as is
+								(() => {
+									try {
+										const parsed = JSON.parse(result.gigachat);
+										if (parsed.verdict && parsed.probability !== undefined) {
+											return (
+												<>
+													<div className={`gigachat-verdict ${parsed.verdict === 'да' ? 'positive' : 'negative'}`}>
+														<strong>Ready for task:</strong>
+														{parsed.verdict === 'да' ? 'Yes' : 'No'}
+													</div>
+													<div className="gigachat-probability">
+														<strong>Confidence:</strong> {(parsed.probability * 100).toFixed(1)}%
+													</div>
+													<div className="gigachat-reasoning">
+														<strong>Reasoning:</strong> {parsed.reasoning}
+													</div>
+												</>
+											);
+										}
+									} catch (e) {
+										// Not valid JSON, show raw text
+										return <div className="gigachat-raw">{result.gigachat}</div>;
+									}
+								})()
+							) : (
+								// It's already an object
+								<>
+									<div className={`gigachat-verdict ${result.gigachat.verdict === 'да' ? 'positive' : 'negative'}`}>
+										<strong>Ready for task:</strong>
+										{result.gigachat.verdict === 'да' ? 'Yes' : 'No'}
+									</div>
+									<div className="gigachat-probability">
+										<strong>Confidence:</strong>
+										{result.gigachat.probability !== undefined
+											? (result.gigachat.probability * 100).toFixed(1) + '%'
+											: 'N/A'}
+									</div>
+									<div className="gigachat-reasoning">
+										<strong>Reasoning:</strong> {result.gigachat.reasoning || 'No reasoning provided'}
+									</div>
+								</>
+							)}
+						</div>
+					)}
 				</div>
 
 				{/* Display valence and arousal if they exist */}

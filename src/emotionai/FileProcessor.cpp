@@ -140,6 +140,7 @@ void FileProcessor::initialize_models()
 nlohmann::json FileProcessor::process_image_file(const std::string &task_id, const std::string &filepath, const std::string &filename)
 {
     // Use Image class to load the file from shared storage
+    LOG_DEBUG("FileProcessor::process_image_file: {}", filepath);
     std::vector<uint8_t> file_content = file_storage_->readFileBinary(filepath);
     if (file_content.empty())
     {
@@ -149,7 +150,7 @@ nlohmann::json FileProcessor::process_image_file(const std::string &task_id, con
     // Create Image from memory buffer - FIXED: Convert to cv::Mat first
     std::vector<uchar> image_buffer(file_content.begin(), file_content.end());
     cv::Mat image = cv::imdecode(image_buffer, cv::IMREAD_COLOR);
-    
+
     if (image.empty())
     {
         throw std::runtime_error("Could not decode image");
@@ -161,14 +162,15 @@ nlohmann::json FileProcessor::process_image_file(const std::string &task_id, con
     // Convert processed image to buffer and write to storage
     std::vector<uchar> buffer;
     cv::imencode(".jpg", image, buffer);
-    std::string storage_path = "results/result_" + filename;
+    std::string storage_path = "results/" + filename;
     std::vector<uint8_t> content(buffer.begin(), buffer.end());
     if (!file_storage_->saveFile(content, storage_path))
         throw std::runtime_error("Failed to save processed image to storage");
     LOG_INFO("Image saved successfully to storage: {}", storage_path);
-    
+
     // Process the image
     auto [processed_image, emotion_result] = process_image(image);
+    addGigaChatAnalysis(emotion_result, task_id);
 
     // Build the complete result JSON
     nlohmann::json result = {
@@ -221,12 +223,12 @@ nlohmann::json FileProcessor::process_video_file(const std::string &task_id, con
                 std::string frame_filename = fmt::format("frame_{}_{}.jpg", processed_count,
                                                          filename.substr(0, filename.find_last_of('.')));
                 std::string storage_path = "results/" + frame_filename;
-                
+
                 // Convert frame to buffer
                 std::vector<uchar> buffer;
                 cv::imencode(".jpg", frame, buffer);
                 std::vector<uint8_t> content(buffer.begin(), buffer.end());
-                
+
                 // Save to storage
                 if (file_storage_->saveFile(content, storage_path))
                 {
@@ -238,10 +240,11 @@ nlohmann::json FileProcessor::process_video_file(const std::string &task_id, con
                 }
 
                 auto [processed_frame, result] = process_image(frame);
+                addGigaChatAnalysis(result, task_id, frame_count);
 
                 nlohmann::json frame_result;
                 frame_result["frame"] = frame_count;
-                frame_result["image_url"] = file_storage_->getFileUrl(storage_path);  // Use storage URL
+                frame_result["image_url"] = file_storage_->getFileUrl(storage_path); // Use storage URL
                 frame_result["result"] = result;
                 results.push_back(frame_result);
 
@@ -378,12 +381,13 @@ void FileProcessor::process_video_realtime(const std::string &task_id,
                     LOG_WARN("Failed to save real-time frame to storage: {}", storage_path);
 
                 auto [processed_frame, result] = process_image(frame);
+                addGigaChatAnalysis(result, task_id, frame_count);
 
                 // Store frame result with timestamp and image URL
                 nlohmann::json frame_result;
                 frame_result["frame_number"] = frame_count;
-                frame_result["timestamp"] = frame_count / fps; // seconds
-                frame_result["image_url"] = file_storage_->getFileUrl(storage_path);  // Use storage URL
+                frame_result["timestamp"] = frame_count / fps;                       // seconds
+                frame_result["image_url"] = file_storage_->getFileUrl(storage_path); // Use storage URL
                 frame_result["result"] = result;
 
                 // Extract valence and arousal if available
@@ -710,5 +714,83 @@ std::pair<cv::Mat, nlohmann::json> FileProcessor::process_image(const cv::Mat &i
             {"error", e.what()},
             {"additional_probs", nlohmann::json::object()}};
         return {image.clone(), error_result};
+    }
+}
+
+void FileProcessor::addGigaChatAnalysis(nlohmann::json& result, const std::string& task_id, int frame_number) {
+    if (!gigachat_client_ || !gigachat_client_->isEnabled()) {
+        return;
+    }
+    
+    try {
+        // Extract emotions from result
+        emotionai::gigachat::EmotionData emotions = {0};
+        
+        if (result.contains("additional_probs")) {
+            auto& probs = result["additional_probs"];
+            
+            auto get_float = [&probs](const std::string& key) -> float {
+                if (!probs.contains(key)) return 0.0f;
+                auto& val = probs[key];
+                if (val.is_string()) {
+                    try { return std::stof(val.get<std::string>()); }
+                    catch (...) { return 0.0f; }
+                }
+                if (val.is_number()) return val.get<float>();
+                return 0.0f;
+            };
+            
+            emotions.anger = get_float("anger");
+            emotions.disgust = get_float("disgust");
+            emotions.fear = get_float("fear");
+            emotions.happiness = get_float("happiness");
+            emotions.neutral = get_float("neutral");
+            emotions.sadness = get_float("sadness");
+            emotions.surprise = get_float("surprise");
+        }
+        
+        // Create session ID
+        std::string session_id = task_id;
+        if (frame_number >= 0) {
+            session_id += "_frame_" + std::to_string(frame_number);
+        }
+        
+        // Get GigaChat analysis
+        LOG_INFO("Calling GigaChat API for task {}...", task_id);
+        std::string analysis = gigachat_client_->analyzeEmotions(emotions, session_id);
+        
+        // Log the raw response
+        LOG_INFO("GigaChat raw response for task {}: {}", task_id, analysis);
+        
+        // Add to result if not empty
+        if (!analysis.empty()) {
+            try {
+                // Try to parse as JSON
+                auto json_response = nlohmann::json::parse(analysis);
+                
+                // Validate that it has the expected fields
+                if (json_response.contains("verdict") && 
+                    json_response.contains("probability") && 
+                    json_response.contains("reasoning")) {
+                    
+                    result["gigachat"] = json_response;
+                    LOG_INFO("Successfully parsed GigaChat JSON response for task {}", task_id);
+                    
+                } else {
+                    // If it's JSON but missing fields, log warning
+                    LOG_WARN("GigaChat response missing required fields: {}", analysis);
+                    result["gigachat"] = analysis;
+                }
+            } catch (const std::exception& e) {
+                // Not valid JSON, store as string
+                LOG_WARN("GigaChat response is not valid JSON: {}", e.what());
+                result["gigachat"] = analysis;
+            }
+        } else {
+            LOG_WARN("GigaChat returned empty response for task {}", task_id);
+        }
+        
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to add GigaChat analysis: {}", e.what());
     }
 }
