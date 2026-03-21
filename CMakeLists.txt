@@ -49,6 +49,7 @@ set(SRC_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/config
     ${CMAKE_CURRENT_SOURCE_DIR}/src/db
     ${CMAKE_CURRENT_SOURCE_DIR}/src/emotionai
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/gigachat
     ${CMAKE_CURRENT_SOURCE_DIR}/src/logging
     ${CMAKE_CURRENT_SOURCE_DIR}/src/metrics
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mtcnn
@@ -114,7 +115,7 @@ target_compile_definitions(emotionai_lib PUBLIC
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE emotionai_lib)
 
-enable_testing()
+# enable_testing()
 
 # if(BUILD_TESTS)
 #     add_subdirectory(tests)
