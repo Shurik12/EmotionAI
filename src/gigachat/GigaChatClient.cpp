@@ -58,7 +58,8 @@ namespace emotionai
                 {
                     auto json = nlohmann::json::parse(response);
                     m_accessToken = json["access_token"];
-                    m_expiresAt = json["expires_at"];
+                    long expires_at_ms = json["expires_at"];
+                    m_expiresAt = expires_at_ms / 1000;
                     return true;
                 }
                 catch (...)
@@ -78,7 +79,7 @@ namespace emotionai
                                now.time_since_epoch())
                                .count();
 
-            if (now_sec >= (m_expiresAt - 60))
+            if (now_sec >= (m_expiresAt - 120))
             {
                 return fetchNewToken();
             }
