@@ -129,7 +129,7 @@ const TimelineChart = ({ frameResults, height = 200 }) => {
 						<br />
 						Main emotion: {t(frameResults[selectedFrame].result?.main_prediction?.label, localStorage.getItem('language'))}
 						<br />
-						Confidence: {(frameResults[selectedFrame].result?.main_prediction?.probability * 100).toFixed(1)}%
+						Probability of illness: {(frameResults[selectedFrame].result?.main_prediction?.probability * 100).toFixed(1)}%
 					</div>
 				)}
 			</div>
@@ -203,6 +203,166 @@ const SampleFrame = ({ frame, index }) => {
 					</>
 				)}
 			</div>
+		</div>
+	);
+};
+
+// GigaChat Analysis Component
+const GigaChatAnalysis = ({ gigachatData }) => {
+	const { language } = useLanguage();
+
+	if (!gigachatData) return null;
+
+	// Parse if it's a string
+	let parsedData = gigachatData;
+	if (typeof gigachatData === 'string') {
+		try {
+			parsedData = JSON.parse(gigachatData);
+		} catch (e) {
+			return <div className="gigachat-analysis">{gigachatData}</div>;
+		}
+	}
+
+	// Map verdict to display text and styling
+	const getVerdictInfo = (verdict) => {
+		switch (verdict) {
+			case 'low':
+				return {
+					text: t('verdict_low', localStorage.getItem('language')) || 'Low Depression Probability',
+					class: 'verdict-low',
+					icon: '✅',
+					recommendation: t('recommendation_low', localStorage.getItem('language')) || 'No immediate action needed'
+				};
+			case 'monitor':
+				return {
+					text: t('verdict_monitor', localStorage.getItem('language')) || 'Monitor - Schedule Follow-up',
+					class: 'verdict-monitor',
+					icon: '⚠️',
+					recommendation: t('recommendation_monitor', localStorage.getItem('language')) || 'Schedule more frequent visits to specialist'
+				};
+			case 'high':
+				return {
+					text: t('verdict_high', localStorage.getItem('language')) || 'High Depression Probability',
+					class: 'verdict-high',
+					icon: '🔴',
+					recommendation: t('recommendation_high', localStorage.getItem('language')) || 'Immediate referral to mental health specialist required'
+				};
+			default:
+				// Handle old format (да/нет)
+				if (verdict === 'да') {
+					return {
+						text: 'Ready for task',
+						class: 'verdict-positive',
+						icon: '✅'
+					};
+				} else if (verdict === 'нет') {
+					return {
+						text: 'Not ready for task',
+						class: 'verdict-negative',
+						icon: '❌'
+					};
+				}
+				return {
+					text: verdict,
+					class: '',
+					icon: '📊'
+				};
+		}
+	};
+
+	const verdictInfo = getVerdictInfo(parsedData.verdict);
+
+	// Calculate confidence color
+	const getProbabilityColor = (prob) => {
+		if (prob >= 0.7) return '#f44336';
+		if (prob >= 0.4) return '#ff9800';
+		return '#4caf50';
+	};
+
+	return (
+		<div className="gigachat-analysis">
+			<h4>
+				<span>🤖 AI Clinical Assessment</span>
+				{parsedData.scores && (
+					<span className="total-score-badge">
+						Score: {parsedData.scores.total_score}
+					</span>
+				)}
+			</h4>
+
+			<div className={`gigachat-verdict ${verdictInfo.class}`}>
+				<div className="verdict-icon">{verdictInfo.icon}</div>
+				<div className="verdict-content">
+					<strong>{verdictInfo.text}</strong>
+					{verdictInfo.recommendation && (
+						<div className="verdict-recommendation">{verdictInfo.recommendation}</div>
+					)}
+				</div>
+			</div>
+
+			<div className="gigachat-probability">
+				<span>Probability of illness:</span>
+				<div className="probability-bar-container">
+					<div
+						className="probability-bar"
+						style={{
+							width: `${(parsedData.probability || 0) * 100}%`,
+							backgroundColor: getProbabilityColor(parsedData.probability || 0)
+						}}
+					/>
+					<span className="probability-value">
+						{((parsedData.probability || 0) * 100).toFixed(1)}%
+					</span>
+				</div>
+			</div>
+
+			{parsedData.scores && (
+				<div className="gigachat-scores">
+					<div className="scores-header">
+						<span>Depression Pattern Scores</span>
+						<span className="total-score">Total: {parsedData.scores.total_score}</span>
+					</div>
+					<div className="scores-grid">
+						<div className="score-item">
+							<span>Valence</span>
+							<span className={`score-value score-${parsedData.scores.valence_score}`}>
+								{parsedData.scores.valence_score}
+							</span>
+						</div>
+						<div className="score-item">
+							<span>Intensity</span>
+							<span className={`score-value score-${parsedData.scores.intensity_score}`}>
+								{parsedData.scores.intensity_score}
+							</span>
+						</div>
+						<div className="score-item">
+							<span>Joy</span>
+							<span className={`score-value score-${parsedData.scores.joy_score}`}>
+								{parsedData.scores.joy_score}
+							</span>
+						</div>
+						<div className="score-item">
+							<span>Negative Affect</span>
+							<span className={`score-value score-${parsedData.scores.na_score}`}>
+								{parsedData.scores.na_score}
+							</span>
+						</div>
+						<div className="score-item">
+							<span>Disgust</span>
+							<span className={`score-value score-${parsedData.scores.disgust_score}`}>
+								{parsedData.scores.disgust_score}
+							</span>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{parsedData.reasoning && (
+				<div className="gigachat-reasoning">
+					<strong>Clinical Reasoning:</strong>
+					<p>{parsedData.reasoning}</p>
+				</div>
+			)}
 		</div>
 	);
 };
@@ -498,54 +658,10 @@ const Detector = () => {
 							</div>
 						);
 					})}
+
+					{/* GigaChat Analysis Component */}
 					{result.gigachat && (
-						<div className="gigachat-analysis">
-							<h4>AI Analysis</h4>
-							{typeof result.gigachat === 'string' ? (
-								// If it's a string, try to parse it or display as is
-								(() => {
-									try {
-										const parsed = JSON.parse(result.gigachat);
-										if (parsed.verdict && parsed.probability !== undefined) {
-											return (
-												<>
-													<div className={`gigachat-verdict ${parsed.verdict === 'да' ? 'positive' : 'negative'}`}>
-														<strong>Ready for task:</strong>
-														{parsed.verdict === 'да' ? 'Yes' : 'No'}
-													</div>
-													<div className="gigachat-probability">
-														<strong>Confidence:</strong> {(parsed.probability * 100).toFixed(1)}%
-													</div>
-													<div className="gigachat-reasoning">
-														<strong>Reasoning:</strong> {parsed.reasoning}
-													</div>
-												</>
-											);
-										}
-									} catch (e) {
-										// Not valid JSON, show raw text
-										return <div className="gigachat-raw">{result.gigachat}</div>;
-									}
-								})()
-							) : (
-								// It's already an object
-								<>
-									<div className={`gigachat-verdict ${result.gigachat.verdict === 'да' ? 'positive' : 'negative'}`}>
-										<strong>Ready for task:</strong>
-										{result.gigachat.verdict === 'да' ? 'Yes' : 'No'}
-									</div>
-									<div className="gigachat-probability">
-										<strong>Confidence:</strong>
-										{result.gigachat.probability !== undefined
-											? (result.gigachat.probability * 100).toFixed(1) + '%'
-											: 'N/A'}
-									</div>
-									<div className="gigachat-reasoning">
-										<strong>Reasoning:</strong> {result.gigachat.reasoning || 'No reasoning provided'}
-									</div>
-								</>
-							)}
-						</div>
+						<GigaChatAnalysis gigachatData={result.gigachat} />
 					)}
 				</div>
 
