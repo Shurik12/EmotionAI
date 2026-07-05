@@ -54,9 +54,11 @@
 		transform: rotate(0deg);
 		border-top-color: #495057;
 	}
+
 	50% {
 		border-top-color: #6c757d;
 	}
+
 	100% {
 		transform: rotate(360deg);
 		border-top-color: #495057;
@@ -260,22 +262,22 @@
 }
 
 /* Remove chart-row and use direct grid placement */
-.charts-grid-realtime > *:nth-child(1) {
+.charts-grid-realtime>*:nth-child(1) {
 	grid-column: 1;
 	grid-row: 1;
 }
 
-.charts-grid-realtime > *:nth-child(2) {
+.charts-grid-realtime>*:nth-child(2) {
 	grid-column: 2;
 	grid-row: 1;
 }
 
-.charts-grid-realtime > *:nth-child(3) {
+.charts-grid-realtime>*:nth-child(3) {
 	grid-column: 1;
 	grid-row: 2;
 }
 
-.charts-grid-realtime > *:nth-child(4) {
+.charts-grid-realtime>*:nth-child(4) {
 	grid-column: 2;
 	grid-row: 2;
 }
@@ -286,7 +288,8 @@
 	border-radius: 12px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 	height: fit-content;
-	min-height: 250px; /* Ensure consistent height */
+	min-height: 250px;
+	/* Ensure consistent height */
 	display: flex;
 	flex-direction: column;
 }
@@ -445,7 +448,8 @@
 	border-radius: 12px;
 	margin: 20px 0;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	grid-column: 1 / -1; /* Span full width */
+	grid-column: 1 / -1;
+	/* Span full width */
 }
 
 .range-inputs {
@@ -471,7 +475,8 @@
 /* Sample frames with images - FIXED: Now appears below charts */
 .sample-frames {
 	margin-top: 30px;
-	grid-column: 1 / -1; /* Span full width below charts */
+	grid-column: 1 / -1;
+	/* Span full width below charts */
 }
 
 .frames-grid {
@@ -560,18 +565,18 @@
 		grid-template-rows: auto;
 		gap: 15px;
 	}
-	
+
 	/* Reset grid placement for mobile */
-	.charts-grid-realtime > * {
+	.charts-grid-realtime>* {
 		grid-column: 1 !important;
 		grid-row: auto !important;
 	}
-	
+
 	.chart-container {
 		margin-bottom: 0;
 		min-height: 220px;
 	}
-	
+
 	.frames-grid {
 		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 	}
@@ -581,121 +586,293 @@
 	.upload-container {
 		padding: 25px;
 	}
-	
+
 	.result-card {
 		padding: 20px;
 	}
-	
+
 	.charts-grid-realtime {
 		gap: 12px;
 	}
-	
+
 	.chart-container {
 		padding: 15px;
 		min-height: 200px;
 	}
-	
+
 	.line-chart,
 	.timeline-chart {
 		min-height: 120px;
 	}
-	
+
 	.sample-frame {
 		padding: 12px;
 	}
-	
+
 	.frames-grid {
 		grid-template-columns: 1fr;
 		gap: 15px;
 	}
-	
+
 	.stats-grid {
 		grid-template-columns: 1fr;
 	}
-	
+
 	.results-container.video-results {
 		grid-template-columns: 1fr;
 	}
-	
+
 	.frame-result {
 		padding: 15px;
 	}
-	
+
 	.progress-container {
 		padding: 20px;
 		margin: 20px 0;
 	}
 }
 
-/* Add at the end of Detector.css */
+/* ========== ENHANCED GIGACHAT ANALYSIS STYLES ========== */
+
 .gigachat-analysis {
-  margin: 20px 0;
-  padding: 15px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 10px;
-  color: white;
+	margin: 20px 0;
+	padding: 20px;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	border-radius: 12px;
+	color: white;
+	box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .gigachat-analysis h4 {
-  margin: 0 0 10px 0;
-  color: white;
+	margin: 0 0 15px 0;
+	color: white;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	font-size: 1.1rem;
 }
 
-.gigachat-verdict, .gigachat-probability {
-  margin: 8px 0;
-  padding: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 5px;
-  display: flex;
-  justify-content: space-between;
+.total-score-badge {
+	background: rgba(255, 255, 255, 0.2);
+	padding: 4px 12px;
+	border-radius: 20px;
+	font-size: 0.85rem;
+}
+
+.gigachat-verdict {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 15px;
+	border-radius: 8px;
+	margin-bottom: 15px;
+	background: rgba(255, 255, 255, 0.1);
+}
+
+.verdict-icon {
+	font-size: 1.8rem;
+}
+
+.verdict-content {
+	flex: 1;
+}
+
+.verdict-content strong {
+	font-size: 1.1rem;
+	display: block;
+	margin-bottom: 4px;
+}
+
+.verdict-recommendation {
+	font-size: 0.85rem;
+	opacity: 0.9;
+}
+
+.gigachat-verdict.verdict-low {
+	border-left: 4px solid #4caf50;
+}
+
+.gigachat-verdict.verdict-monitor {
+	border-left: 4px solid #ff9800;
+}
+
+.gigachat-verdict.verdict-high {
+	border-left: 4px solid #f44336;
+}
+
+.gigachat-verdict.verdict-positive {
+	border-left: 4px solid #4caf50;
+}
+
+.gigachat-verdict.verdict-negative {
+	border-left: 4px solid #f44336;
+}
+
+.gigachat-probability {
+	margin-bottom: 15px;
+}
+
+.gigachat-probability>span {
+	display: block;
+	margin-bottom: 6px;
+	font-size: 0.85rem;
+	opacity: 0.9;
+}
+
+.probability-bar-container {
+	position: relative;
+	height: 24px;
+	background: rgba(255, 255, 255, 0.2);
+	border-radius: 12px;
+	overflow: hidden;
+}
+
+.probability-bar {
+	height: 100%;
+	transition: width 0.5s ease;
+	border-radius: 12px;
+}
+
+.probability-value {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	font-size: 0.8rem;
+	font-weight: bold;
+	color: white;
+	text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Scores section */
+.gigachat-scores {
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 8px;
+	padding: 12px;
+	margin-bottom: 15px;
+}
+
+.scores-header {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 10px;
+	font-size: 0.85rem;
+	font-weight: bold;
+}
+
+.total-score {
+	background: rgba(255, 255, 255, 0.2);
+	padding: 2px 8px;
+	border-radius: 12px;
+}
+
+.scores-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+	gap: 8px;
+}
+
+.score-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 6px 8px;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 6px;
+	font-size: 0.8rem;
+}
+
+.score-value {
+	font-weight: bold;
+	padding: 2px 8px;
+	border-radius: 12px;
+	background: rgba(0, 0, 0, 0.3);
+}
+
+.score-value.score-0 {
+	background: #4caf50;
+}
+
+.score-value.score-1 {
+	background: #ff9800;
+}
+
+.score-value.score-2 {
+	background: #f44336;
 }
 
 .gigachat-reasoning {
-  margin-top: 10px;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 5px;
-  font-style: italic;
+	background: rgba(255, 255, 255, 0.15);
+	border-radius: 8px;
+	padding: 12px;
+	font-style: normal;
 }
 
-.gigachat-verdict.positive {
-  border-left: 4px solid #4caf50;
+.gigachat-reasoning strong {
+	display: block;
+	margin-bottom: 6px;
+	font-size: 0.85rem;
 }
 
-.gigachat-verdict.negative {
-  border-left: 4px solid #f44336;
+.gigachat-reasoning p {
+	margin: 0;
+	line-height: 1.4;
+	font-size: 0.9rem;
+}
+
+/* Responsive adjustments for GigaChat */
+@media (max-width: 768px) {
+	.gigachat-analysis {
+		padding: 15px;
+	}
+
+	.scores-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.verdict-icon {
+		font-size: 1.4rem;
+	}
+
+	.verdict-content strong {
+		font-size: 1rem;
+	}
 }
 
 @media (max-width: 480px) {
 	.upload-container {
 		padding: 20px 15px;
 	}
-	
+
 	.chart-container {
 		padding: 12px;
 		min-height: 180px;
 	}
-	
+
 	.line-chart,
 	.timeline-chart {
 		min-height: 100px;
 	}
-	
+
 	.sample-frame {
 		padding: 10px;
 	}
-	
+
 	.frame-image {
 		max-height: 150px;
 	}
-	
+
 	.main-emotion {
 		font-size: 1.1rem;
 		padding: 12px;
 	}
-	
+
 	.distribution-item {
 		margin: 6px 0;
+	}
+
+	.scores-grid {
+		grid-template-columns: 1fr;
 	}
 }
 
