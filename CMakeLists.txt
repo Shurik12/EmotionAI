@@ -22,8 +22,89 @@ find_package(curlpp QUIET)
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(pugixml REQUIRED)
+
+# Find FFTW3 for mel spectrogram computation (without PkgConfig)
+find_path(FFTW3_INCLUDE_DIR
+    NAMES fftw3.h
+    PATHS /usr/include /usr/local/include /usr/include/x86_64-linux-gnu
+)
+
+find_library(FFTW3_LIBRARY
+    NAMES fftw3 fftw3-3
+    PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu
+)
+
+find_library(FFTW3F_LIBRARY
+    NAMES fftw3f fftw3f-3
+    PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu
+)
+
+# Check if FFTW3 was found
+if(FFTW3_INCLUDE_DIR AND FFTW3_LIBRARY AND FFTW3F_LIBRARY)
+    set(FFTW3_FOUND TRUE)
+    set(FFTW3_INCLUDE_DIRS ${FFTW3_INCLUDE_DIR})
+    set(FFTW3_LIBRARIES ${FFTW3_LIBRARY} ${FFTW3F_LIBRARY})
+    message(STATUS "FFTW3 found:")
+    message(STATUS "  Include dir: ${FFTW3_INCLUDE_DIRS}")
+    message(STATUS "  Libraries: ${FFTW3_LIBRARIES}")
+else()
+    set(FFTW3_FOUND FALSE)
+    message(WARNING "FFTW3 not found - mel spectrogram computation will not work")
+endif()
+
 find_path(HIREDIS_INCLUDE_DIR hiredis/hiredis.h)
 find_library(HIREDIS_LIBRARY NAMES hiredis)
+
+find_path(AVCODEC_INCLUDE_DIR
+    NAMES libavcodec/avcodec.h
+    PATHS /usr/include /usr/local/include /usr/include/x86_64-linux-gnu
+)
+
+find_path(AVFORMAT_INCLUDE_DIR
+    NAMES libavformat/avformat.h
+    PATHS /usr/include /usr/local/include /usr/include/x86_64-linux-gnu
+)
+
+find_path(AVUTIL_INCLUDE_DIR
+    NAMES libavutil/avutil.h
+    PATHS /usr/include /usr/local/include /usr/include/x86_64-linux-gnu
+)
+
+find_path(SWRESAMPLE_INCLUDE_DIR
+    NAMES libswresample/swresample.h
+    PATHS /usr/include /usr/local/include /usr/include/x86_64-linux-gnu
+)
+
+find_library(AVCODEC_LIBRARY NAMES avcodec)
+find_library(AVFORMAT_LIBRARY NAMES avformat)
+find_library(AVUTIL_LIBRARY NAMES avutil)
+find_library(SWRESAMPLE_LIBRARY NAMES swresample)
+
+# Check if FFmpeg was found and set variables
+if(AVCODEC_INCLUDE_DIR AND AVFORMAT_INCLUDE_DIR AND AVUTIL_INCLUDE_DIR AND 
+   SWRESAMPLE_INCLUDE_DIR AND AVCODEC_LIBRARY AND AVFORMAT_LIBRARY AND 
+   AVUTIL_LIBRARY AND SWRESAMPLE_LIBRARY)
+    set(FFMPEG_FOUND TRUE)
+    set(FFMPEG_INCLUDE_DIRS 
+        ${AVCODEC_INCLUDE_DIR}
+        ${AVFORMAT_INCLUDE_DIR}
+        ${AVUTIL_INCLUDE_DIR}
+        ${SWRESAMPLE_INCLUDE_DIR}
+    )
+    set(FFMPEG_LIBRARIES 
+        ${AVCODEC_LIBRARY}
+        ${AVFORMAT_LIBRARY}
+        ${AVUTIL_LIBRARY}
+        ${SWRESAMPLE_LIBRARY}
+    )
+    message(STATUS "FFmpeg found:")
+    message(STATUS "  Include dirs: ${FFMPEG_INCLUDE_DIRS}")
+    message(STATUS "  Libraries: ${FFMPEG_LIBRARIES}")
+    add_definitions(-DHAVE_FFMPEG)
+else()
+    set(FFMPEG_FOUND FALSE)
+    message(WARNING "FFmpeg not found - audio processing will be limited to WAV files only")
+endif()
 
 set(WITH_TORCH "${CMAKE_CURRENT_SOURCE_DIR}/contrib/libtorch" CACHE PATH "Path to LibTorch")
 set(WITH_ONNX "${CMAKE_CURRENT_SOURCE_DIR}/contrib/onnxruntime" CACHE PATH "Path to onnxruntime")
@@ -73,6 +154,8 @@ target_include_directories(emotionai_lib PUBLIC
     ${EMOTIEFFLIB_INCLUDE_DIRS}
     ${HIREDIS_INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/contrib/minio-cpp/include
+    ${FFMPEG_INCLUDE_DIRS}
+    ${FFTW3_INCLUDE_DIRS}  # Add FFTW3 include
 )
 
 target_link_libraries(emotionai_lib PUBLIC
@@ -83,6 +166,8 @@ target_link_libraries(emotionai_lib PUBLIC
     nlohmann_json::nlohmann_json
     emotiefflib
     ${HIREDIS_LIBRARY}
+    ${FFMPEG_LIBRARIES}
+    ${FFTW3_LIBRARIES}  # Add FFTW3 libraries
 
     # Add minio-cpp dependencies
     OpenSSL::SSL
@@ -111,6 +196,11 @@ target_compile_definitions(emotionai_lib PUBLIC
     SPDLOG_COMPILED_LIB
     FMT_HEADER_ONLY=0
 )
+
+# Add FFTW3 definitions if found
+if(FFTW3_FOUND)
+    target_compile_definitions(emotionai_lib PUBLIC HAVE_FFTW3)
+endif()
 
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE emotionai_lib)
