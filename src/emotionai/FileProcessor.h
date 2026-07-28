@@ -14,6 +14,8 @@
 #include <storage/FileStorage.h>
 #include <gigachat/GigaChatClient.h>
 #include <torch/script.h>
+#include <audio/BurnoutModels.h>
+#include <audio/BurnoutAnalyzer.h>
 
 class FileProcessor
 {
@@ -35,6 +37,31 @@ public:
     void process_file(const std::string& task_id, const std::string& filepath, const std::string& filename);
     void process_video_realtime(const std::string& task_id, const std::string& filepath, 
                                 const std::string& filename, ProgressCallback callback = nullptr);
+
+    // ============ NEW: Burnout API ============
+    // Process audio with burnout analysis
+    nlohmann::json process_audio_with_burnout(
+        const std::string& task_id,
+        const std::string& filepath,
+        const std::string& filename,
+        const nlohmann::json& baseline = {}
+    );
+    
+    // Analyze burnout from existing emotion result
+    audio::Result analyze_burnout_from_result(
+        const nlohmann::json& emotion_result,
+        const nlohmann::json& baseline = {}
+    );
+    
+    // Save user baseline
+    void save_user_baseline(
+        const std::string& user_id,
+        const nlohmann::json& baseline
+    );
+    
+    // Get user baseline
+    nlohmann::json get_user_baseline(const std::string& user_id);
+    // =========================================
 
     // Getters
     EmotiEffLib::EmotiEffLibRecognizer* get_emotion_recognizer() const { return fer_.get(); }

@@ -12,6 +12,9 @@
 #include <common/base64.h>
 #include <config/Config.h>
 #include <logging/Logger.h>
+#include <audio/LibrosaFeatureExtractor.h>
+#include <audio/AudioFeatures.h>
+#include <audio/BurnoutAnalyzer.h>
 #include "Audio.h"
 
 #ifdef HAVE_FFMPEG
@@ -48,7 +51,7 @@ struct WavHeader {
 // Static Member Initialization
 //=============================================================================
 const std::vector<std::string> Audio::EMOTION_LABELS = {
-    "anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"
+    "anger", "disgust", "enthusiasm", "fear", "happiness", "neutral", "sadness"
 };
 
 //=============================================================================
@@ -130,7 +133,6 @@ bool Audio::load_audio_file(const std::string &filename)
         }
 
 #ifdef HAVE_FFMPEG
-        // For non-WAV files, use FFmpeg
         return decode_audio_stream();
 #else
         error_ = "Only WAV files supported (FFmpeg not available)";
@@ -153,7 +155,6 @@ bool Audio::load_wav_file(const std::string &filename)
         return false;
     }
 
-    // Get file size for chunk searching
     file.seekg(0, std::ios::end);
     long long file_size = static_cast<long long>(file.tellg());
     file.seekg(0, std::ios::beg);
@@ -161,7 +162,6 @@ bool Audio::load_wav_file(const std::string &filename)
     WavHeader header;
     file.read(reinterpret_cast<char*>(&header), sizeof(header));
 
-    // Validate WAV
     if (strncmp(header.chunk_id, "RIFF", 4) != 0 || 
         strncmp(header.format, "WAVE", 4) != 0) {
         error_ = "Invalid WAV file";
@@ -173,7 +173,6 @@ bool Audio::load_wav_file(const std::string &filename)
     channels_ = header.num_channels;
     int bytes_per_sample = header.bits_per_sample / 8;
 
-    // Find data chunk
     auto [found, data_pos, data_size] = find_data_chunk(file, header);
     if (!found) {
         error_ = "Could not find audio data chunk";
@@ -181,7 +180,6 @@ bool Audio::load_wav_file(const std::string &filename)
         return false;
     }
 
-    // Read audio data
     file.seekg(data_pos, std::ios::beg);
     int num_samples = data_size / (bytes_per_sample * channels_);
     if (num_samples <= 0) {
@@ -200,14 +198,12 @@ bool Audio::load_wav_file(const std::string &filename)
         return false;
     }
 
-    // Convert to float [-1, 1]
     int actual_samples = bytes_read / (bytes_per_sample * channels_);
     audio_data_.resize(actual_samples * channels_);
     for (size_t i = 0; i < audio_data_.size(); ++i) {
         audio_data_[i] = int_data[i] / 32768.0f;
     }
 
-    // Convert stereo to mono if needed
     if (channels_ == 2) {
         std::vector<float> mono(audio_data_.size() / 2);
         for (size_t i = 0; i < mono.size(); ++i) {
@@ -225,12 +221,10 @@ bool Audio::load_wav_file(const std::string &filename)
 
 std::tuple<bool, long long, uint32_t> Audio::find_data_chunk(std::ifstream& file, const WavHeader& header)
 {
-    // Check if header points to data
     if (strncmp(header.subchunk2_id, "data", 4) == 0) {
         return {true, sizeof(WavHeader), header.subchunk2_size};
     }
 
-    // Search for data chunk
     long long fmt_end = 12 + 8 + header.subchunk1_size;
     if (header.subchunk1_size % 2 != 0) {
         fmt_end += 1;
@@ -238,7 +232,6 @@ std::tuple<bool, long long, uint32_t> Audio::find_data_chunk(std::ifstream& file
     
     file.seekg(fmt_end, std::ios::beg);
     
-    // Get file size
     file.seekg(0, std::ios::end);
     long long file_size = file.tellg();
     file.seekg(fmt_end, std::ios::beg);
@@ -325,9 +318,6 @@ bool Audio::decode_audio_stream()
 }
 #endif
 
-//=============================================================================
-// Audio Preprocessing
-//=============================================================================
 std::vector<float> Audio::resample_audio(int target_sr) const
 {
     if (sample_rate_ == target_sr || audio_data_.empty()) {
@@ -352,9 +342,40 @@ std::vector<float> Audio::resample_audio(int target_sr) const
     return resampled;
 }
 
-//=============================================================================
-// Main Processing - Wav2Vec2
-//=============================================================================
+std::vector<float> Audio::prepare_audio() const
+{
+    if (!loaded_ || audio_data_.empty()) {
+        return {};
+    }
+    
+    // Resample to 16kHz
+    std::vector<float> audio = resample_audio(TARGET_SR);
+    
+    // Normalize
+    float max_val = 0.0f;
+    for (float sample : audio) {
+        if (std::abs(sample) > max_val) max_val = std::abs(sample);
+    }
+    if (max_val > 1.0f) {
+        for (float& sample : audio) {
+            sample /= max_val;
+        }
+    }
+    
+    // Check duration constraints
+    double duration = static_cast<double>(audio.size()) / TARGET_SR;
+    if (duration > MAX_DURATION) {
+        LOG_WARN("Audio too long ({}s), truncating to {}s", duration, MAX_DURATION);
+        audio.resize(TARGET_SR * MAX_DURATION);
+    }
+    if (duration < MIN_DURATION) {
+        LOG_WARN("Audio too short ({}s), padding to {}s", duration, MIN_DURATION);
+        audio.resize(TARGET_SR * MIN_DURATION, 0.0f);
+    }
+    
+    return audio;
+}
+
 nlohmann::json Audio::process_audio(torch::jit::Module* audio_model)
 {
     nlohmann::json result;
@@ -368,60 +389,48 @@ nlohmann::json Audio::process_audio(torch::jit::Module* audio_model)
             throw std::runtime_error("Audio not loaded: " + error_);
         }
 
-        LOG_INFO("Processing audio with Wav2Vec2: {} samples, {} Hz, {:.2f}s", 
+        LOG_INFO("Processing audio with WavLM: {} samples, {} Hz, {:.2f}s", 
                  audio_data_.size(), sample_rate_, get_duration());
 
-        // Resample to 16kHz (Wav2Vec2 requirement)
-        std::vector<float> audio = resample_audio(TARGET_SR);
+        // Prepare audio (resample, normalize, truncate/pad)
+        std::vector<float> audio = prepare_audio();
         
-        // Check duration constraints
-        double duration = static_cast<double>(audio.size()) / TARGET_SR;
-        if (duration > MAX_DURATION) {
-            LOG_WARN("Audio too long ({}s), truncating to {}s", duration, MAX_DURATION);
-            audio.resize(TARGET_SR * MAX_DURATION);
-        }
-        
-        if (duration < MIN_DURATION) {
-            LOG_WARN("Audio too short ({}s), padding to {}s", duration, MIN_DURATION);
-            audio.resize(TARGET_SR * MIN_DURATION, 0.0f);
-        }
-
-        // Create tensor [1, sequence_length] - Wav2Vec2 expects raw waveform
+        // Create tensor
         torch::Tensor input_tensor = torch::from_blob(
             audio.data(), 
             {1, static_cast<int64_t>(audio.size())}, 
             torch::kFloat
         ).clone();
 
-        LOG_INFO("Running Wav2Vec2 inference on {} samples ({:.2f}s)", 
+        LOG_INFO("Running WavLM inference on {} samples ({:.2f}s)", 
                  audio.size(), static_cast<double>(audio.size()) / TARGET_SR);
 
         // Run inference
         audio_model->eval();
+        torch::NoGradGuard no_grad;
+        
         std::vector<torch::jit::IValue> inputs;
         inputs.push_back(input_tensor);
         
         torch::Tensor output = audio_model->forward(inputs).toTensor();
         
-        // Output shape: [1, 7] for 7 emotions
-        auto scores = torch::softmax(output, 1).squeeze().to(torch::kCPU).to(torch::kFloat);
+        auto scores = torch::softmax(output, 1).squeeze().to(torch::kCPU);
         int predicted_class = output.argmax(1).item<int>();
         
-        // Convert to vector
         std::vector<float> probs(scores.data_ptr<float>(), 
                                  scores.data_ptr<float>() + scores.numel());
 
-        // Get emotion label
-        std::string emotion = EMOTION_LABELS[predicted_class];
+        std::string emotion = (predicted_class < EMOTION_LABELS.size()) 
+            ? EMOTION_LABELS[predicted_class] 
+            : "unknown";
         
-        // Build result in the same format as original code
+        // Build result
         result["main_prediction"] = {
             {"index", predicted_class},
             {"label", emotion},
             {"probability", probs[predicted_class]}
         };
 
-        // All probabilities
         nlohmann::json probs_json;
         for (size_t i = 0; i < probs.size() && i < EMOTION_LABELS.size(); ++i) {
             probs_json[EMOTION_LABELS[i]] = fmt::format("{:.4f}", probs[i]);
@@ -429,18 +438,18 @@ nlohmann::json Audio::process_audio(torch::jit::Module* audio_model)
         result["additional_probs"] = probs_json;
         
         // Add metadata
-        result["model"] = "wav2vec2-emotion-recognition";
+        result["model"] = "wavlm-emotion-russian-resd";
         result["duration_seconds"] = static_cast<double>(audio.size()) / TARGET_SR;
         result["sample_rate"] = TARGET_SR;
 
-        LOG_INFO("Wav2Vec2 predicted: {} ({:.1f}%)", emotion, probs[predicted_class] * 100);
+        LOG_INFO("WavLM predicted: {} ({:.1f}%)", emotion, probs[predicted_class] * 100);
 
     } catch (const c10::Error& e) {
-        LOG_ERROR("LibTorch error in Wav2Vec2: {}", e.what());
+        LOG_ERROR("LibTorch error in WavLM: {}", e.what());
         result["error"] = std::string("LibTorch error: ") + e.what();
         result["error_type"] = "libtorch";
     } catch (const std::exception& e) {
-        LOG_ERROR("Wav2Vec2 processing error: {}", e.what());
+        LOG_ERROR("WavLM processing error: {}", e.what());
         result["error"] = e.what();
         result["error_type"] = "std_exception";
     }
@@ -448,9 +457,108 @@ nlohmann::json Audio::process_audio(torch::jit::Module* audio_model)
     return result;
 }
 
-//=============================================================================
-// MIME Bundle
-//=============================================================================
+audio::AcousticFeatures Audio::extract_acoustic_features() const
+{
+    if (!loaded_ || audio_data_.empty()) {
+        LOG_WARN("Cannot extract features: audio not loaded");
+        return audio::AcousticFeatures{};
+    }
+    
+    std::vector<float> audio = prepare_audio();
+    
+    audio::LibrosaFeatureExtractor::Config config;
+    config.sample_rate = TARGET_SR;
+    return audio::LibrosaFeatureExtractor::extractAllFeatures(audio, config);
+}
+
+nlohmann::json Audio::add_burnout_analysis(
+    const nlohmann::json& emotion_result,
+    const nlohmann::json& baseline,
+    const audio::AcousticFeatures* acoustic_features)
+{
+    nlohmann::json result = emotion_result;
+    
+    try {
+        // Create default baseline if not provided
+        nlohmann::json default_baseline = {
+            {"acoustic_features", {
+                {"pitch_variation", 0.19},
+                {"pitch_range", 60.0},
+                {"intensity_variation", 0.3},
+                {"pause_ratio", 0.15},
+                {"pause_mean_duration", 0.05},
+                {"pause_max_duration", 0.10},
+                {"speech_rate", 3.5}
+            }},
+            {"additional_probs", {
+                {"neutral", 0.2},
+                {"happy", 0.3},
+                {"sad", 0.1},
+                {"angry", 0.05},
+                {"fear", 0.05},
+                {"disgust", 0.03},
+                {"surprise", 0.05}
+            }}
+        };
+        
+        // Add acoustic features if provided
+        if (acoustic_features) {
+            result["acoustic_features"] = acoustic_features->toJson();
+        }
+        
+        // Run burnout analysis
+        audio::BurnoutAnalyzer analyzer;
+        double audio_quality = result.value("duration_seconds", 1.0) / 5.0;
+        audio_quality = std::min(1.0, std::max(0.5, audio_quality));
+        double baseline_reliability = baseline.empty() ? 0.3 : 0.7;
+        
+        const nlohmann::json& baseline_to_use = baseline.empty() ? default_baseline : baseline;
+        
+        auto burnout_result = analyzer.analyze(
+            result,
+            baseline_to_use,
+            {}, // history
+            audio_quality,
+            baseline_reliability
+        );
+        
+        result["burnout_analysis"] = burnout_result.toJson();
+        
+        LOG_INFO("Burnout analysis added: state={}, score={:.1f}", 
+                 audio::stateToString(burnout_result.state), burnout_result.score);
+                 
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error adding burnout analysis: {}", e.what());
+        result["burnout_error"] = e.what();
+    }
+    
+    return result;
+}
+
+nlohmann::json Audio::process_audio_with_burnout(
+    torch::jit::Module* audio_model,
+    const nlohmann::json& baseline)
+{
+    // Step 1: Get emotion recognition result
+    nlohmann::json emotion_result = process_audio(audio_model);
+    
+    // Step 2: Check if emotion processing had errors
+    if (emotion_result.contains("error")) {
+        LOG_ERROR("Emotion processing failed: {}", emotion_result["error"]);
+        return emotion_result;
+    }
+    
+    // Step 3: Extract acoustic features
+    audio::AcousticFeatures features = extract_acoustic_features();
+    
+    // Step 4: Add burnout analysis
+    nlohmann::json result = add_burnout_analysis(emotion_result, baseline, &features);
+    
+    LOG_INFO("Audio processing with burnout complete");
+    
+    return result;
+}
+
 nlohmann::json Audio::mime_bundle_repr() const
 {
     nlohmann::json bundle;

@@ -124,6 +124,7 @@ endif()
 
 # Collect source files
 set(SRC_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/audio
     ${CMAKE_CURRENT_SOURCE_DIR}/src/client
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cluster
     ${CMAKE_CURRENT_SOURCE_DIR}/src/common

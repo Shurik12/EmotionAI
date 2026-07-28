@@ -5,6 +5,14 @@ import { t } from '../utils/translations';
 import './Detector.css';
 
 //=============================================================================
+// Constants
+//=============================================================================
+const VALID_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'video/mp4', 'video/avi', 'video/webm',
+    'audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg', 'audio/wav'];
+const VALID_EXTENSIONS = ['jpg', 'jpeg', 'png', 'mp4', 'avi', 'webm', 'mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a'];
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+//=============================================================================
 // Utility Functions
 //=============================================================================
 const formatFileSize = (bytes) => {
@@ -22,22 +30,15 @@ const formatTime = (seconds) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-const getVerdictInfo = (verdict) => {
-    const verdictMap = {
-        'low': { text: 'verdict_low', class: 'verdict-low', icon: '✅', recommendation: 'recommendation_low' },
-        'monitor': { text: 'verdict_monitor', class: 'verdict-monitor', icon: '⚠️', recommendation: 'recommendation_monitor' },
-        'high': { text: 'verdict_high', class: 'verdict-high', icon: '🔴', recommendation: 'recommendation_high' },
-        'да': { text: 'Ready for task', class: 'verdict-positive', icon: '✅' },
-        'нет': { text: 'Not ready for task', class: 'verdict-negative', icon: '❌' }
-    };
-    return verdictMap[verdict] || { text: verdict, class: '', icon: '📊' };
-};
+const getVerdictInfo = (verdict) => ({
+    'low': { text: 'verdict_low', class: 'verdict-low', icon: '✅', recommendation: 'recommendation_low' },
+    'monitor': { text: 'verdict_monitor', class: 'verdict-monitor', icon: '⚠️', recommendation: 'recommendation_monitor' },
+    'high': { text: 'verdict_high', class: 'verdict-high', icon: '🔴', recommendation: 'recommendation_high' },
+    'да': { text: 'Ready for task', class: 'verdict-positive', icon: '✅' },
+    'нет': { text: 'Not ready for task', class: 'verdict-negative', icon: '❌' }
+}[verdict] || { text: verdict, class: '', icon: '📊' });
 
-const getProbabilityColor = (prob) => {
-    if (prob >= 0.7) return '#f44336';
-    if (prob >= 0.4) return '#ff9800';
-    return '#4caf50';
-};
+const getProbabilityColor = (prob) => prob >= 0.7 ? '#dc3545' : prob >= 0.4 ? '#ffc107' : '#28a745';
 
 const getEmotionEntries = (additionalProbs) => {
     const emotions = {};
@@ -50,6 +51,133 @@ const getEmotionEntries = (additionalProbs) => {
         }
     });
     return { emotions, features };
+};
+
+// Get burnout analysis from nested data
+const getBurnoutAnalysis = (data) => {
+    if (!data) return null;
+    return data.burnout_analysis || (data.result && data.result.burnout_analysis) || null;
+};
+
+//=============================================================================
+// Burnout Components
+//=============================================================================
+
+const BurnoutLevelBadge = ({ level }) => {
+    const config = {
+        low: { cls: 'low', icon: '✓', label: 'Low Risk' },
+        moderate: { cls: 'moderate', icon: '○', label: 'Moderate Risk' },
+        high: { cls: 'high', icon: '◐', label: 'High Risk' },
+        severe: { cls: 'severe', icon: '●', label: 'Severe Risk' }
+    };
+    const { cls, icon, label } = config[level] || config.low;
+    return <span className={`burnout-level-badge ${cls}`}>{icon} {label}</span>;
+};
+
+const BurnoutStateDisplay = ({ state }) => {
+    const config = {
+        'NORMAL': { color: '#28a745', icon: '✓', label: 'Normal' },
+        'SHORT_STRESS': { color: '#ffc107', icon: '○', label: 'Short-term Stress' },
+        'SUSTAINED_STRESS': { color: '#fd7e14', icon: '◐', label: 'Sustained Stress' },
+        'BURNOUT_LIKE': { color: '#dc3545', icon: '●', label: 'Burnout-like State' },
+        'LOW_AFFECT_UNSPECIFIC': { color: '#6c757d', icon: '△', label: 'Low Affect Unspecified' },
+        'INSUFFICIENT_DATA': { color: '#adb5bd', icon: '?', label: 'Insufficient Data' }
+    };
+    const info = config[state] || config['INSUFFICIENT_DATA'];
+    
+    return (
+        <div className="burnout-state">
+            <div className="icon" style={{ backgroundColor: info.color }}>{info.icon}</div>
+            <div>
+                <div className="label">{info.label}</div>
+                <div className="sub">State: {state}</div>
+            </div>
+        </div>
+    );
+};
+
+const BurnoutComponentBar = ({ label, value }) => {
+    const pct = Math.min(value * 100, 100);
+    const color = pct > 66 ? '#dc3545' : pct > 33 ? '#ffc107' : '#28a745';
+    return (
+        <div className="burnout-component-item">
+            <div className="header">
+                <span>{label}</span>
+                <span>{pct.toFixed(1)}%</span>
+            </div>
+            <div className="bar-track">
+                <div className="bar-fill" style={{ width: `${pct}%`, backgroundColor: color }} />
+            </div>
+        </div>
+    );
+};
+
+const BurnoutAnalysis = ({ data }) => {
+    if (!data) return null;
+    if (data.error) {
+        return (
+            <div className="burnout-error">
+                <h4>⚠️ Burnout Analysis Error</h4>
+                <p>{data.error}</p>
+            </div>
+        );
+    }
+
+    const { state, level, score, confidence, components, recommendations, top_factor, comment } = data;
+    const labels = {
+        exhaustion: 'Emotional Exhaustion',
+        prosodic_flattening: 'Prosodic Flattening',
+        pause_tempo: 'Pause/Tempo Changes',
+        negative_activation: 'Negative Activation',
+        positive_affect_loss: 'Positive Affect Loss'
+    };
+
+    return (
+        <div className="burnout-analysis-card">
+            <div className="title">
+                <span>Burnout Risk Analysis</span>
+                <BurnoutLevelBadge level={level} />
+            </div>
+
+            <div className="burnout-metrics">
+                {[
+                    { label: 'Risk Score', value: `${score?.toFixed(1)}%` },
+                    { label: 'Confidence', value: `${((confidence || 0) * 100).toFixed(1)}%` },
+                    { label: 'Top Factor', value: top_factor || 'N/A' }
+                ].map((m, i) => (
+                    <div className="burnout-metric" key={i}>
+                        <div className="label">{m.label}</div>
+                        <div className="value">{m.value}</div>
+                    </div>
+                ))}
+            </div>
+
+            <BurnoutStateDisplay state={state} />
+
+            <div className="burnout-components">
+                <h4>Component Analysis</h4>
+                {Object.entries(components || {}).map(([key, value]) => (
+                    <BurnoutComponentBar key={key} label={labels[key] || key} value={value} />
+                ))}
+            </div>
+
+            {recommendations?.length > 0 && (
+                <div className="burnout-recommendations">
+                    <h4>📋 Recommendations</h4>
+                    <ul>{recommendations.map((r, i) => <li key={i}>{r}</li>)}</ul>
+                </div>
+            )}
+
+            {comment && (
+                <div className="burnout-comment"><em>💡 {comment}</em></div>
+            )}
+
+            <div className="burnout-disclaimer">
+                This analysis is for informational purposes only and does not constitute medical advice.
+                Please consult a healthcare professional for clinical decisions.
+            </div>
+        </div>
+    );
 };
 
 //=============================================================================
@@ -85,7 +213,6 @@ const LineChart = ({ data, labels, title, color, height = 200 }) => {
                         title={`${labels[index]}: ${value.toFixed(2)}`}
                     />
                 ))}
-                <div className="chart-line" style={{ borderColor: color }}></div>
                 <div className="chart-labels">
                     <span>{minVal.toFixed(1)}</span>
                     <span>{maxVal.toFixed(1)}</span>
@@ -105,8 +232,8 @@ const EmotionDistributionChart = ({ emotions, height = 250 }) => {
         );
     }
 
-    const entries = Object.entries(emotions).sort((a, b) => b[1] - a[1]);
     const lang = localStorage.getItem('language');
+    const entries = Object.entries(emotions).sort((a, b) => b[1] - a[1]);
 
     return (
         <div className="chart-container">
@@ -119,13 +246,10 @@ const EmotionDistributionChart = ({ emotions, height = 250 }) => {
                             <span>{(value * 100).toFixed(1)}%</span>
                         </div>
                         <div className="distribution-bar">
-                            <div
-                                className="distribution-fill"
-                                style={{
-                                    width: `${value * 100}%`,
-                                    backgroundColor: getColorForEmotion(emotion)
-                                }}
-                            />
+                            <div className="distribution-fill" style={{
+                                width: `${value * 100}%`,
+                                backgroundColor: getColorForEmotion(emotion)
+                            }} />
                         </div>
                     </div>
                 ))}
@@ -135,7 +259,7 @@ const EmotionDistributionChart = ({ emotions, height = 250 }) => {
 };
 
 const TimelineChart = ({ frameResults, height = 200 }) => {
-    const [selectedFrame, setSelectedFrame] = useState(null);
+    const [selected, setSelected] = useState(null);
     const lang = localStorage.getItem('language');
 
     if (!frameResults?.length) {
@@ -147,43 +271,37 @@ const TimelineChart = ({ frameResults, height = 200 }) => {
         );
     }
 
-    const lastTimestamp = frameResults[frameResults.length - 1]?.timestamp || 1;
+    const lastTs = frameResults[frameResults.length - 1]?.timestamp || 1;
 
     return (
         <div className="chart-container">
             <h4>Emotion Timeline</h4>
             <div className="timeline-chart" style={{ height: `${height}px` }}>
                 {frameResults.map((frame, index) => {
-                    const mainEmotion = frame.result?.main_prediction?.label;
-                    const probability = frame.result?.main_prediction?.probability || 0;
-
+                    const emotion = frame.result?.main_prediction?.label;
+                    const prob = frame.result?.main_prediction?.probability || 0;
                     return (
                         <div
                             key={index}
-                            className={`timeline-point ${selectedFrame === index ? 'selected' : ''}`}
+                            className={`timeline-point ${selected === index ? 'selected' : ''}`}
                             style={{
-                                left: `${(frame.timestamp / lastTimestamp) * 100}%`,
-                                backgroundColor: getColorForEmotion(mainEmotion),
-                                opacity: 0.5 + (probability * 0.5)
+                                left: `${(frame.timestamp / lastTs) * 100}%`,
+                                backgroundColor: getColorForEmotion(emotion),
+                                opacity: 0.5 + (prob * 0.5)
                             }}
-                            onMouseEnter={() => setSelectedFrame(index)}
-                            onMouseLeave={() => setSelectedFrame(null)}
-                            title={`${frame.timestamp.toFixed(1)}s: ${mainEmotion} (${(probability * 100).toFixed(1)}%)`}
+                            onMouseEnter={() => setSelected(index)}
+                            onMouseLeave={() => setSelected(null)}
+                            title={`${frame.timestamp.toFixed(1)}s: ${emotion} (${(prob * 100).toFixed(1)}%)`}
                         />
                     );
                 })}
-                {selectedFrame !== null && (
-                    <div
-                        className="timeline-tooltip"
-                        style={{
-                            left: `${(frameResults[selectedFrame].timestamp / lastTimestamp) * 100}%`
-                        }}
-                    >
-                        <strong>Time: {frameResults[selectedFrame].timestamp.toFixed(1)}s</strong>
-                        <br />
-                        Main emotion: {t(frameResults[selectedFrame].result?.main_prediction?.label, lang)}
-                        <br />
-                        Probability: {(frameResults[selectedFrame].result?.main_prediction?.probability * 100).toFixed(1)}%
+                {selected !== null && (
+                    <div className="timeline-tooltip" style={{
+                        left: `${(frameResults[selected].timestamp / lastTs) * 100}%`
+                    }}>
+                        <strong>Time: {frameResults[selected].timestamp.toFixed(1)}s</strong><br />
+                        Main emotion: {t(frameResults[selected].result?.main_prediction?.label, lang)}<br />
+                        Probability: {(frameResults[selected].result?.main_prediction?.probability * 100).toFixed(1)}%
                     </div>
                 )}
             </div>
@@ -196,121 +314,79 @@ const TimelineChart = ({ frameResults, height = 200 }) => {
 //=============================================================================
 const EmotionBar = ({ emotion, probability }) => {
     const lang = localStorage.getItem('language');
-    const percentage = (parseFloat(probability) * 100).toFixed(1);
-    
+    const pct = (parseFloat(probability) * 100).toFixed(1);
     return (
         <div className="emotion-item">
             <div className="emotion-label">
                 <span>{t(emotion, lang)}</span>
-                <span>{percentage}%</span>
+                <span>{pct}%</span>
             </div>
             <div className="emotion-bar">
-                <div
-                    className="emotion-fill"
-                    style={{
-                        width: `${percentage}%`,
-                        backgroundColor: getColorForEmotion(emotion)
-                    }}
-                />
+                <div className="emotion-fill" style={{
+                    width: `${pct}%`,
+                    backgroundColor: getColorForEmotion(emotion)
+                }} />
             </div>
         </div>
     );
 };
 
-const FeatureBar = ({ key, value }) => (
-    <div className="feature-item">
-        <div className="feature-label">
-            <span>{t(key, localStorage.getItem('language'))}</span>
-            <span>{parseFloat(value).toFixed(2)}</span>
-        </div>
-        <div className="feature-value">
-            <div
-                className="feature-fill"
-                style={{
+const FeatureBar = ({ label, value }) => {
+    const lang = localStorage.getItem('language');
+    const displayName = t(label, lang);
+    return (
+        <div className="feature-item">
+            <div className="feature-label">
+                <span>{displayName}</span>
+                <span>{parseFloat(value).toFixed(2)}</span>
+            </div>
+            <div className="feature-value">
+                <div className="feature-fill" style={{
                     width: `${(parseFloat(value) + 1) * 50}%`,
-                    backgroundColor: key === 'valence' ? '#4CAF50' : '#2196F3'
-                }}
-            />
+                    backgroundColor: label === 'valence' ? '#28a745' : '#17a2b8'
+                }} />
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const MainEmotionDisplay = ({ mainPrediction }) => {
-    const lang = localStorage.getItem('language');
     if (!mainPrediction) return null;
-    
+    const lang = localStorage.getItem('language');
     return (
         <div className="main-emotion">
-            <span>{t(mainPrediction.label, lang)}</span>
-            ({(mainPrediction.probability * 100).toFixed(1)}%)
-        </div>
-    );
-};
-
-const EmotionResults = ({ result }) => {
-    if (!result) return null;
-    
-    const { emotions, features } = getEmotionEntries(result.additional_probs);
-    
-    return (
-        <div className="result-card">
-            <MainEmotionDisplay mainPrediction={result.main_prediction} />
-            <div className="emotion-display">
-                {Object.entries(emotions).map(([key, value]) => (
-                    <EmotionBar key={key} emotion={key} probability={value} />
-                ))}
-                {result.gigachat && <GigaChatAnalysis gigachatData={result.gigachat} />}
-            </div>
-            {Object.keys(features).length > 0 && (
-                <div className="additional-features">
-                    <h4>{t('additional_features', localStorage.getItem('language'))}</h4>
-                    {Object.entries(features).map(([key, value]) => (
-                        <FeatureBar key={key} key={key} value={value} />
-                    ))}
-                </div>
-            )}
+            {t(mainPrediction.label, lang)} ({(mainPrediction.probability * 100).toFixed(1)}%)
         </div>
     );
 };
 
 //=============================================================================
-// GigaChat Analysis Component
+// GigaChat Analysis
 //=============================================================================
 const GigaChatAnalysis = ({ gigachatData }) => {
     const lang = localStorage.getItem('language');
-
     if (!gigachatData) return null;
 
-    let parsedData = gigachatData;
-    if (typeof gigachatData === 'string') {
-        try {
-            parsedData = JSON.parse(gigachatData);
-        } catch (e) {
-            return <div className="gigachat-analysis">{gigachatData}</div>;
-        }
+    let data = gigachatData;
+    if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch { return <div className="gigachat-analysis">{data}</div>; }
     }
 
-    const verdictInfo = getVerdictInfo(parsedData.verdict);
+    const verdict = getVerdictInfo(data.verdict);
 
     return (
         <div className="gigachat-analysis">
             <h4>
                 <span>🤖 AI Clinical Assessment</span>
-                {parsedData.scores && (
-                    <span className="total-score-badge">
-                        Score: {parsedData.scores.total_score}
-                    </span>
-                )}
+                {data.scores && <span className="total-score-badge">Score: {data.scores.total_score}</span>}
             </h4>
 
-            <div className={`gigachat-verdict ${verdictInfo.class}`}>
-                <div className="verdict-icon">{verdictInfo.icon}</div>
+            <div className={`gigachat-verdict ${verdict.class}`}>
+                <div className="verdict-icon">{verdict.icon}</div>
                 <div className="verdict-content">
-                    <strong>{t(verdictInfo.text, lang)}</strong>
-                    {verdictInfo.recommendation && (
-                        <div className="verdict-recommendation">
-                            {t(verdictInfo.recommendation, lang)}
-                        </div>
+                    <strong>{t(verdict.text, lang)}</strong>
+                    {verdict.recommendation && (
+                        <div className="verdict-recommendation">{t(verdict.recommendation, lang)}</div>
                     )}
                 </div>
             </div>
@@ -318,43 +394,35 @@ const GigaChatAnalysis = ({ gigachatData }) => {
             <div className="gigachat-probability">
                 <span>Probability:</span>
                 <div className="probability-bar-container">
-                    <div
-                        className="probability-bar"
-                        style={{
-                            width: `${(parsedData.probability || 0) * 100}%`,
-                            backgroundColor: getProbabilityColor(parsedData.probability || 0)
-                        }}
-                    />
-                    <span className="probability-value">
-                        {((parsedData.probability || 0) * 100).toFixed(1)}%
-                    </span>
+                    <div className="probability-bar" style={{
+                        width: `${(data.probability || 0) * 100}%`,
+                        backgroundColor: getProbabilityColor(data.probability || 0)
+                    }} />
+                    <span className="probability-value">{((data.probability || 0) * 100).toFixed(1)}%</span>
                 </div>
             </div>
 
-            {parsedData.scores && (
+            {data.scores && (
                 <div className="gigachat-scores">
                     <div className="scores-header">
                         <span>Depression Pattern Scores</span>
-                        <span className="total-score">Total: {parsedData.scores.total_score}</span>
+                        <span className="total-score">Total: {data.scores.total_score}</span>
                     </div>
                     <div className="scores-grid">
-                        {Object.entries(parsedData.scores).map(([key, value]) => {
-                            if (key === 'total_score') return null;
-                            return (
-                                <div key={key} className="score-item">
-                                    <span>{key.replace('_score', '').toUpperCase()}</span>
-                                    <span className={`score-value score-${value}`}>{value}</span>
-                                </div>
-                            );
-                        })}
+                        {Object.entries(data.scores).filter(([k]) => k !== 'total_score').map(([key, value]) => (
+                            <div key={key} className="score-item">
+                                <span>{key.replace('_score', '').toUpperCase()}</span>
+                                <span className={`score-value score-${value}`}>{value}</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
 
-            {parsedData.reasoning && (
+            {data.reasoning && (
                 <div className="gigachat-reasoning">
                     <strong>Clinical Reasoning:</strong>
-                    <p>{parsedData.reasoning}</p>
+                    <p>{data.reasoning}</p>
                 </div>
             )}
         </div>
@@ -364,7 +432,7 @@ const GigaChatAnalysis = ({ gigachatData }) => {
 //=============================================================================
 // Audio Components
 //=============================================================================
-const AudioVisualizer = ({ audioData, isPlaying, currentTime }) => {
+const AudioVisualizer = ({ audioData, currentTime }) => {
     const canvasRef = useRef(null);
     const [waveformData, setWaveformData] = useState([]);
 
@@ -383,17 +451,14 @@ const AudioVisualizer = ({ audioData, isPlaying, currentTime }) => {
 
     useEffect(() => {
         if (!canvasRef.current || !waveformData.length) return;
-
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        const width = canvas.width;
-        const height = canvas.height;
-
+        const { width, height } = canvas;
         ctx.clearRect(0, 0, width, height);
 
         const barWidth = width / waveformData.length;
         const centerY = height / 2;
-        const duration = 30; // Assuming 30 seconds max
+        const duration = 30;
 
         waveformData.forEach((value, index) => {
             const x = index * barWidth;
@@ -408,12 +473,10 @@ const AudioVisualizer = ({ audioData, isPlaying, currentTime }) => {
                 gradient.addColorStop(0, '#4a90d9');
                 gradient.addColorStop(1, '#357abd');
             }
-
             ctx.fillStyle = gradient;
             ctx.fillRect(x, centerY - barHeight / 2, Math.max(1, barWidth - 1), barHeight);
         });
 
-        // Center line
         ctx.strokeStyle = 'rgba(255,255,255,0.2)';
         ctx.lineWidth = 1;
         ctx.setLineDash([5, 5]);
@@ -431,119 +494,56 @@ const AudioVisualizer = ({ audioData, isPlaying, currentTime }) => {
     );
 };
 
-const AudioEmotionDisplay = ({ audioResult }) => {
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [currentTime, setCurrentTime] = useState(0);
-    const audioRef = useRef(null);
+//=============================================================================
+// Emotion Results
+//=============================================================================
+const EmotionResults = ({ result }) => {
+    if (!result) return null;
 
-    if (!audioResult) return null;
-
-    const handlePlayPause = () => {
-        if (audioRef.current) {
-            if (isPlaying) audioRef.current.pause();
-            else audioRef.current.play();
-            setIsPlaying(!isPlaying);
-        }
-    };
-
-    const handleTimeUpdate = () => {
-        if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
-    };
+    const { emotions, features } = getEmotionEntries(result.additional_probs);
+    const burnout = getBurnoutAnalysis(result);
 
     return (
-        <div className="audio-result-container">
-            <div className="audio-player-section">
-                <audio
-                    ref={audioRef}
-                    src={audioResult.audio_url || audioResult.storage_path}
-                    onTimeUpdate={handleTimeUpdate}
-                    onEnded={() => setIsPlaying(false)}
-                />
-                <div className="audio-controls">
-                    <button className="audio-control-btn" onClick={handlePlayPause}>
-                        {isPlaying ? '⏸' : '▶'}
-                    </button>
-                    <div className="audio-progress">
-                        <input
-                            type="range"
-                            min="0"
-                            max={audioResult.duration || 0}
-                            step="0.1"
-                            value={currentTime}
-                            onChange={(e) => {
-                                if (audioRef.current) {
-                                    audioRef.current.currentTime = parseFloat(e.target.value);
-                                    setCurrentTime(parseFloat(e.target.value));
-                                }
-                            }}
-                            className="audio-progress-bar"
-                        />
-                        <span className="audio-time">
-                            {formatTime(currentTime)} / {formatTime(audioResult.duration || 0)}
-                        </span>
-                    </div>
+        <div className="result-card">
+            <MainEmotionDisplay mainPrediction={result.main_prediction} />
+            <div className="emotion-display">
+                {Object.entries(emotions).map(([key, value]) => (
+                    <EmotionBar key={key} emotion={key} probability={value} />
+                ))}
+                {result.gigachat && <GigaChatAnalysis gigachatData={result.gigachat} />}
+            </div>
+
+            {Object.keys(features).length > 0 && (
+                <div className="additional-features">
+                    <h4>{t('additional_features', localStorage.getItem('language'))}</h4>
+                    {Object.entries(features).map(([key, value]) => (
+                        <FeatureBar key={key} label={key} value={value} />
+                    ))}
                 </div>
-                <AudioVisualizer
-                    audioData={audioResult.waveform_data || []}
-                    isPlaying={isPlaying}
-                    currentTime={currentTime}
-                />
-            </div>
-            <div className="audio-emotion-results">
-                <EmotionResults result={audioResult.result} />
-            </div>
+            )}
+
+            {burnout && (
+                <div className="burnout-section">
+                    <BurnoutAnalysis data={burnout} />
+                </div>
+            )}
+
+            {result.burnout_error && (
+                <div className="burnout-error" style={{ marginTop: '15px' }}>
+                    <strong>⚠️ Burnout Analysis Note:</strong> {result.burnout_error}
+                </div>
+            )}
         </div>
     );
 };
 
-//=============================================================================
-// Sample Frame Component
-//=============================================================================
-const SampleFrame = ({ frame }) => {
-    const lang = localStorage.getItem('language');
-
+const AudioEmotionDisplay = ({ audioResult }) => {
+    if (!audioResult) return null;
+    const resultData = audioResult.result || audioResult;
     return (
-        <div className="sample-frame">
-            <div className="frame-header">
-                <strong>Time: {frame.timestamp.toFixed(1)}s</strong>
-            </div>
-            {frame.image_url && (
-                <div className="frame-image-container">
-                    <img
-                        src={frame.image_url}
-                        alt={`Frame at ${frame.timestamp.toFixed(1)} seconds`}
-                        loading="lazy"
-                        className="frame-image"
-                    />
-                </div>
-            )}
-            <div className="frame-results">
-                {frame.result && (
-                    <>
-                        <MainEmotionDisplay mainPrediction={frame.result.main_prediction} />
-                        <div className="emotion-display">
-                            {Object.entries(getEmotionEntries(frame.result.additional_probs).emotions).map(([key, value]) => (
-                                <EmotionBar key={key} emotion={key} probability={value} />
-                            ))}
-                        </div>
-                        {(frame.valence !== undefined || frame.arousal !== undefined) && (
-                            <div className="valence-arousal">
-                                {frame.valence !== undefined && (
-                                    <div className="va-item">
-                                        <span>Valence: </span>
-                                        <span>{frame.valence.toFixed(2)}</span>
-                                    </div>
-                                )}
-                                {frame.arousal !== undefined && (
-                                    <div className="va-item">
-                                        <span>Arousal: </span>
-                                        <span>{frame.arousal.toFixed(2)}</span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </>
-                )}
+        <div className="audio-result-container">
+            <div className="audio-emotion-results">
+                <EmotionResults result={resultData} />
             </div>
         </div>
     );
@@ -552,7 +552,7 @@ const SampleFrame = ({ frame }) => {
 //=============================================================================
 // Result Renderers
 //=============================================================================
-const renderImageResults = (results) => (
+const ImageResults = ({ results }) => (
     <>
         {results.image_url && (
             <div className="preview-container processed-image">
@@ -563,7 +563,7 @@ const renderImageResults = (results) => (
     </>
 );
 
-const renderVideoResults = (results) => (
+const VideoResults = ({ results }) => (
     <>
         <div className="result-card">
             <h3>{t('video_analysis_complete', localStorage.getItem('language'))}</h3>
@@ -583,18 +583,16 @@ const renderVideoResults = (results) => (
     </>
 );
 
-const renderRealtimeResults = (results) => {
+const RealtimeResults = ({ results }) => {
     const [timeRange, setTimeRange] = useState([0, 1]);
     const lang = localStorage.getItem('language');
 
     const getFilteredData = useCallback(() => {
         if (!results?.frame_results) return { valence: [], arousal: [], labels: [], frames: [] };
         const totalDuration = results.duration || 1;
-        const startTime = timeRange[0] * totalDuration;
-        const endTime = timeRange[1] * totalDuration;
-        const filtered = results.frame_results.filter(f => 
-            f.timestamp >= startTime && f.timestamp <= endTime
-        );
+        const start = timeRange[0] * totalDuration;
+        const end = timeRange[1] * totalDuration;
+        const filtered = results.frame_results.filter(f => f.timestamp >= start && f.timestamp <= end);
         return {
             valence: filtered.map(f => f.valence || 0),
             arousal: filtered.map(f => f.arousal || 0),
@@ -603,7 +601,7 @@ const renderRealtimeResults = (results) => {
         };
     }, [results, timeRange]);
 
-    const filteredData = getFilteredData();
+    const data = getFilteredData();
 
     return (
         <>
@@ -646,9 +644,7 @@ const renderRealtimeResults = (results) => {
                                 onChange={(e) => {
                                     const newRange = [...timeRange];
                                     newRange[idx] = parseFloat(e.target.value);
-                                    if (newRange[0] > newRange[1]) {
-                                        newRange[0] = newRange[1];
-                                    }
+                                    if (newRange[0] > newRange[1]) newRange[0] = newRange[1];
                                     setTimeRange(newRange);
                                 }}
                             />
@@ -664,20 +660,13 @@ const renderRealtimeResults = (results) => {
 
             <div className="charts-grid-realtime">
                 {[
-                    { data: filteredData.valence, title: 'Valence Trend', color: '#4CAF50' },
-                    { data: filteredData.arousal, title: 'Arousal Trend', color: '#2196F3' }
+                    { data: data.valence, title: 'Valence Trend', color: '#28a745' },
+                    { data: data.arousal, title: 'Arousal Trend', color: '#17a2b8' }
                 ].map((chart, idx) => (
-                    <LineChart
-                        key={idx}
-                        data={chart.data}
-                        labels={filteredData.labels}
-                        title={chart.title}
-                        color={chart.color}
-                        height={180}
-                    />
+                    <LineChart key={idx} data={chart.data} labels={data.labels} title={chart.title} color={chart.color} height={180} />
                 ))}
                 <EmotionDistributionChart emotions={results.average_emotions} height={250} />
-                <TimelineChart frameResults={filteredData.frames} height={180} />
+                <TimelineChart frameResults={data.frames} height={180} />
             </div>
 
             <div className="sample-frames">
@@ -692,17 +681,80 @@ const renderRealtimeResults = (results) => {
     );
 };
 
-const renderAudioResults = (results) => (
+const SampleFrame = ({ frame }) => {
+    const lang = localStorage.getItem('language');
+
+    return (
+        <div className="sample-frame">
+            <div className="frame-header"><strong>Time: {frame.timestamp.toFixed(1)}s</strong></div>
+            {frame.image_url && (
+                <div className="frame-image-container">
+                    <img src={frame.image_url} alt={`Frame at ${frame.timestamp.toFixed(1)} seconds`} loading="lazy" className="frame-image" />
+                </div>
+            )}
+            <div className="frame-results">
+                {frame.result && (
+                    <>
+                        <MainEmotionDisplay mainPrediction={frame.result.main_prediction} />
+                        <div className="emotion-display">
+                            {Object.entries(getEmotionEntries(frame.result.additional_probs).emotions).map(([key, value]) => (
+                                <EmotionBar key={key} emotion={key} probability={value} />
+                            ))}
+                        </div>
+                        {frame.result.burnout_analysis && (
+                            <div style={{ marginTop: '12px' }}>
+                                <BurnoutLevelBadge level={frame.result.burnout_analysis.level} />
+                            </div>
+                        )}
+                        {(frame.valence !== undefined || frame.arousal !== undefined) && (
+                            <div className="valence-arousal">
+                                {frame.valence !== undefined && (
+                                    <div className="va-item"><span>Valence: </span><span>{frame.valence.toFixed(2)}</span></div>
+                                )}
+                                {frame.arousal !== undefined && (
+                                    <div className="va-item"><span>Arousal: </span><span>{frame.arousal.toFixed(2)}</span></div>
+                                )}
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const AudioResults = ({ results }) => (
     <>
-        <div className="result-card audio-result-card">
+        <div className="result-card">
             <h3>🎵 Audio Emotion Analysis</h3>
-            <p>
-                <span>Duration: {(results.duration || 0).toFixed(1)} seconds</span>
-                <span style={{ marginLeft: '15px' }}>Sample Rate: {results.sample_rate || 'N/A'} Hz</span>
-            </p>
+            <p>Duration: {(results.duration || 0).toFixed(1)} seconds | Sample Rate: {results.sample_rate || 'N/A'} Hz</p>
         </div>
         <AudioEmotionDisplay audioResult={results} />
     </>
+);
+
+const AudioBurnoutResults = ({ results }) => {
+    const burnout = getBurnoutAnalysis(results);
+    return (
+        <>
+            <div className="result-card audio-burnout">
+                <h3>🎵 Audio Burnout Analysis</h3>
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '0.9rem', color: '#6c757d' }}>
+                    <span>Duration: {(results.duration || 0).toFixed(1)} seconds</span>
+                    <span>Sample Rate: {results.sample_rate || 'N/A'} Hz</span>
+                    {burnout && <span style={{ backgroundColor: '#e9ecef', padding: '2px 10px', borderRadius: '12px' }}>{burnout.state || 'N/A'}</span>}
+                </div>
+            </div>
+            <AudioEmotionDisplay audioResult={results} />
+        </>
+    );
+};
+
+const DefaultResults = ({ results }) => (
+    <div className="result-card">
+        <h3>Analysis Results</h3>
+        <pre>{JSON.stringify(results, null, 2)}</pre>
+    </div>
 );
 
 //=============================================================================
@@ -729,7 +781,6 @@ const Detector = () => {
     const progressIntervalRef = useRef(null);
     const { language, updateTexts } = useLanguage();
 
-    // Cleanup
     useEffect(() => {
         updateTexts();
         return () => {
@@ -737,7 +788,6 @@ const Detector = () => {
         };
     }, [language]);
 
-    // State helpers
     const setField = (key, value) => setState(prev => ({ ...prev, [key]: value }));
     const getField = (key) => state[key];
 
@@ -753,30 +803,22 @@ const Detector = () => {
         setField('progressComplete', false);
     };
 
-    // File validation
     const validateFile = (file) => {
-        const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'video/mp4', 'video/avi', 'video/webm',
-            'audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg', 'audio/wav'];
-        const validExtensions = ['jpg', 'jpeg', 'png', 'mp4', 'avi', 'webm', 'mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a'];
-        const extension = file.name.split('.').pop().toLowerCase();
-        const maxSize = 50 * 1024 * 1024;
-
-        if (!validTypes.includes(file.type) && !validExtensions.includes(extension)) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!VALID_TYPES.includes(file.type) && !VALID_EXTENSIONS.includes(ext)) {
             showError('error_unsupported_format');
             return false;
         }
-        if (file.size > maxSize) {
+        if (file.size > MAX_FILE_SIZE) {
             showError('error_file_too_large');
             return false;
         }
         return true;
     };
 
-    // File handling
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
         if (!file || !validateFile(file)) return;
-
         setState(prev => ({
             ...prev,
             file,
@@ -809,16 +851,9 @@ const Detector = () => {
         }
     };
 
-    // Upload and progress
     const uploadFile = async () => {
-        if (!getField('file')) {
-            showError('error_file_not_selected');
-            return;
-        }
-        if (!getField('consentGiven')) {
-            showError('error_consent_required');
-            return;
-        }
+        if (!getField('file')) { showError('error_file_not_selected'); return; }
+        if (!getField('consentGiven')) { showError('error_consent_required'); return; }
 
         setState(prev => ({
             ...prev,
@@ -834,7 +869,9 @@ const Detector = () => {
         formData.append('file', getField('file'));
         formData.append('model', 'emotieff');
 
-        const endpoint = getField('processingMode') === 'realtime' ? '/api/upload_realtime' : '/api/upload';
+        const mode = getField('processingMode');
+        const endpoint = mode === 'burnout' ? '/api/upload_burnout' :
+                         mode === 'realtime' ? '/api/upload_realtime' : '/api/upload';
 
         try {
             const response = await fetch(endpoint, { method: 'POST', body: formData });
@@ -845,7 +882,6 @@ const Detector = () => {
             const data = await response.json();
             if (data.error) throw new Error(data.error);
 
-            window.lastAnalysisResult = data.result;
             setField('currentTaskId', data.task_id);
             setField('progressText', t('file_processing', localStorage.getItem('language')));
             checkProgress(data.task_id);
@@ -868,12 +904,12 @@ const Detector = () => {
 
                 if (data.message) {
                     let text = data.message;
-                    const frameMatch = data.message.match(/(frame|segment) (\d+) of (\d+)/);
-                    if (frameMatch) {
-                        const unit = frameMatch[1] === 'frame' ? 'processing_frame' : 'processing_segment';
+                    const match = data.message.match(/(frame|segment) (\d+) of (\d+)/);
+                    if (match) {
+                        const unit = match[1] === 'frame' ? 'processing_frame' : 'processing_segment';
                         text = t(unit, localStorage.getItem('language'))
-                            .replace('{current}', frameMatch[2])
-                            .replace('{total}', frameMatch[3]);
+                            .replace('{current}', match[2])
+                            .replace('{total}', match[3]);
                     } else if (data.message.includes('audio')) {
                         text = t('processing_audio', localStorage.getItem('language')) || 'Processing audio...';
                     } else {
@@ -900,7 +936,6 @@ const Detector = () => {
         }, 1000);
     };
 
-    // Drag handlers
     const handleDragOver = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -913,26 +948,30 @@ const Detector = () => {
         e.currentTarget.classList.remove('highlight');
     };
 
-    // Result renderer
     const renderResults = useMemo(() => {
         const results = getField('results');
         if (!results) return null;
 
-        const renderers = {
-            'image': renderImageResults,
-            'video': renderVideoResults,
-            'video_realtime': renderRealtimeResults,
-            'audio': renderAudioResults
-        };
+        if (results.type === 'audio_burnout') return <AudioBurnoutResults results={results} />;
+        if (results.result && getBurnoutAnalysis(results.result)) {
+            return (
+                <>
+                    <div className="result-card">
+                        <h3>🎵 Audio Burnout Analysis</h3>
+                        <p>Duration: {(results.duration || 0).toFixed(1)} seconds | Sample Rate: {results.sample_rate || 'N/A'} Hz</p>
+                    </div>
+                    <AudioEmotionDisplay audioResult={results} />
+                </>
+            );
+        }
 
-        const renderer = renderers[results.type] || ((r) => (
-            <div className="result-card">
-                <h3>Analysis Results</h3>
-                <pre>{JSON.stringify(r, null, 2)}</pre>
-            </div>
-        ));
-
-        return renderer(results);
+        switch (results.type) {
+            case 'image': return <ImageResults results={results} />;
+            case 'video': return <VideoResults results={results} />;
+            case 'video_realtime': return <RealtimeResults results={results} />;
+            case 'audio': return <AudioResults results={results} />;
+            default: return <DefaultResults results={results} />;
+        }
     }, [state.results]);
 
     return (
@@ -942,46 +981,26 @@ const Detector = () => {
             </div>
 
             <div className="upload-section">
-                <div
-                    className="upload-container"
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
+                <div className="upload-container" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
                     <div className="upload-icon">📁</div>
                     <div className="upload-text">
                         <h3>{t('drag_file', localStorage.getItem('language'))}</h3>
                         <p>{t('or', localStorage.getItem('language'))}</p>
                     </div>
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="file-input"
-                        accept="image/*,video/*,audio/*"
-                        onChange={handleFileSelect}
-                        disabled={getField('isProcessing')}
-                    />
-                    <button
-                        className="btn primary"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={getField('isProcessing')}
-                    >
+                    <input type="file" ref={fileInputRef} className="file-input" accept="image/*,video/*,audio/*" onChange={handleFileSelect} disabled={getField('isProcessing')} />
+                    <button className="btn primary" onClick={() => fileInputRef.current?.click()} disabled={getField('isProcessing')}>
                         {t('choose_file', localStorage.getItem('language'))}
                     </button>
                     <p className="supported-formats">{t('supported_formats', localStorage.getItem('language'))}</p>
                 </div>
 
                 {getField('errorKey') && (
-                    <div className="error-message">
-                        {t(getField('errorKey'), localStorage.getItem('language'))}
-                    </div>
+                    <div className="error-message">{t(getField('errorKey'), localStorage.getItem('language'))}</div>
                 )}
 
                 {getField('preview')?.type === 'audio' && (
                     <div className="preview-container audio-preview">
-                        <audio controls src={getField('preview').url} className="audio-player">
-                            Your browser does not support the audio element.
-                        </audio>
+                        <audio controls src={getField('preview').url} className="audio-player" />
                     </div>
                 )}
 
@@ -992,12 +1011,7 @@ const Detector = () => {
                             <strong>{getField('fileName')}</strong>
                             <br />({getField('fileSize')})
                         </div>
-                        <button
-                            className="btn"
-                            style={{ marginTop: '8px', backgroundColor: 'var(--error-color)' }}
-                            onClick={clearFile}
-                            disabled={getField('isProcessing')}
-                        >
+                        <button className="btn" style={{ marginTop: '8px', backgroundColor: '#dc3545' }} onClick={clearFile} disabled={getField('isProcessing')}>
                             {t('clear_button', localStorage.getItem('language'))}
                         </button>
                     </div>
@@ -1013,6 +1027,7 @@ const Detector = () => {
                             style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ced4da' }}
                         >
                             <option value="standard">Standard Analysis</option>
+                            <option value="burnout">Burnout Analysis</option>
                             <option value="realtime">Real-time Analysis</option>
                         </select>
                     </label>
@@ -1020,18 +1035,10 @@ const Detector = () => {
 
                 <div style={{ margin: '15px 0', textAlign: 'center' }}>
                     <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <input
-                            type="checkbox"
-                            checked={getField('consentGiven')}
-                            onChange={(e) => setField('consentGiven', e.target.checked)}
-                            disabled={getField('isProcessing')}
-                            style={{ marginRight: '8px' }}
-                        />
+                        <input type="checkbox" checked={getField('consentGiven')} onChange={(e) => setField('consentGiven', e.target.checked)} disabled={getField('isProcessing')} style={{ marginRight: '8px' }} />
                         <span>
                             {t('consent_text', localStorage.getItem('language'))}
-                            <a href="#privacy" className="nav-link" style={{ color: 'var(--primary-color)' }}>
-                                {t('privacy_policy', localStorage.getItem('language'))}
-                            </a>
+                            <a href="#privacy" className="nav-link" style={{ color: '#495057' }}>{t('privacy_policy', localStorage.getItem('language'))}</a>
                         </span>
                     </label>
                 </div>
@@ -1041,23 +1048,19 @@ const Detector = () => {
                     onClick={uploadFile}
                     disabled={getField('isProcessing')}
                 >
-                    {t('analyze_emotions', localStorage.getItem('language'))}
+                    {getField('processingMode') === 'burnout' ? 'Analyze Burnout' : t('analyze_emotions', localStorage.getItem('language'))}
                 </button>
             </div>
 
             {getField('showProgress') && (
                 <div className="progress-container">
-                    <div className="progress-header">
-                        <h3>{t('processing', localStorage.getItem('language'))}</h3>
-                    </div>
+                    <div className="progress-header"><h3>{t('processing', localStorage.getItem('language'))}</h3></div>
                     <div className={`progress-wheel ${getField('progressComplete') ? 'complete' : ''}`} />
                     <div className="progress-text">{getField('progressText')}</div>
                 </div>
             )}
 
-            {getField('results') && (
-                <div className="results-container">{renderResults}</div>
-            )}
+            {getField('results') && <div className="results-container">{renderResults}</div>}
         </div>
     );
 };
