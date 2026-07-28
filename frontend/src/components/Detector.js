@@ -265,7 +265,7 @@ const EmotionResults = ({ result }) => {
                 <div className="additional-features">
                     <h4>{t('additional_features', localStorage.getItem('language'))}</h4>
                     {Object.entries(features).map(([key, value]) => (
-                        <FeatureBar key={key} keyName={key} value={value} />
+                        <FeatureBar key={key} key={key} value={value} />
                     ))}
                 </div>
             )}

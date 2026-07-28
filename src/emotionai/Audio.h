@@ -33,7 +33,7 @@ public:
     bool is_loaded() const { return loaded_; }
     const std::string& get_error() const { return error_; }
 
-    // Process audio with PyTorch model
+    // Process audio with PyTorch model (Wav2Vec2)
     nlohmann::json process_audio(torch::jit::Module* audio_model);
     
     // Get MIME bundle representation
@@ -61,18 +61,14 @@ private:
     // WAV parsing helper
     std::tuple<bool, long long, uint32_t> find_data_chunk(std::ifstream& file, const WavHeader& header);
     
-    // Feature extraction
+    // Audio preprocessing
     std::vector<float> resample_audio(int target_sr) const;
-    std::vector<float> extract_mel_spectrogram() const;
     
-    // Emotion mapping
-    std::string class_to_emotion(int class_id) const;
+    // Constants for Wav2Vec2
+    static constexpr int TARGET_SR = 16000;          // Wav2Vec2 requires 16kHz
+    static constexpr int MAX_DURATION = 10;          // Maximum duration in seconds
+    static constexpr int MIN_DURATION = 1;           // Minimum duration in seconds
     
-    // Constants
-    static constexpr int TARGET_SR = 16000;
-    static constexpr int MAX_DURATION = 30;
-    static constexpr int N_MELS = 128;
-    static constexpr int N_FFT = 400;
-    static constexpr int HOP_LENGTH = 160;
-    static constexpr int TIME_STEPS = 3000;
+    // Emotion labels from Wav2Vec2 model
+    static const std::vector<std::string> EMOTION_LABELS;
 };
