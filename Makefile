@@ -73,48 +73,6 @@ $(VENV_DIR):
 models: python_env
 	. $(VENV_DIR)/bin/activate && cd $(MODELS_DIR) && python3 prepare_models_for_emotieffcpplib.py
 
-deploy_production: build
-	@echo "Deploying to production..."
-	@if [ ! -f "$(NGINX_SOURCE)" ]; then \
-		echo "Error: Nginx config file not found at $(NGINX_SOURCE)"; \
-		exit 1; \
-	fi
-	@if [ ! -f "$(SERVICE_SOURCE)" ]; then \
-		echo "Error: Service file not found at $(SERVICE_SOURCE)"; \
-		exit 1; \
-	fi
-	
-	# Copy service file
-	sudo cp $(SERVICE_SOURCE) $(SERVICE_TARGET)
-	sudo chmod 644 $(SERVICE_TARGET)
-	
-	# Copy nginx config
-	sudo cp $(NGINX_SOURCE) $(NGINX_TARGET)
-	sudo chmod 644 $(NGINX_TARGET)
-	
-	# Enable and link services
-	sudo systemctl enable emotion-ai.service
-	sudo ln -sf /etc/nginx/sites-available/emotion-ai /etc/nginx/sites-enabled/
-	
-	# Reload and restart services
-	sudo systemctl daemon-reload
-	sudo systemctl restart emotion-ai.service
-	sudo systemctl reload nginx
-	
-	@echo "Production deployment completed!"
-	@echo "Service status:"
-	sudo systemctl status emotion-ai.service --no-pager
-
-production_status:
-	@echo "=== EmotionAI Service Status ==="
-	sudo systemctl status emotion-ai.service --no-pager
-	@echo ""
-	@echo "=== Nginx Status ==="
-	sudo systemctl status nginx --no-pager
-	@echo ""
-	@echo "=== Nginx Configuration Test ==="
-	sudo nginx -t
-
 clean-pyc:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 

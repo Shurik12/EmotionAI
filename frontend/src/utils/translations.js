@@ -69,7 +69,7 @@ export const translations = {
 		drag_file: "Перетащите файл сюда",
 		or: "или",
 		choose_file: "Выбрать файл",
-		supported_formats: "Поддерживаемые форматы: JPG, PNG, MP4, AVI, WEBM (макс. 16MB)",
+		supported_formats: "Поддерживаемые форматы: JPG, PNG, MP4, AVI, WEBM, WAV (макс. 16MB)",
 		consent_text: "Я даю согласие на обработку моих персональных данных в соответствии с",
 		privacy_policy: "Политикой обработки персональных данных",
 		analyze_emotions: "Анализировать эмоции",
@@ -106,6 +106,7 @@ export const translations = {
 		neutral: "Нейтрально",
 		happiness: "Радость",
 		surprise: "Удивление",
+		enthusiasm: "Удивление",
 		sadness: "Грусть",
 
 		additional_features: "Дополнительные признаки",
@@ -217,7 +218,7 @@ export const translations = {
 		drag_file: "Drag file here",
 		or: "or",
 		choose_file: "Choose file",
-		supported_formats: "Supported formats: JPG, PNG, MP4, AVI, WEBM (max. 16MB)",
+		supported_formats: "Supported formats: JPG, PNG, MP4, AVI, WEBM, WAV (max. 16MB)",
 		consent_text: "I consent to the processing of my personal data in accordance with the",
 		privacy_policy: "Personal Data Processing Policy",
 		analyze_emotions: "Analyze emotions",
@@ -255,6 +256,7 @@ export const translations = {
 		neutral: "Neutral",
 		sadness: "Sadness",
 		surprise: "Surprise",
+		enthusiasm: "Surprise",
 
 		additional_features: "Additional Features",
 		valence: "Valence",

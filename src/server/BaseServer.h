@@ -11,6 +11,7 @@
 #include <atomic>
 
 #include <nlohmann/json.hpp>
+#include <common/httplib.h>
 #include <server/IServer.h>
 #include <db/DragonflyManager.h>
 #include <emotionai/FileProcessor.h>
@@ -30,84 +31,90 @@ class DistributedTaskManager;
 class BaseServer : public IServer
 {
 public:
-	virtual ~BaseServer() override = default;
+    virtual ~BaseServer() override = default;
 
 protected:
-	explicit BaseServer();
+    explicit BaseServer();
 
-	// Common initialization methods
-	void loadConfiguration();
-	void ensureDirectoriesExist();
-	void initializeComponents();
+    // Common initialization methods
+    void loadConfiguration();
+    void ensureDirectoriesExist();
+    void initializeComponents();
 
-	// Cluster management
-	void initializeCluster();
-	void startClusterServices();
-	void stopClusterServices();
-	void registerInstance();
-	void unregisterInstance();
+    // Cluster management
+    void initializeCluster();
+    void startClusterServices();
+    void stopClusterServices();
+    void registerInstance();
+    void unregisterInstance();
 
-	// Common route handler implementations - now returns task_id
-	std::string handleUploadCommon(const std::string &file_content, const std::string &filename, bool realtime = false);
-	std::string handleSubmitApplicationCommon(const std::string &body);
-	void validateJsonDocument(const nlohmann::json &json);
+    // Common route handler implementations
+    std::string handleUploadCommon(const std::string &file_content, const std::string &filename, bool realtime = false);
+    std::string handleUploadBurnoutCommon(const std::string &file_content, const std::string &filename);
+    std::string handleSubmitApplicationCommon(const std::string &body);
+    void validateJsonDocument(const nlohmann::json &json);
 
-	// Distributed task processing
-	void startDistributedTaskWorkers();
-	void stopDistributedTaskWorkers();
-	void processDistributedTask(const nlohmann::json &task);
+    // Distributed task processing
+    void startDistributedTaskWorkers();
+    void stopDistributedTaskWorkers();
+    void processDistributedTask(const nlohmann::json &task);
 
-	// Common file serving
-	std::string getMimeType(const std::string &filename) const;
-	bool isApiEndpoint(const std::string &path) const;
+    // Common file serving
+    std::string getMimeType(const std::string &filename) const;
+    bool isApiEndpoint(const std::string &path) const;
 
-	// Multipart form data parsing
-	std::map<std::string, std::string> parseMultipartFormData(const std::string &body,
-															  const std::string &boundary);
-	std::string extractBoundary(const std::string &content_type);
+    // Multipart form data parsing
+    std::map<std::string, std::string> parseMultipartFormData(const std::string &body,
+                                                              const std::string &boundary);
+    std::string extractBoundary(const std::string &content_type);
 
-	void initializeStorage();
+    void initializeStorage();
 
-	// Common components
-	std::shared_ptr<DragonflyManager> dragonfly_manager_;
-	std::unique_ptr<FileProcessor> file_processor_;
-	std::unique_ptr<ThreadPool> thread_pool_;
+    // Burnout Route Handlers
+    void handleBurnoutAnalyze(const httplib::Request& req, httplib::Response& res);
+    void handleBurnoutBaseline(const httplib::Request& req, httplib::Response& res);
+    void handleBurnoutBaselineGet(const httplib::Request& req, httplib::Response& res, const std::string& user_id);
 
-	// Cluster components
-	std::string instance_id_;
+    // Common components
+    std::shared_ptr<DragonflyManager> dragonfly_manager_;
+    std::unique_ptr<FileProcessor> file_processor_;
+    std::unique_ptr<ThreadPool> thread_pool_;
 
-	// Storage components
-	std::shared_ptr<FileStorage> file_storage_;
+    // Cluster components
+    std::string instance_id_;
+
+    // Storage components
+    std::shared_ptr<FileStorage> file_storage_;
 
 #ifdef WITH_CLUSTER
-	std::unique_ptr<ClusterManager> cluster_manager_;
-	std::unique_ptr<DistributedTaskManager> distributed_task_manager_;
+    std::unique_ptr<ClusterManager> cluster_manager_;
+    std::unique_ptr<DistributedTaskManager> distributed_task_manager_;
 #endif
 
-	// Task worker threads
-	std::vector<std::thread> task_worker_threads_;
-	std::atomic<bool> workers_running_{false};
+    // Task worker threads
+    std::vector<std::thread> task_worker_threads_;
+    std::atomic<bool> workers_running_{false};
 
-	// Common paths
-	fs::path static_files_root_;
-	fs::path upload_folder_;
-	fs::path results_folder_;
-	fs::path log_folder_;
+    // Common paths
+    fs::path static_files_root_;
+    fs::path upload_folder_;
+    fs::path results_folder_;
+    fs::path log_folder_;
 
-	// Metrics
-	std::string collectMetrics();
-	void updateRequestMetrics(
-		const std::string &method, const std::string &endpoint,
-		int status_code, double duration_seconds);
+    // Metrics
+    std::string collectMetrics();
+    void updateRequestMetrics(
+        const std::string &method, const std::string &endpoint,
+        int status_code, double duration_seconds);
 
-	// Utility methods
-	std::string generateInstanceId();
+    // Utility methods
+    std::string generateInstanceId();
 
 private:
-	// Metrics counters
-	std::atomic<size_t> total_requests_{0};
-	std::atomic<size_t> active_connections_{0};
-	std::map<std::string, std::atomic<size_t>> endpoint_requests_;
-	std::map<int, std::atomic<size_t>> status_codes_;
-	std::mutex metrics_mutex_;
+    // Metrics counters
+    std::atomic<size_t> total_requests_{0};
+    std::atomic<size_t> active_connections_{0};
+    std::map<std::string, std::atomic<size_t>> endpoint_requests_;
+    std::map<int, std::atomic<size_t>> status_codes_;
+    std::mutex metrics_mutex_;
 };

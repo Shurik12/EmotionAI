@@ -5,6 +5,8 @@
 #include <nlohmann/json.hpp>
 #include <torch/script.h>
 #include <fstream>
+#include <audio/AudioFeatures.h>
+#include <audio/BurnoutAnalyzer.h>
 
 // Forward declarations for FFmpeg
 struct AVFormatContext;
@@ -33,8 +35,21 @@ public:
     bool is_loaded() const { return loaded_; }
     const std::string& get_error() const { return error_; }
 
-    // Process audio with PyTorch model (Wav2Vec2)
+    // Process audio with PyTorch model (WavLM) - returns emotion analysis
     nlohmann::json process_audio(torch::jit::Module* audio_model);
+    
+    nlohmann::json process_audio_with_burnout(
+        torch::jit::Module* audio_model,
+        const nlohmann::json& baseline = {}
+    );
+    
+    audio::AcousticFeatures extract_acoustic_features() const;
+    
+    static nlohmann::json add_burnout_analysis(
+        const nlohmann::json& emotion_result,
+        const nlohmann::json& baseline = {},
+        const audio::AcousticFeatures* acoustic_features = nullptr
+    );
     
     // Get MIME bundle representation
     nlohmann::json mime_bundle_repr() const;
@@ -64,11 +79,13 @@ private:
     // Audio preprocessing
     std::vector<float> resample_audio(int target_sr) const;
     
-    // Constants for Wav2Vec2
-    static constexpr int TARGET_SR = 16000;          // Wav2Vec2 requires 16kHz
-    static constexpr int MAX_DURATION = 10;          // Maximum duration in seconds
-    static constexpr int MIN_DURATION = 1;           // Minimum duration in seconds
+    std::vector<float> prepare_audio() const;
     
-    // Emotion labels from Wav2Vec2 model
+    // Constants for WavLM
+    static constexpr int TARGET_SR = 16000;
+    static constexpr int MAX_DURATION = 10;
+    static constexpr int MIN_DURATION = 1;
+    
+    // Emotion labels from WavLM model
     static const std::vector<std::string> EMOTION_LABELS;
 };

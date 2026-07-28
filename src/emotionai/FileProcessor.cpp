@@ -12,6 +12,8 @@
 #include <config/Config.h>
 #include <logging/Logger.h>
 #include <db/TaskManager.h>
+#include <audio/LibrosaFeatureExtractor.h>
+#include <audio/BurnoutAnalyzer.h>
 #include "FileProcessor.h"
 
 namespace fs = std::filesystem;
@@ -279,6 +281,134 @@ nlohmann::json FileProcessor::process_audio_file(const std::string& task_id,
         {"storage_path", fmt::format("results/audio_{}.json", task_id)},
         {"result", result}
     };
+}
+
+//=============================================================================
+// Audio Processing with Burnout
+//=============================================================================
+nlohmann::json FileProcessor::process_audio_with_burnout(
+    const std::string& task_id,
+    const std::string& filepath,
+    const std::string& filename,
+    const nlohmann::json& baseline)
+{
+    LOG_INFO("Processing audio with burnout: Task={}, File={}", task_id, filename);
+    
+    if (!audio_model_loaded_ || !audio_torch_model_) {
+        throw std::runtime_error("Audio model not loaded");
+    }
+    
+    Audio audio(filepath);
+    if (!audio.is_loaded()) {
+        throw std::runtime_error("Failed to load audio: " + audio.get_error());
+    }
+    
+    LOG_INFO("Audio loaded: {:.2f}s, {}Hz, {} channels", 
+             audio.get_duration(), audio.get_sample_rate(), audio.get_channels());
+    
+    // Process with burnout (reuses process_audio internally)
+    auto result = audio.process_audio_with_burnout(audio_torch_model_.get(), baseline);
+    
+    // Add GigaChat analysis if available
+    addGigaChatAnalysis(result, task_id);
+    
+    // Save result
+    save_json_to_storage(result, task_id, "audio_burnout");
+    
+    LOG_INFO("Audio burnout processing complete: Task={}", task_id);
+    
+    return {
+        {"type", "audio_burnout"},
+        {"filename", filename},
+        {"duration", audio.get_duration()},
+        {"sample_rate", audio.get_sample_rate()},
+        {"storage_path", fmt::format("results/audio_burnout_{}.json", task_id)},
+        {"result", result}
+    };
+}
+
+audio::Result FileProcessor::analyze_burnout_from_result(
+    const nlohmann::json& emotion_result,
+    const nlohmann::json& baseline)
+{
+    // Use the static method from Audio class
+    auto result_with_burnout = Audio::add_burnout_analysis(emotion_result, baseline);
+    
+    // Extract burnout result
+    audio::Result burnout_result;
+    
+    if (result_with_burnout.contains("burnout_analysis")) {
+        const auto& data = result_with_burnout["burnout_analysis"];
+        
+        burnout_result.state = audio::stringToState(data.value("state", "INSUFFICIENT_DATA"));
+        burnout_result.level = audio::stringToLevel(data.value("level", "low"));
+        burnout_result.risk = data.value("risk", 0.0);
+        burnout_result.score = data.value("score", 0.0);
+        burnout_result.confidence = data.value("confidence", 0.0);
+        burnout_result.top_factor = data.value("top_factor", "");
+        burnout_result.comment = data.value("comment", "");
+        
+        if (data.contains("components") && data["components"].is_object()) {
+            for (auto& [key, value] : data["components"].items()) {
+                if (value.is_number()) {
+                    burnout_result.components[key] = value.get<double>();
+                }
+            }
+        }
+        
+        if (data.contains("recommendations") && data["recommendations"].is_array()) {
+            for (const auto& rec : data["recommendations"]) {
+                if (rec.is_string()) {
+                    burnout_result.recommendations.push_back(rec.get<std::string>());
+                }
+            }
+        }
+        
+        if (data.contains("error") && data["error"].is_string()) {
+            burnout_result.error = data["error"].get<std::string>();
+        }
+        
+        return burnout_result;
+    }
+    
+    if (result_with_burnout.contains("burnout_error")) {
+        burnout_result.error = result_with_burnout["burnout_error"].get<std::string>();
+    }
+    
+    return burnout_result;
+}
+
+void FileProcessor::save_user_baseline(
+    const std::string& user_id,
+    const nlohmann::json& baseline)
+{
+    if (!dragonfly_manager_) {
+        LOG_ERROR("DragonflyManager not available for saving baseline");
+        return;
+    }
+    
+    std::string key = "baseline:user:" + user_id;
+    dragonfly_manager_->set_task_status(key, baseline);
+    LOG_INFO("Saved baseline for user: {}", user_id);
+}
+
+nlohmann::json FileProcessor::get_user_baseline(const std::string& user_id)
+{
+    if (!dragonfly_manager_) {
+        LOG_ERROR("DragonflyManager not available for getting baseline");
+        return nlohmann::json::object();
+    }
+    
+    std::string key = "baseline:user:" + user_id;
+    auto baseline = dragonfly_manager_->get_task_status_json(key);
+    
+    if (baseline) {
+        LOG_INFO("Retrieved baseline for user: {}", user_id);
+        return *baseline;
+    }
+    
+    LOG_WARN("No baseline found for user: {}", user_id);
+    return nlohmann::json::object();
 }
 
 //=============================================================================

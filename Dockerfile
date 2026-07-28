@@ -9,6 +9,8 @@ RUN apt update -y && apt install -y libyaml-cpp0.8 \
     ca-certificates libcurlpp0t64 libopencv-stitching406t64 libopencv-contrib406t64 libopencv-shape406t64 \
     libopencv-superres406t64 libopencv-videostab406t64 libopencv-viz406t64 libfftw3-double3
 
+RUN apt install -y libeigen3-dev
+
 COPY ./contrib/libtorch/lib/libtorch.so /usr/lib/x86_64-linux-gnu/
 COPY ./contrib/libtorch/lib/libtorch_cpu.so /usr/lib/x86_64-linux-gnu/
 COPY ./contrib/libtorch/lib/libc10.so /usr/lib/x86_64-linux-gnu/
