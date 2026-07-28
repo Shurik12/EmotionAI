@@ -14,8 +14,6 @@
 #include <logging/Logger.h>
 #include "Audio.h"
 
-#include <fftw3.h>
-
 #ifdef HAVE_FFMPEG
 extern "C" {
     #include <libavcodec/avcodec.h>
@@ -47,6 +45,13 @@ struct WavHeader {
 };
 
 //=============================================================================
+// Static Member Initialization
+//=============================================================================
+const std::vector<std::string> Audio::EMOTION_LABELS = {
+    "anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"
+};
+
+//=============================================================================
 // Construction / Destruction
 //=============================================================================
 Audio::Audio(const std::string &filename)
@@ -75,14 +80,26 @@ Audio::Audio(const std::vector<float> &audio_data, int sample_rate)
     LOG_INFO("Audio from data: {} samples, {} Hz", audio_data_.size(), sample_rate_);
 }
 
-Audio::~Audio() { cleanup_ffmpeg_resources(); }
+Audio::~Audio() 
+{ 
+    cleanup_ffmpeg_resources(); 
+}
 
 void Audio::cleanup_ffmpeg_resources()
 {
     #ifdef HAVE_FFMPEG
-    if (swr_ctx_) { swr_free(&swr_ctx_); swr_ctx_ = nullptr; }
-    if (codec_ctx_) { avcodec_free_context(&codec_ctx_); codec_ctx_ = nullptr; }
-    if (format_ctx_) { avformat_close_input(&format_ctx_); format_ctx_ = nullptr; }
+    if (swr_ctx_) { 
+        swr_free(&swr_ctx_); 
+        swr_ctx_ = nullptr; 
+    }
+    if (codec_ctx_) { 
+        avcodec_free_context(&codec_ctx_); 
+        codec_ctx_ = nullptr; 
+    }
+    if (format_ctx_) { 
+        avformat_close_input(&format_ctx_); 
+        format_ctx_ = nullptr; 
+    }
     #endif
 }
 
@@ -113,8 +130,8 @@ bool Audio::load_audio_file(const std::string &filename)
         }
 
 #ifdef HAVE_FFMPEG
-        LOG_ERROR("FFmpeg support not implemented for: {}", ext);
-        return false;
+        // For non-WAV files, use FFmpeg
+        return decode_audio_stream();
 #else
         error_ = "Only WAV files supported (FFmpeg not available)";
         LOG_ERROR("{}", error_);
@@ -190,7 +207,7 @@ bool Audio::load_wav_file(const std::string &filename)
         audio_data_[i] = int_data[i] / 32768.0f;
     }
 
-    // Convert stereo to mono
+    // Convert stereo to mono if needed
     if (channels_ == 2) {
         std::vector<float> mono(audio_data_.size() / 2);
         for (size_t i = 0; i < mono.size(); ++i) {
@@ -309,12 +326,13 @@ bool Audio::decode_audio_stream()
 #endif
 
 //=============================================================================
-// Audio Processing
+// Audio Preprocessing
 //=============================================================================
 std::vector<float> Audio::resample_audio(int target_sr) const
 {
-    if (sample_rate_ == target_sr || audio_data_.empty())
+    if (sample_rate_ == target_sr || audio_data_.empty()) {
         return audio_data_;
+    }
 
     float ratio = static_cast<float>(target_sr) / sample_rate_;
     std::vector<float> resampled(static_cast<size_t>(audio_data_.size() * ratio));
@@ -334,127 +352,8 @@ std::vector<float> Audio::resample_audio(int target_sr) const
     return resampled;
 }
 
-std::vector<float> Audio::extract_mel_spectrogram() const
-{
-    if (audio_data_.empty()) {
-        LOG_WARN("Audio data is empty, returning empty mel spectrogram");
-        return std::vector<float>(N_MELS * TIME_STEPS, 0.0f);
-    }
-
-    try {
-        // Resample and pad/truncate
-        std::vector<float> audio = resample_audio(TARGET_SR);
-        if (audio.size() < static_cast<size_t>(TARGET_SR * MAX_DURATION)) {
-            audio.resize(TARGET_SR * MAX_DURATION, 0.0f);
-        } else {
-            audio.resize(TARGET_SR * MAX_DURATION);
-        }
-
-        // Compute STFT
-        int num_frames = (audio.size() - N_FFT) / HOP_LENGTH + 1;
-        int n_freq_bins = N_FFT / 2 + 1;
-
-        auto* out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * n_freq_bins);
-        auto* in = (double*)fftw_malloc(sizeof(double) * N_FFT);
-        auto plan = fftw_plan_dft_r2c_1d(N_FFT, in, out, FFTW_ESTIMATE);
-
-        // Magnitude spectrogram
-        std::vector<std::vector<float>> mag_spec(
-            std::min(num_frames, TIME_STEPS), 
-            std::vector<float>(n_freq_bins, 0.0f)
-        );
-
-        for (int frame = 0; frame < (int)mag_spec.size(); ++frame) {
-            int start = frame * HOP_LENGTH;
-            
-            for (int i = 0; i < N_FFT; ++i) {
-                double window = 0.5 * (1.0 - std::cos(2.0 * M_PI * i / (N_FFT - 1)));
-                in[i] = (start + i < (int)audio.size()) ? audio[start + i] * window : 0.0;
-            }
-            
-            fftw_execute(plan);
-            
-            for (int i = 0; i < n_freq_bins; ++i) {
-                mag_spec[frame][i] = std::sqrt(out[i][0] * out[i][0] + out[i][1] * out[i][1]);
-            }
-        }
-
-        fftw_destroy_plan(plan);
-        fftw_free(in);
-        fftw_free(out);
-
-        // Mel filterbank
-        auto hz_to_mel = [](float hz) { return 2595.0f * std::log10(1.0f + hz / 700.0f); };
-        auto mel_to_hz = [](float mel) { return 700.0f * (std::pow(10.0f, mel / 2595.0f) - 1.0f); };
-
-        float min_mel = hz_to_mel(0.0f);
-        float max_mel = hz_to_mel(TARGET_SR / 2.0f);
-        
-        std::vector<float> mel_points(N_MELS + 2);
-        for (int i = 0; i < N_MELS + 2; ++i) {
-            mel_points[i] = mel_to_hz(min_mel + (max_mel - min_mel) * i / (N_MELS + 1));
-        }
-
-        std::vector<std::vector<float>> mel_filters(N_MELS, std::vector<float>(n_freq_bins, 0.0f));
-        
-        for (int m = 0; m < N_MELS; ++m) {
-            for (int k = 0; k < n_freq_bins; ++k) {
-                float freq = (float)k * TARGET_SR / N_FFT;
-                if (freq >= mel_points[m] && freq < mel_points[m + 1]) {
-                    mel_filters[m][k] = (freq - mel_points[m]) / (mel_points[m + 1] - mel_points[m]);
-                } else if (freq >= mel_points[m + 1] && freq <= mel_points[m + 2]) {
-                    mel_filters[m][k] = (mel_points[m + 2] - freq) / (mel_points[m + 2] - mel_points[m + 1]);
-                }
-            }
-        }
-
-        // Apply mel filters
-        std::vector<float> mel_spec(N_MELS * TIME_STEPS, 0.0f);
-        
-        for (int frame = 0; frame < (int)mag_spec.size(); ++frame) {
-            for (int m = 0; m < N_MELS; ++m) {
-                float energy = 0.0f;
-                for (int k = 0; k < n_freq_bins; ++k) {
-                    energy += mag_spec[frame][k] * mel_filters[m][k];
-                }
-                mel_spec[m * TIME_STEPS + frame] = std::log(std::max(energy, 1e-10f));
-            }
-        }
-
-        // Normalize
-        float mean = std::accumulate(mel_spec.begin(), mel_spec.end(), 0.0f) / mel_spec.size();
-        float sq_sum = 0.0f;
-        for (float v : mel_spec) sq_sum += (v - mean) * (v - mean);
-        float std_dev = std::sqrt(sq_sum / mel_spec.size());
-        
-        if (std_dev > 0.0f) {
-            for (float& v : mel_spec) v = (v - mean) / std_dev;
-        }
-
-        return mel_spec;
-
-    } catch (const std::exception& e) {
-        LOG_ERROR("Mel spectrogram error: {}", e.what());
-        return std::vector<float>(N_MELS * TIME_STEPS, 0.0f);
-    }
-}
-
 //=============================================================================
-// Emotion Mapping
-//=============================================================================
-std::string Audio::class_to_emotion(int class_id) const
-{
-    static const std::unordered_map<int, std::string> mapping = {
-        {0, "anger"}, {1, "disgust"}, {2, "fear"}, 
-        {3, "happiness"}, {4, "neutral"}, {5, "sadness"}, {6, "surprise"}
-    };
-    
-    auto it = mapping.find(class_id);
-    return (it != mapping.end()) ? it->second : "unknown";
-}
-
-//=============================================================================
-// Main Processing
+// Main Processing - Wav2Vec2
 //=============================================================================
 nlohmann::json Audio::process_audio(torch::jit::Module* audio_model)
 {
@@ -469,29 +368,42 @@ nlohmann::json Audio::process_audio(torch::jit::Module* audio_model)
             throw std::runtime_error("Audio not loaded: " + error_);
         }
 
-        LOG_INFO("Processing audio: {} samples, {} Hz, {:.2f}s", 
+        LOG_INFO("Processing audio with Wav2Vec2: {} samples, {} Hz, {:.2f}s", 
                  audio_data_.size(), sample_rate_, get_duration());
 
-        // Extract mel spectrogram
-        std::vector<float> mel_spec = extract_mel_spectrogram();
-        if (mel_spec.size() != static_cast<size_t>(N_MELS * TIME_STEPS)) {
-            LOG_WARN("Resizing mel spectrogram from {} to {}", 
-                     mel_spec.size(), N_MELS * TIME_STEPS);
-            mel_spec.resize(N_MELS * TIME_STEPS, 0.0f);
+        // Resample to 16kHz (Wav2Vec2 requirement)
+        std::vector<float> audio = resample_audio(TARGET_SR);
+        
+        // Check duration constraints
+        double duration = static_cast<double>(audio.size()) / TARGET_SR;
+        if (duration > MAX_DURATION) {
+            LOG_WARN("Audio too long ({}s), truncating to {}s", duration, MAX_DURATION);
+            audio.resize(TARGET_SR * MAX_DURATION);
+        }
+        
+        if (duration < MIN_DURATION) {
+            LOG_WARN("Audio too short ({}s), padding to {}s", duration, MIN_DURATION);
+            audio.resize(TARGET_SR * MIN_DURATION, 0.0f);
         }
 
-        // Create tensor [1, 128, 3000]
+        // Create tensor [1, sequence_length] - Wav2Vec2 expects raw waveform
         torch::Tensor input_tensor = torch::from_blob(
-            mel_spec.data(), 
-            {1, N_MELS, TIME_STEPS}, 
+            audio.data(), 
+            {1, static_cast<int64_t>(audio.size())}, 
             torch::kFloat
         ).clone();
 
+        LOG_INFO("Running Wav2Vec2 inference on {} samples ({:.2f}s)", 
+                 audio.size(), static_cast<double>(audio.size()) / TARGET_SR);
+
         // Run inference
         audio_model->eval();
-        torch::Tensor output = audio_model->forward({input_tensor}).toTensor();
-
-        // Get predictions
+        std::vector<torch::jit::IValue> inputs;
+        inputs.push_back(input_tensor);
+        
+        torch::Tensor output = audio_model->forward(inputs).toTensor();
+        
+        // Output shape: [1, 7] for 7 emotions
         auto scores = torch::softmax(output, 1).squeeze().to(torch::kCPU).to(torch::kFloat);
         int predicted_class = output.argmax(1).item<int>();
         
@@ -499,43 +411,36 @@ nlohmann::json Audio::process_audio(torch::jit::Module* audio_model)
         std::vector<float> probs(scores.data_ptr<float>(), 
                                  scores.data_ptr<float>() + scores.numel());
 
-        // Map to emotion
-        std::string emotion = class_to_emotion(predicted_class);
+        // Get emotion label
+        std::string emotion = EMOTION_LABELS[predicted_class];
         
-        // Build result
-        std::vector<std::string> emotion_labels = {
-            "anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"
-        };
-
-        int emotion_index = 0;
-        for (size_t i = 0; i < emotion_labels.size(); ++i) {
-            if (emotion_labels[i] == emotion) {
-                emotion_index = i;
-                break;
-            }
-        }
-
+        // Build result in the same format as original code
         result["main_prediction"] = {
-            {"index", emotion_index},
+            {"index", predicted_class},
             {"label", emotion},
             {"probability", probs[predicted_class]}
         };
 
         // All probabilities
         nlohmann::json probs_json;
-        for (size_t i = 0; i < probs.size() && i < emotion_labels.size(); ++i) {
-            probs_json[emotion_labels[i]] = fmt::format("{:.2f}", probs[i]);
+        for (size_t i = 0; i < probs.size() && i < EMOTION_LABELS.size(); ++i) {
+            probs_json[EMOTION_LABELS[i]] = fmt::format("{:.4f}", probs[i]);
         }
         result["additional_probs"] = probs_json;
+        
+        // Add metadata
+        result["model"] = "wav2vec2-emotion-recognition";
+        result["duration_seconds"] = static_cast<double>(audio.size()) / TARGET_SR;
+        result["sample_rate"] = TARGET_SR;
 
-        LOG_INFO("Predicted: {} ({:.1f}%)", emotion, probs[predicted_class] * 100);
+        LOG_INFO("Wav2Vec2 predicted: {} ({:.1f}%)", emotion, probs[predicted_class] * 100);
 
     } catch (const c10::Error& e) {
-        LOG_ERROR("LibTorch error: {}", e.what());
+        LOG_ERROR("LibTorch error in Wav2Vec2: {}", e.what());
         result["error"] = std::string("LibTorch error: ") + e.what();
         result["error_type"] = "libtorch";
     } catch (const std::exception& e) {
-        LOG_ERROR("Audio processing error: {}", e.what());
+        LOG_ERROR("Wav2Vec2 processing error: {}", e.what());
         result["error"] = e.what();
         result["error_type"] = "std_exception";
     }
@@ -543,6 +448,9 @@ nlohmann::json Audio::process_audio(torch::jit::Module* audio_model)
     return result;
 }
 
+//=============================================================================
+// MIME Bundle
+//=============================================================================
 nlohmann::json Audio::mime_bundle_repr() const
 {
     nlohmann::json bundle;
