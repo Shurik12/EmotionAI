@@ -3,11 +3,11 @@ services:
     image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
     container_name: dragonfly
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - ./data/dragonfly:/data
     command:
-      - "--memcached_port=0" # Disable memcached protocol if not needed
+      - "--memcached_port=0"
     networks:
       - monitoring
     restart: unless-stopped
@@ -23,9 +23,7 @@ services:
       dockerfile: Dockerfile
     image: emotionai-server:latest
     container_name: emotionai-server
-    ports:
-      - "8080:8080" # Main application port
-      - "8081:8081" # Metrics endpoint port
+    network_mode: host
     volumes:
       - ./logs:/emotionai/logs
       - ./uploads:/emotionai/uploads
@@ -35,10 +33,10 @@ services:
       - ./build/emotionai:/emotionai/emotionai
     environment:
       - LOG_LEVEL=info
-      - DRAGONFLY_HOST=dragonfly
+      - DRAGONFLY_HOST=127.0.0.1
       - DRAGONFLY_PORT=6379
-    networks:
-      - monitoring
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=80
     depends_on:
       dragonfly:
         condition: service_healthy
@@ -57,70 +55,10 @@ services:
           memory: 1G
           cpus: '1.0'
 
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
-    ports:
-      - "8082:8080"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:rw
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    privileged: true
-    devices:
-      - /dev/kmsg
-    networks:
-      - monitoring
-    restart: unless-stopped
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./data/prometheus:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/console_templates'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
-    networks:
-      - monitoring
-    restart: unless-stopped
-    depends_on:
-      - cadvisor
-      - emotionai-server
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
-      - ./data/grafana:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
-    networks:
-      - monitoring
-    restart: unless-stopped
-    depends_on:
-      - prometheus
-
 volumes:
   prometheus_data:
   grafana_data:
   dragonfly_data:
-
 
 networks:
   monitoring:
