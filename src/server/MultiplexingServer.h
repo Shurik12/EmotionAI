@@ -60,6 +60,7 @@ private:
     // Route handlers
     void handleUpload(const std::shared_ptr<ClientContext> &context, const std::string &body);
     void handleUploadRealtime(const std::shared_ptr<ClientContext> &context, const std::string &body);
+    void handleUploadBurnout(const std::shared_ptr<ClientContext> &context, const std::string &body);
     void handleMetrics(const std::shared_ptr<ClientContext> &context);
     void handleProgress(const std::shared_ptr<ClientContext> &context);
     void handleBatchProgress(const std::shared_ptr<ClientContext> &context, const std::string &body);
@@ -71,6 +72,11 @@ private:
     void handleServeReactFile(const std::shared_ptr<ClientContext> &context);
     void handleRoot(const std::shared_ptr<ClientContext> &context);
     void handleOptions(const std::shared_ptr<ClientContext> &context);
+
+    // Burnout Route Handlers
+    void handleBurnoutAnalyze(const std::shared_ptr<ClientContext> &context, const std::string &body);
+    void handleBurnoutBaseline(const std::shared_ptr<ClientContext> &context, const std::string &body);
+    void handleBurnoutBaselineGet(const std::shared_ptr<ClientContext> &context);
 
     // Helper methods
     bool isStaticAsset(const std::string &path) const;

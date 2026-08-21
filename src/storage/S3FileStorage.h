@@ -37,8 +37,8 @@ public:
     S3FileStorage &operator=(const S3FileStorage &) = delete;
 
     // Allow moving
-    S3FileStorage(S3FileStorage &&) noexcept = default;
-    S3FileStorage &operator=(S3FileStorage &&) noexcept = default;
+    S3FileStorage(S3FileStorage &&) noexcept = delete;
+    S3FileStorage &operator=(S3FileStorage &&) noexcept = delete;
 
     // Connection management
     bool isConnected() const { return state_->connected.load(); }

@@ -120,6 +120,7 @@ private:
 	{
 		std::string backend = "torch";
 		std::string emotion_model_path = "";
+		std::string audio_model_path = "";
 		std::string face_detection_models_path = "";
 	};
 
