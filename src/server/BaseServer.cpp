@@ -10,6 +10,7 @@
 #include <emotionai/FileProcessor.h>
 #include <metrics/MetricsCollector.h>
 #include <storage/FileStorageFactory.h>
+#include <audio/BurnoutModels.h>
 #include "BaseServer.h"
 
 #ifdef WITH_CLUSTER
@@ -545,6 +546,126 @@ std::string BaseServer::handleUploadCommon(const std::string &file_content,
     return task_id;
 }
 
+std::string BaseServer::handleUploadBurnoutCommon(const std::string &file_content, const std::string &filename)
+{
+    auto &config = Config::instance();
+    std::string task_id = DragonflyManager::generate_uuid();
+    
+    // Get extension
+    std::string extension;
+    size_t dot_pos = filename.find_last_of('.');
+    if (dot_pos != std::string::npos) {
+        extension = filename.substr(dot_pos);
+    } else {
+        extension = ".bin";
+    }
+    
+    std::string safe_filename = task_id + extension;
+    std::string storage_path = "uploads/" + safe_filename;
+    
+    LOG_INFO("Saving file to storage for burnout analysis: {} (original: {})", storage_path, filename);
+    
+    if (!file_storage_->saveFile(file_content, storage_path)) {
+        throw std::runtime_error("Failed to save uploaded file to storage");
+    }
+    
+    // Verify file was saved
+    if (!file_storage_->fileExists(storage_path)) {
+        throw std::runtime_error("Failed to verify uploaded file in storage");
+    }
+    
+    LOG_INFO("File saved successfully to storage: {}, size: {} bytes", 
+             storage_path, file_content.size());
+    
+    // For file processor, we still need a local path in the uploads folder
+    fs::path local_path = upload_folder_ / safe_filename;
+    
+    // Copy from storage to local uploads folder for processing
+    try {
+        std::string file_content_from_storage = file_storage_->readFile(storage_path);
+        fs::create_directories(local_path.parent_path());
+        std::ofstream local_file(local_path, std::ios::binary);
+        local_file.write(file_content_from_storage.data(), file_content_from_storage.size());
+        local_file.close();
+        LOG_INFO("Copied file to local path for burnout processing: {}", local_path.string());
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to copy file to local path: {}", e.what());
+        throw std::runtime_error("Failed to prepare file for processing");
+    }
+    
+    // Process with burnout analysis
+    auto *file_processor = file_processor_.get();
+    
+    thread_pool_->enqueue([this, file_processor, task_id, local_path, safe_filename, storage_path]() {
+        try {
+            LOG_INFO("Starting burnout analysis for task: {}", task_id);
+            
+            auto& task_manager = TaskManager::instance();
+            
+            // Initial status
+            task_manager.set_task_status(task_id, {
+                {"task_id", task_id},
+                {"progress", 10},
+                {"message", "Processing audio for burnout analysis"},
+                {"error", nullptr},
+                {"complete", false},
+                {"mode", "burnout"},
+                {"instance_id", instance_id_},
+                {"storage_path", storage_path},
+                {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count()}
+            });
+            
+            // Process with burnout - this calls Audio::process_audio_with_burnout
+            auto result = file_processor->process_audio_with_burnout(task_id, local_path.string(), safe_filename);
+            
+            // ============ CRITICAL FIX: Mark as COMPLETE ============
+            task_manager.set_task_status(task_id, {
+                {"task_id", task_id},
+                {"progress", 100},
+                {"message", "Burnout analysis complete"},
+                {"error", nullptr},
+                {"complete", true},  // ← THIS IS WHAT THE FRONTEND WAITS FOR
+                {"mode", "burnout"},
+                {"instance_id", instance_id_},
+                {"storage_path", storage_path},
+                {"type", "audio_burnout"},
+                {"result", result},
+                {"duration", result.value("duration", 0.0)},
+                {"sample_rate", result.value("sample_rate", 0)},
+                {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count()}
+            });
+            // ========================================================
+            
+            LOG_INFO("Burnout analysis completed for task: {}", task_id);
+            
+        } catch (const std::exception &e) {
+            LOG_ERROR("Burnout analysis failed for task {}: {}", task_id, e.what());
+            
+            try {
+                auto& task_manager = TaskManager::instance();
+                task_manager.set_task_status(task_id, {
+                    {"task_id", task_id},
+                    {"progress", 0},
+                    {"message", "Burnout analysis failed"},
+                    {"error", e.what()},
+                    {"complete", true},
+                    {"mode", "burnout"},
+                    {"instance_id", instance_id_},
+                    {"storage_path", storage_path},
+                    {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now().time_since_epoch()).count()}
+                });
+            } catch (const std::exception& db_error) {
+                LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
+            }
+        }
+    });
+
+    return task_id;
+}
+
 std::string BaseServer::handleSubmitApplicationCommon(const std::string &body)
 {
     if (!dragonfly_manager_)
@@ -820,4 +941,126 @@ void BaseServer::updateRequestMetrics(const std::string &method, const std::stri
                                       int status_code, double duration_seconds)
 {
     MetricsCollector::instance().recordRequest(method, endpoint, status_code, duration_seconds);
+}
+
+void BaseServer::handleBurnoutAnalyze(const httplib::Request& req, httplib::Response& res)
+{
+    try {
+        LOG_INFO("Burnout analysis request received");
+        
+        auto json_body = nlohmann::json::parse(req.body);
+        
+        std::string task_id = json_body.value("task_id", "");
+        if (task_id.empty()) {
+            res.status = 400;
+            res.set_content(R"({"error": "task_id required"})", "application/json");
+            return;
+        }
+        
+        // Get emotion result from TaskManager
+        auto& task_manager = TaskManager::instance();
+        auto emotion_result = task_manager.get_task_status(task_id);
+        
+        if (!emotion_result) {
+            res.status = 404;
+            res.set_content(R"({"error": "Task not found"})", "application/json");
+            return;
+        }
+        
+        // Get baseline if user_id provided
+        nlohmann::json baseline;
+        if (json_body.contains("user_id")) {
+            std::string user_id = json_body["user_id"].get<std::string>();
+            baseline = file_processor_->get_user_baseline(user_id);
+            LOG_INFO("Retrieved baseline for user: {}", user_id);
+        }
+        
+        // Run burnout analysis
+        auto burnout_result = file_processor_->analyze_burnout_from_result(*emotion_result, baseline);
+        
+        res.set_content(burnout_result.toJson().dump(), "application/json");
+        LOG_INFO("Burnout analysis complete: state={}, score={:.1f}", 
+                 audio::stateToString(burnout_result.state), burnout_result.score);
+        
+    } catch (const nlohmann::json::parse_error& e) {
+        LOG_ERROR("JSON parse error in burnout analyze: {}", e.what());
+        res.status = 400;
+        res.set_content(R"({"error": "Invalid JSON"})", "application/json");
+    } catch (const std::exception& e) {
+        LOG_ERROR("Exception in burnout analyze: {}", e.what());
+        res.status = 500;
+        res.set_content(fmt::format(R"({{"error": "{}"}})", e.what()), "application/json");
+    }
+}
+
+void BaseServer::handleBurnoutBaseline(const httplib::Request& req, httplib::Response& res)
+{
+    try {
+        LOG_INFO("Burnout baseline save request received");
+        
+        auto json_body = nlohmann::json::parse(req.body);
+        
+        std::string user_id = json_body.value("user_id", "");
+        if (user_id.empty()) {
+            res.status = 400;
+            res.set_content(R"({"error": "user_id required"})", "application/json");
+            return;
+        }
+        
+        if (!json_body.contains("baseline") || !json_body["baseline"].is_object()) {
+            res.status = 400;
+            res.set_content(R"({"error": "baseline object required"})", "application/json");
+            return;
+        }
+        
+        // Save baseline
+        file_processor_->save_user_baseline(user_id, json_body["baseline"]);
+        
+        res.set_content(R"({"status": "baseline_saved", "message": "Baseline saved successfully"})", 
+                        "application/json");
+        LOG_INFO("Baseline saved for user: {}", user_id);
+        
+    } catch (const nlohmann::json::parse_error& e) {
+        LOG_ERROR("JSON parse error in burnout baseline: {}", e.what());
+        res.status = 400;
+        res.set_content(R"({"error": "Invalid JSON"})", "application/json");
+    } catch (const std::exception& e) {
+        LOG_ERROR("Exception in burnout baseline: {}", e.what());
+        res.status = 500;
+        res.set_content(fmt::format(R"({{"error": "{}"}})", e.what()), "application/json");
+    }
+}
+
+void BaseServer::handleBurnoutBaselineGet(const httplib::Request& req, httplib::Response& res, const std::string& user_id)
+{
+    try {
+        LOG_INFO("Burnout baseline get request for user: {}", user_id);
+        
+        if (user_id.empty()) {
+            res.status = 400;
+            res.set_content(R"({"error": "user_id required"})", "application/json");
+            return;
+        }
+        
+        auto baseline = file_processor_->get_user_baseline(user_id);
+        
+        if (baseline.empty()) {
+            res.status = 404;
+            res.set_content(R"({"error": "Baseline not found for user"})", "application/json");
+            return;
+        }
+        
+        nlohmann::json response = {
+            {"user_id", user_id},
+            {"baseline", baseline}
+        };
+        
+        res.set_content(response.dump(), "application/json");
+        LOG_INFO("Baseline retrieved for user: {}", user_id);
+        
+    } catch (const std::exception& e) {
+        LOG_ERROR("Exception in burnout baseline get: {}", e.what());
+        res.status = 500;
+        res.set_content(fmt::format(R"({{"error": "{}"}})", e.what()), "application/json");
+    }
 }
