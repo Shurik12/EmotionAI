@@ -97,10 +97,19 @@ void MultiplexingServer::setupRoutes()
          { handleUpload(ctx, body); }},
         {"/api/upload_realtime", [this](auto &&ctx, auto &&body)
          { handleUploadRealtime(ctx, body); }},
+        // ============ NEW: Burnout Upload ============
+        {"/api/upload_burnout", [this](auto &&ctx, auto &&body)
+         { handleUploadBurnout(ctx, body); }},
+        // =============================================
         {"/api/submit_application", [this](auto &&ctx, auto &&body)
          { handleSubmitApplication(ctx, body); }},
         {"/api/batch_progress", [this](auto &&ctx, auto &&body)
-         { handleBatchProgress(ctx, body); }}};
+         { handleBatchProgress(ctx, body); }},
+        {"/api/burnout/analyze", [this](auto &&ctx, auto &&body)
+         { handleBurnoutAnalyze(ctx, body); }},
+        {"/api/burnout/baseline", [this](auto &&ctx, auto &&body)
+         { handleBurnoutBaseline(ctx, body); }}
+    };
 
     // GET routes
     get_routes_ = {
@@ -116,14 +125,14 @@ void MultiplexingServer::setupRoutes()
          { handleHealthCheck(ctx); }},
         {"/static", [this](auto &&ctx)
          { handleServeStatic(ctx); }},
-        {"/", [this](auto &&ctx)
-         {
-             (ctx->path == "/") ? handleRoot(ctx) : handleServeReactFile(ctx);
-         }}};
+        {"/api/burnout/baseline", [this](auto &&ctx)
+         { handleBurnoutBaselineGet(ctx); }}
+    };
 
     // OPTIONS routes
-    for (const auto &route : {"/api/upload", "/api/upload_realtime", "/api/submit_application",
-                              "/api/progress", "/api/results", "/api/health", "/static"})
+    for (const auto &route : {"/api/upload", "/api/upload_realtime", "/api/upload_burnout",
+                              "/api/submit_application", "/api/progress", "/api/results", 
+                              "/api/health", "/api/burnout/analyze", "/api/burnout/baseline", "/static"})
     {
         options_routes_[route] = [this](auto &&ctx)
         { handleOptions(ctx); };
@@ -404,6 +413,11 @@ void MultiplexingServer::processRequest(const std::shared_ptr<ClientContext> &co
             {
                 context->params["filename"] = context->path.substr(13);
                 handleServeResult(context);
+            }
+            else if (context->path.find("/api/burnout/baseline/") == 0)
+            {
+                context->params["user_id"] = context->path.substr(22);
+                handleBurnoutBaselineGet(context);
             }
             else if (context->path.find("/api/health") == 0)
             {
@@ -945,4 +959,167 @@ void MultiplexingServer::handleRoot(const std::shared_ptr<ClientContext> &contex
 void MultiplexingServer::handleOptions(const std::shared_ptr<ClientContext> &context)
 {
     sendHttpResponse(context->fd, 200, "application/json", R"({"status": "ok"})");
+}
+
+void MultiplexingServer::handleUploadBurnout(
+    const std::shared_ptr<ClientContext> &context,
+    const std::string &body)
+{
+    try {
+        LOG_DEBUG("Handling burnout upload request");
+
+        auto content_type_it = context->headers.find("content-type");
+        if (content_type_it == context->headers.end() ||
+            content_type_it->second.find("multipart/form-data") == std::string::npos) {
+            sendErrorResponse(context->fd, 400, "Expected multipart form data");
+            return;
+        }
+
+        std::string boundary = extractBoundary(content_type_it->second);
+        if (boundary.empty()) {
+            sendErrorResponse(context->fd, 400, "Invalid multipart data");
+            return;
+        }
+
+        auto form_data = parseMultipartFormData(body, boundary);
+        auto file_it = form_data.find("file");
+        if (file_it == form_data.end() || file_it->second.empty()) {
+            sendErrorResponse(context->fd, 400, "No file provided");
+            return;
+        }
+
+        std::string filename = form_data.contains("filename") ? form_data["filename"] : "uploaded_file";
+        if (filename.empty()) {
+            filename = "uploaded_file";
+        }
+
+        if (!file_processor_ || !file_processor_->allowed_file(filename)) {
+            sendErrorResponse(context->fd, 400, "Invalid file type");
+            return;
+        }
+
+        // Use the burnout upload handler
+        std::string task_id = handleUploadBurnoutCommon(file_it->second, filename);
+        LOG_INFO("Burnout upload accepted from client {}, task_id: {}", context->fd, task_id);
+
+        sendHttpResponse(context->fd, 202, "application/json",
+                         fmt::format(R"({{"task_id": "{}", "mode": "burnout"}})", task_id));
+    } catch (const std::exception &e) {
+        LOG_ERROR("Exception in burnout upload from client {}: {}", context->fd, e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
+void MultiplexingServer::handleBurnoutAnalyze(
+    const std::shared_ptr<ClientContext> &context,
+    const std::string &body)
+{
+    try {
+        LOG_DEBUG("Handling burnout analysis request");
+        
+        auto json_body = nlohmann::json::parse(body);
+        
+        std::string task_id = json_body.value("task_id", "");
+        if (task_id.empty()) {
+            sendErrorResponse(context->fd, 400, "task_id required");
+            return;
+        }
+        
+        // Get emotion result
+        auto &task_manager = TaskManager::instance();
+        auto emotion_result = task_manager.get_task_status(task_id);
+        
+        if (!emotion_result) {
+            sendErrorResponse(context->fd, 404, "Task not found");
+            return;
+        }
+        
+        // Get baseline if user_id provided
+        nlohmann::json baseline;
+        if (json_body.contains("user_id")) {
+            std::string user_id = json_body["user_id"];
+            baseline = file_processor_->get_user_baseline(user_id);
+        }
+        
+        // Run burnout analysis
+        auto burnout_result = file_processor_->analyze_burnout_from_result(*emotion_result, baseline);
+        
+        sendHttpResponse(context->fd, 200, "application/json", burnout_result.toJson().dump());
+        
+    } catch (const nlohmann::json::parse_error &e) {
+        LOG_ERROR("JSON parse error in burnout analyze: {}", e.what());
+        sendErrorResponse(context->fd, 400, "Invalid JSON");
+    } catch (const std::exception &e) {
+        LOG_ERROR("Exception in burnout analyze: {}", e.what());
+        sendErrorResponse(context->fd, 500, fmt::format("Internal server error: {}", e.what()));
+    }
+}
+
+void MultiplexingServer::handleBurnoutBaseline(
+    const std::shared_ptr<ClientContext> &context,
+    const std::string &body)
+{
+    try {
+        LOG_DEBUG("Handling burnout baseline save request");
+        
+        auto json_body = nlohmann::json::parse(body);
+        
+        std::string user_id = json_body.value("user_id", "");
+        if (user_id.empty()) {
+            sendErrorResponse(context->fd, 400, "user_id required");
+            return;
+        }
+        
+        if (!json_body.contains("baseline") || !json_body["baseline"].is_object()) {
+            sendErrorResponse(context->fd, 400, "baseline object required");
+            return;
+        }
+        
+        // Save baseline
+        file_processor_->save_user_baseline(user_id, json_body["baseline"]);
+        
+        sendHttpResponse(context->fd, 200, "application/json", 
+                         R"({"status": "baseline_saved", "message": "Baseline saved successfully"})");
+        
+    } catch (const nlohmann::json::parse_error &e) {
+        LOG_ERROR("JSON parse error in burnout baseline: {}", e.what());
+        sendErrorResponse(context->fd, 400, "Invalid JSON");
+    } catch (const std::exception &e) {
+        LOG_ERROR("Exception in burnout baseline: {}", e.what());
+        sendErrorResponse(context->fd, 500, fmt::format("Internal server error: {}", e.what()));
+    }
+}
+
+void MultiplexingServer::handleBurnoutBaselineGet(
+    const std::shared_ptr<ClientContext> &context)
+{
+    try {
+        LOG_DEBUG("Handling burnout baseline get request");
+        
+        // Get user_id from query params
+        auto user_id_it = context->params.find("user_id");
+        if (user_id_it == context->params.end() || user_id_it->second.empty()) {
+            sendErrorResponse(context->fd, 400, "user_id query parameter required");
+            return;
+        }
+        
+        std::string user_id = user_id_it->second;
+        auto baseline = file_processor_->get_user_baseline(user_id);
+        
+        if (baseline.empty()) {
+            sendErrorResponse(context->fd, 404, "Baseline not found for user");
+            return;
+        }
+        
+        nlohmann::json response = {
+            {"user_id", user_id},
+            {"baseline", baseline}
+        };
+        
+        sendHttpResponse(context->fd, 200, "application/json", response.dump());
+        
+    } catch (const std::exception &e) {
+        LOG_ERROR("Exception in burnout baseline get: {}", e.what());
+        sendErrorResponse(context->fd, 500, fmt::format("Internal server error: {}", e.what()));
+    }
 }
