@@ -4,10 +4,9 @@
 
 #include <config/Config.h>
 #include <logging/Logger.h>
-#include <server/ServerFactory.h>
-#include <server/IServer.h>
+#include <server/Server.h>
 
-std::unique_ptr<IServer> web_server;
+std::unique_ptr<Server> web_server;
 
 void signal_handler(int signal)
 {
@@ -58,26 +57,23 @@ int main()
 
 		// Log startup information
 		Logger::instance().info("=== EmotionAI Server Starting ===");
-		Logger::instance().info("Server type: {}", config.server().type);
 		Logger::instance().info("Host: {}", config.server().host);
 		Logger::instance().info("Port: {}", config.server().port);
 		Logger::instance().info("Log level: {}", config.logging().level);
 		Logger::instance().info("Upload path: {}", config.paths().uploads);
 		Logger::instance().info("Results path: {}", config.paths().results);
 
-		// Create server based on configuration
-		std::string server_type = config.server().type;
-		Logger::instance().info("Creating server type: {}", server_type);
-
-		web_server = ServerFactory::createServer(server_type);
+		// Create server (now only MultiplexingServer)
+		Logger::instance().info("Creating server (MultiplexingServer)");
+		web_server = std::make_unique<Server>();
 
 		if (!web_server)
 		{
-			Logger::instance().error("Failed to create server of type: {}", server_type);
+			Logger::instance().error("Failed to create server");
 			return 1;
 		}
 
-		// Initialize server (void return type, so no error checking)
+		// Initialize server
 		Logger::instance().info("Initializing server...");
 		web_server->initialize();
 
