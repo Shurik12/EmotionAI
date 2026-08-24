@@ -60,7 +60,6 @@ private:
 	{
 		std::string host = "0.0.0.0";
 		int port = 8080;
-		std::string type = "non-blocking";
 	};
 
 	struct PathsConfig
