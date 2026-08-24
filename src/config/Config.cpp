@@ -40,7 +40,6 @@ bool Config::loadFromFile(const std::string &config_path)
             const auto &server = root["server"];
             new_data.server.host = server["host"].as<std::string>(new_data.server.host);
             new_data.server.port = server["port"].as<int>(new_data.server.port);
-            new_data.server.type = server["type"].as<std::string>(new_data.server.type);
         }
 
         if (root["paths"])
@@ -185,7 +184,6 @@ bool Config::loadFromFile(const std::string &config_path)
         spdlog::info("Server configuration:");
         spdlog::info("  Host: {}", data_.server.host);
         spdlog::info("  Port: {}", data_.server.port);
-        spdlog::info("  Type: {}", data_.server.type);
 
         spdlog::info("Paths configuration:");
         spdlog::info("  Upload: {}", data_.paths.uploads);
