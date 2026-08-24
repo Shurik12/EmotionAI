@@ -35,7 +35,7 @@ services:
       # Models
       - ./models:/emotionai/models
       # Frontend
-      - ./frontend/build:/emotionai/frontend
+      - ./frontend/dist:/emotionai/frontend
       # Custom libraries if needed (optional)
       # - ./contrib:/emotionai/contrib
     environment:
