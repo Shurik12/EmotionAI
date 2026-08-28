@@ -13,7 +13,6 @@ import { ApplicationModal } from './ApplicationModal';
 import { useNavigation } from '../hooks/useNavigation';
 import { useLanguage } from '../hooks/useLanguage';
 import '../styles/global.css';
-import '../styles/components.css';
 
 // Main app content with hooks
 const AppContent = () => {

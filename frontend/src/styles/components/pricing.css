@@ -1,0 +1,62 @@
+/* ============================================
+   PRICING
+   ============================================ */
+
+.pricing-section {
+  padding: var(--spacing-xxl) 0;
+  background-color: var(--color-bg-light);
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-xl);
+}
+
+.pricing-card {
+  background: var(--color-bg);
+  padding: var(--spacing-xl);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px var(--color-shadow);
+  text-align: center;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+}
+
+.pricing-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px var(--color-shadow);
+}
+
+.pricing-card h3 {
+  margin-bottom: var(--spacing-sm);
+}
+
+.pricing-card .price {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-lg);
+}
+
+.features-list {
+  list-style: none;
+  text-align: left;
+  margin-bottom: var(--spacing-lg);
+  flex: 1;
+}
+
+.features-list li {
+  padding: var(--spacing-sm) 0;
+  padding-left: var(--spacing-xl);
+  position: relative;
+}
+
+.features-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--color-secondary);
+  font-weight: bold;
+}
