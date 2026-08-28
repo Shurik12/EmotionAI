@@ -1,0 +1,41 @@
+/* ============================================
+   FEATURES GRID
+   ============================================ */
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.features-grid.small {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  max-width: 800px;
+  margin: 0 auto var(--spacing-xl);
+}
+
+.feature-card {
+  background: var(--color-bg);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px var(--color-shadow);
+  text-align: center;
+  transition: var(--transition);
+}
+
+.feature-card.small {
+  padding: var(--spacing-md);
+  min-height: auto;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px var(--color-shadow);
+}
+
+.feature-card p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}

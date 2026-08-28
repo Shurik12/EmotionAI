@@ -1,0 +1,85 @@
+/* ============================================
+   HERO
+   ============================================ */
+
+.hero {
+  padding: var(--spacing-xl) 0;
+  text-align: center;
+  min-height: auto;
+}
+
+.hero h1 {
+  max-width: 800px;
+  margin: 0 auto var(--spacing-md);
+  font-size: var(--font-size-xl);
+}
+
+.hero-description {
+  max-width: 700px;
+  margin: 0 auto var(--spacing-lg);
+  color: var(--color-text-light);
+  font-size: var(--font-size-md);
+}
+
+.platform-usage {
+  margin: var(--spacing-lg) 0 var(--spacing-md);
+  font-weight: 500;
+  font-size: var(--font-size-sm);
+}
+
+.hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+/* Компактные кнопки на главной */
+.hero-actions .btn {
+  padding: 10px 20px;
+  font-size: var(--font-size-sm);
+  min-width: 160px;
+}
+
+@media (max-width: 768px) {
+  .hero {
+    padding: var(--spacing-lg) 0;
+  }
+  
+  .hero h1 {
+    font-size: var(--font-size-lg);
+  }
+  
+  .hero-actions {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+  
+  .hero-actions .btn {
+    width: 100%;
+    max-width: 280px;
+    padding: 12px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    padding: var(--spacing-md) 0;
+  }
+  
+  .hero h1 {
+    font-size: var(--font-size-md);
+  }
+  
+  .hero-description {
+    font-size: var(--font-size-sm);
+  }
+  
+  .hero-actions .btn {
+    max-width: 240px;
+    padding: 10px 16px;
+    font-size: var(--font-size-sm);
+  }
+}

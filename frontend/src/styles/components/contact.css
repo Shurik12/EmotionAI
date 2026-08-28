@@ -1,0 +1,96 @@
+/* ============================================
+   CONTACT & PRIVACY
+   ============================================ */
+
+.contact-container,
+.privacy-container {
+  padding: var(--spacing-xl) 0;
+}
+
+.contact-hero {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.contact-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xl);
+}
+
+.contact-card {
+  background: var(--color-bg);
+  padding: var(--spacing-xl);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px var(--color-shadow);
+}
+
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.info-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.info-row strong {
+  font-weight: 600;
+}
+
+.info-row span {
+  color: var(--color-text-light);
+}
+
+.privacy-iframe-container {
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px var(--color-shadow);
+  overflow: hidden;
+}
+
+.privacy-iframe {
+  width: 100%;
+  min-height: 500px;
+  border: none;
+}
+
+.privacy-fallback {
+  text-align: center;
+  padding: var(--spacing-xxl);
+  color: var(--color-text-light);
+}
+
+/* Clients Block */
+.clients-block {
+  background: var(--color-bg);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px var(--color-shadow);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.clients-block p {
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Error Message */
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: #fde8e8;
+  color: var(--color-error);
+  border-radius: var(--radius-sm);
+  margin: var(--spacing-md) 0;
+  border: 1px solid #f5c6cb;
+}
+
+.error-icon {
+  font-size: 20px;
+}
