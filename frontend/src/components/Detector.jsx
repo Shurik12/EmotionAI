@@ -96,8 +96,8 @@ export const Detector = () => {
             onChange={(e) => setMode(e.target.value)}
             disabled={isProcessing || isUploading}
           >
-            {PROCESSING_MODES.map(({ value, label }) => (
-              <option key={value} value={value}>{label}</option>
+            {PROCESSING_MODES.map(({ value, labelKey }) => (
+              <option key={value} value={value}>{t(labelKey)}</option>
             ))}
           </select>
         </div>
