@@ -86,7 +86,7 @@ export const translations = {
       title: 'Распознавание эмоций с помощью ИИ',
       dragFile: 'Перетащите файл сюда',
       chooseFile: 'Выбрать файл',
-      supportedFormats: 'Поддерживаемые форматы: JPEG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (макс. 50MB)',
+      supportedFormats: 'Поддерживаемые форматы: JPG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (макс. 50MB)',
       consent: 'Я даю согласие на обработку моих персональных данных в соответствии с',
       analyze: 'Анализировать эмоции',
       processingMode: 'Режим обработки',
@@ -188,6 +188,19 @@ export const translations = {
         'без_истории_нескольких_текущих_записей_нельзя_надежно_различить_short_stress_vs_chronic_burnout': 'Без истории нескольких текущих записей нельзя надежно различить кратковременный стресс и хроническое выгорание',
       },
     },
+    // Features page (top-level keys for Features.jsx)
+    features_title: 'Razuma – это экосистема ИИ-инструментов, которая сочетает методы нейромаркетинга, emotion AI и API-интеграции для бизнеса любого масштаба',
+    features_main: 'Основные возможности',
+    feature_card1: 'Распознавание эмоций в реальном времени по фото, видео и аудио',
+    feature_card2: 'Создание плагинов для CRM (Bitrix24, amoCRM и др.)',
+    feature_card3: 'Анализ A/B-тестирования рекламных креативов или упаковки продуктов',
+    feature_card4: 'Анализ UX интерфейса',
+    feature_card5: 'Автоматическая оценка параметров эмоционального состояния клиента и рекомендации на ее основе',
+    feature_card6: 'Интеграции через API и SDK',
+    feature_card7: 'Адаптация продукта и разработка white label по техническому заданию',
+    clients_title: 'Кто уже использует Razuma:',
+    clients_b2b: 'агентства, бренды, разработчики продуктов, обучающие платформы',
+    clients_b2c: 'специалисты, малый бизнес, консультанты',
     contact: {
       title: 'Контактная информация',
       legalInfo: 'Юридическая информация',
@@ -325,7 +338,7 @@ export const translations = {
       title: 'Emotion Recognition with AI',
       dragFile: 'Drag file here',
       chooseFile: 'Choose file',
-      supportedFormats: 'Supported formats: JPEG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (max. 50MB)',
+      supportedFormats: 'Supported formats: JPG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (max. 50MB)',
       consent: 'I consent to the processing of my personal data in accordance with the',
       analyze: 'Analyze emotions',
       processingMode: 'Processing Mode',
@@ -427,6 +440,19 @@ export const translations = {
         'без_истории_нескольких_текущих_записей_нельзя_надежно_различить_short_stress_vs_chronic_burnout': 'Without a history of multiple recordings, it is not possible to reliably distinguish short-term stress from chronic burnout.',
       },
     },
+    // Features page (top-level keys for Features.jsx)
+    features_title: 'Razuma is an ecosystem of AI tools that combines neuromarketing methods, emotion AI and API integrations for businesses of any scale',
+    features_main: 'Main Features',
+    feature_card1: 'Real-time emotion recognition from photos, videos and audio',
+    feature_card2: 'Creating plugins for CRM (Bitrix24, amoCRM, etc.)',
+    feature_card3: 'Analysis of A/B testing of advertising creatives or product packaging',
+    feature_card4: 'UX interface analysis',
+    feature_card5: 'Automatic assessment of customer emotional state parameters and recommendations based on it',
+    feature_card6: 'Integrations via API and SDK',
+    feature_card7: 'Product adaptation and white label development according to technical specifications',
+    clients_title: 'Who already uses Razuma:',
+    clients_b2b: 'agencies, brands, product developers, educational platforms',
+    clients_b2c: 'specialists, small businesses, consultants',
     contact: {
       title: 'Contact Information',
       legalInfo: 'Legal Information',
@@ -482,17 +508,17 @@ export const translations = {
 export const t = (key, lang = 'en', replacements = {}) => {
   const keys = key.split('.');
   let value = translations[lang];
-  
+
   for (const k of keys) {
     value = value?.[k];
     if (!value) break;
   }
-  
+
   let text = value || key;
-  
+
   Object.entries(replacements).forEach(([k, v]) => {
     text = text.replace(`{${k}}`, v);
   });
-  
+
   return text;
 };
