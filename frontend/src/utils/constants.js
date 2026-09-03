@@ -57,8 +57,15 @@ export const FILE_CONSTANTS = {
   ],
 };
 
+// Processing modes with translation keys instead of static labels
 export const PROCESSING_MODES = [
-  { value: 'standard', label: 'Standard Analysis' },
-  { value: 'burnout', label: 'Burnout Analysis' },
-  { value: 'realtime', label: 'Real-time Analysis' },
+  { value: 'standard', labelKey: 'detector.modes.standard' },
+  { value: 'burnout', labelKey: 'detector.modes.burnout' },
+  { value: 'realtime', labelKey: 'detector.modes.realtime' },
 ];
+
+// Helper function to get translated mode labels
+export const getProcessingModeLabel = (value, t) => {
+  const mode = PROCESSING_MODES.find(m => m.value === value);
+  return mode ? t(mode.labelKey) : value;
+};
