@@ -61,6 +61,7 @@ private:
     int channels_ = 0;
     bool loaded_ = false;
     std::string error_;
+    std::string filename_;  // Store filename for FFmpeg decoding
     
     // FFmpeg resources
     AVFormatContext* format_ctx_ = nullptr;
@@ -70,7 +71,8 @@ private:
     // Helper methods
     bool load_audio_file(const std::string &filename);
     bool load_wav_file(const std::string &filename);
-    bool decode_audio_stream();
+    bool decode_audio_file(const std::string &filename);  // New method for FFmpeg decoding
+    bool decode_audio_stream();  // Kept for backward compatibility
     void cleanup_ffmpeg_resources();
     
     // WAV parsing helper
