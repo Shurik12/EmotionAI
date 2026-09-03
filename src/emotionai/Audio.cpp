@@ -23,6 +23,8 @@ extern "C" {
     #include <libavformat/avformat.h>
     #include <libavutil/avutil.h>
     #include <libswresample/swresample.h>
+    #include <libavutil/opt.h>
+    #include <libavutil/channel_layout.h>
 }
 #endif
 
@@ -58,6 +60,7 @@ const std::vector<std::string> Audio::EMOTION_LABELS = {
 // Construction / Destruction
 //=============================================================================
 Audio::Audio(const std::string &filename)
+    : filename_(filename)
 {
     #ifdef HAVE_FFMPEG
     avformat_network_init();
@@ -127,13 +130,22 @@ bool Audio::load_audio_file(const std::string &filename)
 
         std::string ext = fs::path(filename).extension().string();
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        if (!ext.empty() && ext[0] == '.') {
+            ext = ext.substr(1);
+        }
 
-        if (ext == ".wav") {
+        if (ext == "wav") {
             return load_wav_file(filename);
         }
 
 #ifdef HAVE_FFMPEG
-        return decode_audio_stream();
+        // Support MP3 and other formats via FFmpeg
+        if (ext == "mp3" || ext == "flac" || ext == "m4a" || ext == "aac" || 
+            ext == "ogg" || ext == "opus" || ext == "wma") {
+            return decode_audio_file(filename);
+        }
+        // Try FFmpeg for any other format as well
+        return decode_audio_file(filename);
 #else
         error_ = "Only WAV files supported (FFmpeg not available)";
         LOG_ERROR("{}", error_);
@@ -256,14 +268,143 @@ std::tuple<bool, long long, uint32_t> Audio::find_data_chunk(std::ifstream& file
 }
 
 #ifdef HAVE_FFMPEG
-bool Audio::decode_audio_stream()
+
+bool Audio::decode_audio_file(const std::string &filename)
 {
-    if (!format_ctx_ || !codec_ctx_) {
-        error_ = "Invalid format or codec context";
+    LOG_INFO("Decoding audio file with FFmpeg: {}", filename);
+    
+    int ret;
+    
+    // Open input file
+    if ((ret = avformat_open_input(&format_ctx_, filename.c_str(), nullptr, nullptr)) < 0) {
+        char errbuf[AV_ERROR_MAX_STRING_SIZE];
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        error_ = "Failed to open input file: " + std::string(errbuf);
         LOG_ERROR("{}", error_);
         return false;
     }
-
+    
+    // Find stream info
+    if ((ret = avformat_find_stream_info(format_ctx_, nullptr)) < 0) {
+        char errbuf[AV_ERROR_MAX_STRING_SIZE];
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        error_ = "Failed to find stream info: " + std::string(errbuf);
+        LOG_ERROR("{}", error_);
+        return false;
+    }
+    
+    // Find audio stream
+    int audio_stream_idx = -1;
+    for (unsigned int i = 0; i < format_ctx_->nb_streams; i++) {
+        if (format_ctx_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+            audio_stream_idx = i;
+            break;
+        }
+    }
+    
+    if (audio_stream_idx == -1) {
+        error_ = "No audio stream found";
+        LOG_ERROR("{}", error_);
+        return false;
+    }
+    
+    AVCodecParameters* codecpar = format_ctx_->streams[audio_stream_idx]->codecpar;
+    
+    // Find decoder
+    const AVCodec* codec = avcodec_find_decoder(codecpar->codec_id);
+    if (!codec) {
+        error_ = "Codec not found";
+        LOG_ERROR("{}", error_);
+        return false;
+    }
+    
+    // Allocate codec context
+    codec_ctx_ = avcodec_alloc_context3(codec);
+    if (!codec_ctx_) {
+        error_ = "Failed to allocate codec context";
+        LOG_ERROR("{}", error_);
+        return false;
+    }
+    
+    // Copy codec parameters
+    if ((ret = avcodec_parameters_to_context(codec_ctx_, codecpar)) < 0) {
+        char errbuf[AV_ERROR_MAX_STRING_SIZE];
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        error_ = "Failed to copy codec params: " + std::string(errbuf);
+        LOG_ERROR("{}", error_);
+        return false;
+    }
+    
+    // Open codec
+    if ((ret = avcodec_open2(codec_ctx_, codec, nullptr)) < 0) {
+        char errbuf[AV_ERROR_MAX_STRING_SIZE];
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        error_ = "Failed to open codec: " + std::string(errbuf);
+        LOG_ERROR("{}", error_);
+        return false;
+    }
+    
+    // Get audio info using new API
+    int input_sample_rate = codec_ctx_->sample_rate;
+    int input_channels = codec_ctx_->channels;
+    AVSampleFormat input_sample_fmt = codec_ctx_->sample_fmt;
+    
+    // Get channel layout using new API
+    AVChannelLayout input_ch_layout;
+    av_channel_layout_default(&input_ch_layout, input_channels);
+    
+    // If codec has a specific layout, use it
+    #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(59, 24, 0)
+    if (codec_ctx_->ch_layout.nb_channels > 0) {
+        av_channel_layout_copy(&input_ch_layout, &codec_ctx_->ch_layout);
+    }
+    #endif
+    
+    LOG_INFO("Input audio: {} Hz, {} channels, sample format: {}", 
+             input_sample_rate, input_channels, av_get_sample_fmt_name(input_sample_fmt));
+    
+    // Configure resampler to convert to mono float
+    AVChannelLayout target_ch_layout;
+    av_channel_layout_default(&target_ch_layout, 1); // Mono
+    int target_channels = 1;
+    int target_sample_rate = 16000;
+    AVSampleFormat target_sample_fmt = AV_SAMPLE_FMT_FLT;
+    
+    // Create resampler context
+    swr_ctx_ = swr_alloc();
+    if (!swr_ctx_) {
+        error_ = "Failed to allocate resampler context";
+        LOG_ERROR("{}", error_);
+        return false;
+    }
+    
+    // Set resampler options using new API
+    #if LIBSWRESAMPLE_VERSION_INT >= AV_VERSION_INT(4, 0, 0)
+    av_opt_set_chlayout(swr_ctx_, "in_chlayout", &input_ch_layout, 0);
+    av_opt_set_chlayout(swr_ctx_, "out_chlayout", &target_ch_layout, 0);
+    #else
+    // Fallback for older FFmpeg versions
+    int64_t input_ch_layout_old = input_ch_layout.u.mask;
+    int64_t target_ch_layout_old = target_ch_layout.u.mask;
+    av_opt_set_int(swr_ctx_, "in_channel_layout", input_ch_layout_old, 0);
+    av_opt_set_int(swr_ctx_, "out_channel_layout", target_ch_layout_old, 0);
+    #endif
+    
+    av_opt_set_int(swr_ctx_, "in_sample_rate", input_sample_rate, 0);
+    av_opt_set_int(swr_ctx_, "out_sample_rate", target_sample_rate, 0);
+    av_opt_set_sample_fmt(swr_ctx_, "in_sample_fmt", input_sample_fmt, 0);
+    av_opt_set_sample_fmt(swr_ctx_, "out_sample_fmt", target_sample_fmt, 0);
+    
+    // Initialize resampler
+    if ((ret = swr_init(swr_ctx_)) < 0) {
+        char errbuf[AV_ERROR_MAX_STRING_SIZE];
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        error_ = "Failed to initialize resampler: " + std::string(errbuf);
+        LOG_ERROR("{}", error_);
+        return false;
+    }
+    
+    // Allocate packet and frame
     AVPacket* packet = av_packet_alloc();
     AVFrame* frame = av_frame_alloc();
     if (!packet || !frame) {
@@ -273,48 +414,105 @@ bool Audio::decode_audio_stream()
         av_frame_free(&frame);
         return false;
     }
-
+    
+    // Buffer for converted audio
     std::vector<float> all_samples;
-
+    int total_samples = 0;
+    
+    // Read and decode frames
     while (av_read_frame(format_ctx_, packet) >= 0) {
-        int response = avcodec_send_packet(codec_ctx_, packet);
-        if (response < 0) {
+        if (packet->stream_index != audio_stream_idx) {
             av_packet_unref(packet);
             continue;
         }
-
-        while (response >= 0) {
-            response = avcodec_receive_frame(codec_ctx_, frame);
-            if (response == AVERROR(EAGAIN) || response == AVERROR_EOF) {
+        
+        ret = avcodec_send_packet(codec_ctx_, packet);
+        if (ret < 0) {
+            av_packet_unref(packet);
+            continue;
+        }
+        
+        while (ret >= 0) {
+            ret = avcodec_receive_frame(codec_ctx_, frame);
+            if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
                 break;
-            } else if (response < 0) {
+            } else if (ret < 0) {
                 break;
             }
-
-            uint8_t** out_data = nullptr;
-            int out_samples = swr_convert(swr_ctx_, out_data, frame->nb_samples,
-                                          (const uint8_t**)frame->data, frame->nb_samples);
             
-            if (out_samples > 0 && out_data && out_data[0]) {
-                float* float_data = reinterpret_cast<float*>(out_data[0]);
-                all_samples.insert(all_samples.end(), float_data, float_data + out_samples);
+            // Resample frame
+            int out_samples = swr_convert(swr_ctx_, nullptr, 0, 
+                                          (const uint8_t**)frame->data, frame->nb_samples);
+            if (out_samples < 0) {
+                av_frame_unref(frame);
+                continue;
             }
+            
+            // Get enough buffer for resampled data
+            int max_out_samples = frame->nb_samples * target_sample_rate / input_sample_rate + 1024;
+            std::vector<float> buffer(max_out_samples * target_channels);
+            
+            uint8_t* out_data[1] = { reinterpret_cast<uint8_t*>(buffer.data()) };
+            
+            out_samples = swr_convert(swr_ctx_, out_data, max_out_samples,
+                                      (const uint8_t**)frame->data, frame->nb_samples);
+            
+            if (out_samples > 0) {
+                // Append to all_samples
+                all_samples.insert(all_samples.end(), buffer.data(), buffer.data() + out_samples);
+                total_samples += out_samples;
+            }
+            
             av_frame_unref(frame);
         }
         av_packet_unref(packet);
     }
-
+    
+    // Flush resampler
+    int out_samples = swr_convert(swr_ctx_, nullptr, 0, nullptr, 0);
+    if (out_samples > 0) {
+        int max_out_samples = out_samples + 1024;
+        std::vector<float> buffer(max_out_samples * target_channels);
+        uint8_t* out_data[1] = { reinterpret_cast<uint8_t*>(buffer.data()) };
+        
+        out_samples = swr_convert(swr_ctx_, out_data, max_out_samples, nullptr, 0);
+        if (out_samples > 0) {
+            all_samples.insert(all_samples.end(), buffer.data(), buffer.data() + out_samples);
+            total_samples += out_samples;
+        }
+    }
+    
+    // Clean up
     av_packet_free(&packet);
     av_frame_free(&frame);
-
+    
     if (all_samples.empty()) {
         error_ = "No audio data extracted";
         LOG_ERROR("{}", error_);
         return false;
     }
-
+    
+    // Store audio data
     audio_data_ = std::move(all_samples);
+    sample_rate_ = target_sample_rate;
+    channels_ = target_channels;
+    
+    LOG_INFO("Decoded audio: {} samples, {} Hz, {} channels, {:.2f}s", 
+             audio_data_.size(), sample_rate_, channels_, 
+             static_cast<double>(audio_data_.size()) / sample_rate_);
+    
     return true;
+}
+
+// Keep the old method for backward compatibility
+bool Audio::decode_audio_stream()
+{
+    if (filename_.empty()) {
+        error_ = "No filename available for decoding";
+        LOG_ERROR("{}", error_);
+        return false;
+    }
+    return decode_audio_file(filename_);
 }
 #endif
 
