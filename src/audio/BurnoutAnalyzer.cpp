@@ -14,7 +14,7 @@ BurnoutAnalyzer::BurnoutAnalyzer() {
 }
 
 //=============================================================================
-// Main analyze method
+// Main analyze method - Returns keys for frontend translations
 //=============================================================================
 Result BurnoutAnalyzer::analyze(
     const nlohmann::json& current,
@@ -31,8 +31,8 @@ Result BurnoutAnalyzer::analyze(
         // Check baseline
         if (baseline.empty() || baseline.is_null()) {
             result.state = State::INSUFFICIENT_DATA;
-            result.error = "Baseline not provided";
-            result.recommendations = {"⚠️ Baseline required for analysis"};
+            result.error = "analysis_failed";
+            result.recommendations = {"analysis_failed_retry"};
             LOG_WARN("Baseline not provided");
             return result;
         }
@@ -58,40 +58,33 @@ Result BurnoutAnalyzer::analyze(
         // 3. Determine level
         auto [level, level_name] = determineLevel(raw_risk);
         result.level = level;
+        result.risk = raw_risk;
+        result.score = raw_risk * 100.0;
         
-        // 4. Determine state
-        if (raw_risk < 0.35) {
-            result.state = State::NORMAL;
-        } else if (raw_risk < 0.50) {
-            result.state = State::SHORT_STRESS;
-        } else if (raw_risk < 0.65) {
-            result.state = State::SUSTAINED_STRESS;
-        } else {
-            result.state = State::BURNOUT_LIKE;
-        }
+        // 4. Determine state (with history-aware logic)
+        result.state = determineState(raw_risk, components, history);
         
         // 5. Top factor
         result.top_factor = getTopFactor(components);
+        result.components = components;
         
         // 6. Confidence
         result.confidence = std::min(1.0, 
             0.30 * audio_quality +
             0.25 * baseline_reliability +
-            0.25 * 0.5  // persistence without history
+            0.25 * std::min(1.0, static_cast<double>(history.size()) / 3.0)
         );
         
-        // 7. Risk and score
-        result.risk = raw_risk;
-        result.score = raw_risk * 100.0;
+        // 7. Generate recommendations as KEYS (not text)
+        result.recommendations = generateRecommendationKeys(level, components);
         
-        // 8. Components
-        result.components = components;
+        // 8. Generate comment as KEY (not text)
+        result.comment = getCommentKey(result.state, history.size());
         
-        // 9. Recommendations
-        result.recommendations = generateRecommendations(level, result.top_factor, components);
-        
-        // 10. Comment
-        result.comment = "Без истории нескольких текущих записей нельзя надежно различить short stress vs chronic burnout";
+        // 9. For INSUFFICIENT_DATA - don't show risk level, factors, or recommendations
+        if (result.state == State::INSUFFICIENT_DATA) {
+            result.recommendations = {"analysis_failed_retry"};
+        }
         
         LOG_INFO("Analysis complete: State={}, Score={:.1f}, Confidence={:.2f}",
                  stateToString(result.state), result.score, result.confidence);
@@ -99,11 +92,168 @@ Result BurnoutAnalyzer::analyze(
     } catch (const std::exception& e) {
         LOG_ERROR("Error in burnout analysis: {}", e.what());
         result.state = State::INSUFFICIENT_DATA;
-        result.error = e.what();
-        result.recommendations = {"⚠️ Error in analysis. Please try again."};
+        result.error = "analysis_failed";
+        result.recommendations = {"analysis_failed_retry"};
     }
     
     return result;
+}
+
+//=============================================================================
+// determineState - State determination with history-aware logic
+//=============================================================================
+State BurnoutAnalyzer::determineState(
+    double risk,
+    const std::unordered_map<std::string, double>& components,
+    const std::vector<nlohmann::json>& history)
+{
+    // Check for insufficient data
+    if (risk < 0.01) {
+        return State::INSUFFICIENT_DATA;
+    }
+    
+    // Check for LOW_AFFECT_UNSPECIFIC - specific pattern
+    auto it_prosodic = components.find("prosodic_flattening");
+    auto it_positive = components.find("positive_affect_loss");
+    auto it_exhaustion = components.find("exhaustion");
+    auto it_negative = components.find("negative_activation");
+    
+    double prosodic = (it_prosodic != components.end()) ? it_prosodic->second : 0.0;
+    double positive = (it_positive != components.end()) ? it_positive->second : 0.0;
+    double exhaustion = (it_exhaustion != components.end()) ? it_exhaustion->second : 0.0;
+    double negative = (it_negative != components.end()) ? it_negative->second : 0.0;
+    
+    if (risk < 0.35) {
+        if (prosodic > 0.4 && positive > 0.4 && exhaustion < 0.3 && negative < 0.3) {
+            return State::LOW_AFFECT_UNSPECIFIC;
+        }
+        return State::NORMAL;
+    }
+    
+    // For higher risk, check history to distinguish states
+    int sustained_count = 0;
+    int burnout_count = 0;
+    
+    for (const auto& prev : history) {
+        if (prev.contains("risk") && prev["risk"].is_number()) {
+            double prev_risk = prev["risk"].get<double>();
+            if (prev_risk > 0.35) sustained_count++;
+            if (prev_risk > 0.50) burnout_count++;
+        }
+    }
+    
+    // Determine state based on risk level and history
+    if (risk < 0.50) {
+        if (history.size() >= 2 && sustained_count >= 2) {
+            return State::SUSTAINED_STRESS;
+        }
+        return State::SHORT_STRESS;
+    } else if (risk < 0.65) {
+        if (history.size() >= 2 && burnout_count >= 2) {
+            return State::BURNOUT_LIKE;
+        }
+        if (history.size() >= 2 && sustained_count >= 1) {
+            return State::SUSTAINED_STRESS;
+        }
+        return State::SUSTAINED_STRESS;
+    } else {
+        if (history.size() >= 2 && burnout_count >= 2) {
+            return State::BURNOUT_LIKE;
+        }
+        return State::SUSTAINED_STRESS;
+    }
+}
+
+//=============================================================================
+// getCommentKey - Returns KEY for system comment
+//=============================================================================
+std::string BurnoutAnalyzer::getCommentKey(State state, size_t history_size) const {
+    switch (state) {
+        case State::SHORT_STRESS:
+            if (history_size < 2) {
+                return "need_history_to_distinguish_short_vs_chronic";
+            }
+            return "";
+        case State::SUSTAINED_STRESS:
+            if (history_size < 2) {
+                return "need_dynamics_for_sustained_stress";
+            }
+            return "";
+        case State::BURNOUT_LIKE:
+            return "burnout_compatible_not_diagnosis";
+        case State::LOW_AFFECT_UNSPECIFIC:
+            return "low_affect_nonspecific_signal";
+        default:
+            return "";
+    }
+}
+
+//=============================================================================
+// generateRecommendationKeys - Returns KEYS for frontend translations
+//=============================================================================
+std::vector<std::string> BurnoutAnalyzer::generateRecommendationKeys(
+    Level level,
+    const std::unordered_map<std::string, double>& components)
+{
+    std::vector<std::string> keys;
+    
+    switch (level) {
+        case Level::SEVERE:
+            keys = {
+                "severe_risk_immediate_action",
+                "contact_employee_same_day",
+                "check_wellbeing_and_workload",
+                "remove_non_urgent_tasks",
+                "offer_support_resources"
+            };
+            break;
+        case Level::HIGH:
+            keys = {
+                "high_risk_contact_supervisor",
+                "discuss_workload_and_deadlines",
+                "check_dynamics_after_actions"
+            };
+            break;
+        case Level::MODERATE:
+            keys = {
+                "moderate_risk_preventive_measures",
+                "discuss_workload_with_supervisor",
+                "schedule_regular_breaks",
+                "repeat_assessment_7_14_days"
+            };
+            break;
+        default:
+            keys = {
+                "normal_emotional_state_detected",
+                "no_additional_measures",
+                "maintain_balanced_schedule",
+                "regular_check_ups"
+            };
+    }
+    
+    // Add factor-based recommendations (only one per category)
+    auto it = components.find("exhaustion");
+    if (it != components.end() && it->second > 0.5) {
+        keys.push_back("emotional_exhaustion_detected");
+    }
+    it = components.find("prosodic_flattening");
+    if (it != components.end() && it->second > 0.5) {
+        keys.push_back("voice_monotony_detected");
+    }
+    it = components.find("pause_tempo");
+    if (it != components.end() && it->second > 0.5) {
+        keys.push_back("speech_pattern_changes");
+    }
+    it = components.find("negative_activation");
+    if (it != components.end() && it->second > 0.5) {
+        keys.push_back("high_negative_activation");
+    }
+    it = components.find("positive_affect_loss");
+    if (it != components.end() && it->second > 0.5) {
+        keys.push_back("reduced_positive_affect");
+    }
+    
+    return keys;
 }
 
 //=============================================================================
@@ -375,74 +525,6 @@ std::string BurnoutAnalyzer::getTopFactor(
     }
     
     return top;
-}
-
-std::vector<std::string> BurnoutAnalyzer::generateRecommendations(
-    Level level,
-    const std::string& top_factor,
-    const std::unordered_map<std::string, double>& components)
-{
-    std::vector<std::string> recs;
-    
-    switch (level) {
-        case Level::SEVERE:
-            recs = {
-                "🚨 URGENT: Seek professional psychological help immediately",
-                "Take medical leave if possible",
-                "Contact employee assistance program",
-                "Reduce work hours and delegate tasks",
-                "Practice self-care and stress management techniques"
-            };
-            break;
-        case Level::HIGH:
-            recs = {
-                "⚠️ Moderate risk detected - take action to prevent burnout",
-                "Schedule regular breaks throughout the day",
-                "Consider therapy or counseling sessions",
-                "Implement relaxation techniques",
-                "Discuss workload with your supervisor"
-            };
-            break;
-        case Level::MODERATE:
-            recs = {
-                "⚡ Mild risk detected - monitor your state",
-                "Take regular breaks and practice mindfulness",
-                "Ensure adequate sleep and nutrition",
-                "Exercise and physical activity recommended"
-            };
-            break;
-        default:
-            recs = {
-                "✅ Normal emotional state detected",
-                "Continue maintaining healthy habits",
-                "Practice preventive self-care",
-                "Regular check-ups recommended"
-            };
-    }
-    
-    // Add specific recommendations
-    auto it = components.find("exhaustion");
-    if (it != components.end() && it->second > 0.5) {
-        recs.push_back("Emotional exhaustion detected - prioritize mental health");
-    }
-    it = components.find("prosodic_flattening");
-    if (it != components.end() && it->second > 0.5) {
-        recs.push_back("Voice monotony detected - speech therapy may help");
-    }
-    it = components.find("pause_tempo");
-    if (it != components.end() && it->second > 0.5) {
-        recs.push_back("Speech pattern changes - consider vocal rest");
-    }
-    it = components.find("negative_activation");
-    if (it != components.end() && it->second > 0.5) {
-        recs.push_back("High negative activation - consider anger/stress management");
-    }
-    it = components.find("positive_affect_loss");
-    if (it != components.end() && it->second > 0.5) {
-        recs.push_back("Reduced positive affect - consider activities that boost mood");
-    }
-    
-    return recs;
 }
 
 } // namespace audio

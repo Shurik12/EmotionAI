@@ -12,6 +12,7 @@ contrib/libtorch/
 contrib/onnxruntime/
 emotion_detection.log
 frontend/build/
+frontend/dist/
 frontend/node_modules/
 frontend/package-lock.json
 results.txt
