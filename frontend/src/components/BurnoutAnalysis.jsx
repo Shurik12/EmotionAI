@@ -12,75 +12,125 @@ export const BurnoutAnalysis = ({ data }) => {
   if (data.error) {
     return (
       <div className="burnout-error">
-        <h4>⚠️ {t('burnout.error') || 'Analysis Error'}</h4>
-        <p>{data.error}</p>
+        <h4>⚠️ {t('burnout.error') || 'Ошибка анализа'}</h4>
+        <p>{t(`burnout.errors.${data.error}`) || data.error}</p>
       </div>
     );
   }
 
-  const { state, level, score, confidence, components, recommendations, top_factor, comment } = data;
+  const { 
+    state, 
+    level, 
+    score, 
+    confidence, 
+    components, 
+    recommendations, 
+    top_factor, 
+    comment
+  } = data;
   
   // Component labels with translations
   const componentLabels = {
-    exhaustion: t('burnout.components.exhaustion') || 'Emotional Exhaustion',
-    prosodic_flattening: t('burnout.components.prosodicFlattening') || 'Prosodic Flattening',
-    pause_tempo: t('burnout.components.pauseTempo') || 'Pause/Tempo Changes',
-    negative_activation: t('burnout.components.negativeActivation') || 'Negative Activation',
-    positive_affect_loss: t('burnout.components.positiveAffectLoss') || 'Positive Affect Loss',
+    exhaustion: t('burnout.components.exhaustion') || 'Эмоциональное истощение',
+    prosodic_flattening: t('burnout.components.prosodicFlattening') || 'Просодическое уплощение',
+    pause_tempo: t('burnout.components.pauseTempo') || 'Изменения пауз/темпа',
+    negative_activation: t('burnout.components.negativeActivation') || 'Негативная активация',
+    positive_affect_loss: t('burnout.components.positiveAffectLoss') || 'Потеря положительного аффекта',
   };
 
   const levelInfo = {
-    low: { color: BURNOUT_COLORS.low, label: t('burnout.low') || 'Low Risk' },
-    moderate: { color: BURNOUT_COLORS.moderate, label: t('burnout.moderate') || 'Moderate Risk' },
-    high: { color: BURNOUT_COLORS.high, label: t('burnout.high') || 'High Risk' },
-    severe: { color: BURNOUT_COLORS.severe, label: t('burnout.severe') || 'Severe Risk' },
+    low: { color: BURNOUT_COLORS.low, label: t('burnout.low') || 'Низкий риск' },
+    moderate: { color: BURNOUT_COLORS.moderate, label: t('burnout.moderate') || 'Умеренный риск' },
+    high: { color: BURNOUT_COLORS.high, label: t('burnout.high') || 'Высокий риск' },
+    severe: { color: BURNOUT_COLORS.severe, label: t('burnout.severe') || 'Очень высокий риск' },
   };
 
   const currentLevel = levelInfo[level] || levelInfo.low;
 
-  // Translate state if possible
-  const getStateTranslation = (stateValue) => {
-    const stateMap = {
-      'NORMAL': t('burnout.states.normal') || 'Normal',
-      'SHORT_STRESS': t('burnout.states.shortStress') || 'Short-term Stress',
-      'SUSTAINED_STRESS': t('burnout.states.sustainedStress') || 'Sustained Stress',
-      'BURNOUT_LIKE': t('burnout.states.burnoutLike') || 'Burnout-like State',
-      'LOW_AFFECT_UNSPECIFIC': t('burnout.states.lowAffect') || 'Low Affect Unspecified',
-      'INSUFFICIENT_DATA': t('burnout.states.insufficientData') || 'Insufficient Data',
-    };
-    return stateMap[stateValue] || stateValue;
+  // Translate state using the key
+  const getStateTranslation = (stateKey) => {
+    return t(`burnout.states.${stateKey}`) || stateKey;
   };
 
-  // Translate a single recommendation
-  const translateRecommendation = (rec) => {
-    // Try to find a matching translation key
-    const key = rec
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '_')
-      .replace(/_+/g, '_')
-      .replace(/^_|_$/g, '');
-    
-    // Try different key formats
-    const possibleKeys = [
-      `burnout.recommendationsList.${key}`,
-      `burnout.recommendationsList.${rec.replace(/\s/g, '_').toLowerCase()}`,
-    ];
-    
-    for (const possibleKey of possibleKeys) {
-      const translated = t(possibleKey);
-      if (translated !== possibleKey) {
-        return translated;
-      }
-    }
-    
-    // If no translation found, return the original
-    return rec;
+  // Get state display name (for the state badge)
+  const getStateKey = (stateValue) => {
+    const stateMap = {
+      'NORMAL': 'normal',
+      'SHORT_STRESS': 'shortStress',
+      'SUSTAINED_STRESS': 'sustainedStress',
+      'BURNOUT_LIKE': 'burnoutLike',
+      'LOW_AFFECT_UNSPECIFIC': 'lowAffect',
+      'INSUFFICIENT_DATA': 'insufficientData',
+    };
+    return stateMap[stateValue] || 'insufficientData';
   };
+
+  // Check if state requires history (sustained or burnout-like)
+  const requiresHistory = (stateValue) => {
+    return stateValue === 'SUSTAINED_STRESS' || stateValue === 'BURNOUT_LIKE';
+  };
+
+  // Translate recommendation using the key
+  const translateRecommendation = (key) => {
+    return t(`burnout.recommendationsList.${key}`) || key;
+  };
+
+  // Translate comment using the key
+  const translateComment = (key) => {
+    return t(`burnout.comments.${key}`) || key;
+  };
+
+  // Translate factor
+  const translateFactor = (factor) => {
+    return t(`burnout.factors.${factor}`) || factor;
+  };
+
+  // Get factor explanation
+  const getFactorExplanation = (factor) => {
+    const explanationKey = factor
+      .toLowerCase()
+      .replace(/ /g, '_');
+    return t(`burnout.factorExplanations.${explanationKey}`) || '';
+  };
+
+  // For insufficient data, show minimal info
+  if (state === 'INSUFFICIENT_DATA') {
+    return (
+      <div className="burnout-analysis">
+        <div className="burnout-header">
+          <h4>{t('burnout.title') || 'Анализ риска профессионального выгорания'}</h4>
+          <span className="burnout-badge" style={{ backgroundColor: '#9E9E9E' }}>
+            {t('burnout.states.insufficientData') || 'Недостаточно данных'}
+          </span>
+        </div>
+        <div className="burnout-section">
+          <h5 className="section-title">{t('burnout.basis') || 'На основании чего сделан вывод'}</h5>
+          <p className="section-text">{t('burnout.basisText.insufficientData') || 'Недостаточно данных для анализа.'}</p>
+        </div>
+        {recommendations && recommendations.length > 0 && (
+          <div className="burnout-recommendations">
+            <h5>{t('burnout.recommendations') || 'Действия менеджера'}</h5>
+            <ul>
+              {recommendations.map((recKey, index) => (
+                <li key={index}>{translateRecommendation(recKey)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="burnout-disclaimer">
+          {t('burnout.disclaimer')}
+        </div>
+      </div>
+    );
+  }
+
+  // Get the state key for translations
+  const stateKey = getStateKey(state);
 
   return (
     <div className="burnout-analysis">
       <div className="burnout-header">
-        <h4>{t('burnout.title') || 'Burnout Risk Analysis'}</h4>
+        <h4>{t('burnout.title') || 'Анализ риска профессионального выгорания'}</h4>
         <span 
           className="burnout-badge"
           style={{ backgroundColor: currentLevel.color }}
@@ -89,31 +139,65 @@ export const BurnoutAnalysis = ({ data }) => {
         </span>
       </div>
 
+      {/* Risk metrics */}
       <div className="burnout-metrics">
         <div className="metric">
-          <span className="metric-label">{t('burnout.score') || 'Risk Score'}</span>
+          <span className="metric-label">{t('burnout.score') || 'Уровень риска'}</span>
           <span className="metric-value">{score?.toFixed(1)}%</span>
         </div>
         <div className="metric">
-          <span className="metric-label">{t('burnout.confidence') || 'Confidence'}</span>
+          <span className="metric-label">{t('burnout.confidence') || 'Надёжность оценки'}</span>
           <span className="metric-value">{((confidence || 0) * 100).toFixed(1)}%</span>
         </div>
         <div className="metric">
-          <span className="metric-label">{t('burnout.topFactor') || 'Top Factor'}</span>
-          <span className="metric-value">{t(`burnout.factors.${top_factor}`) || top_factor || state || 'N/A'}</span>
+          <span className="metric-label">{t('burnout.topFactor') || 'Основной выявленный сигнал'}</span>
+          <span className="metric-value">{translateFactor(top_factor) || top_factor || 'N/A'}</span>
         </div>
       </div>
 
-      {state && (
-        <div className="burnout-state">
-          <span className="state-label">{t('burnout.state') || 'State'}: </span>
-          <span className="state-value">{getStateTranslation(state)}</span>
+      {/* 1. На основании чего сделан вывод */}
+      <div className="burnout-section">
+        <h5 className="section-title">{t('burnout.basis') || 'На основании чего сделан вывод'}</h5>
+        <p className="section-text">{t(`burnout.basisText.${stateKey}`) || t('burnout.basisText.default')}</p>
+      </div>
+
+      {/* 2. Результат (Вывод для менеджера) */}
+      <div className="burnout-section">
+        <h5 className="section-title">{t('burnout.conclusion') || 'Вывод для менеджера'}</h5>
+        <p className="section-text">{t(`burnout.conclusionText.${stateKey}`) || t('burnout.conclusionText.default')}</p>
+      </div>
+
+      {/* 3. Основной выявленный сигнал с пояснением */}
+      {top_factor && (
+        <div className="burnout-section">
+          <h5 className="section-title">{t('burnout.topFactor') || 'Основной выявленный сигнал'}</h5>
+          <p className="section-text"><strong>{translateFactor(top_factor)}</strong></p>
+          <p className="section-text explanation">{getFactorExplanation(top_factor)}</p>
         </div>
       )}
 
+      {/* 4. Срочность и дальнейшие действия */}
+      <div className="burnout-section urgency-section">
+        <h5 className="section-title">{t('burnout.urgency') || 'Срочность и дальнейшие действия'}</h5>
+        <p className="section-text">{t(`burnout.urgencyText.${level}`) || t('burnout.urgencyText.default')}</p>
+      </div>
+
+      {/* 5. Действия менеджера (recommendations) */}
+      {recommendations && recommendations.length > 0 && (
+        <div className="burnout-section">
+          <h5 className="section-title">{t('burnout.recommendations') || 'Действия менеджера'}</h5>
+          <ul className="recommendations-list">
+            {recommendations.map((recKey, index) => (
+              <li key={index}>{translateRecommendation(recKey)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Component Analysis - "Из чего складывается оценка" */}
       {components && Object.keys(components).length > 0 && (
         <div className="burnout-components">
-          <h5>{t('burnout.componentAnalysis') || 'Component Analysis'}</h5>
+          <h5>{t('burnout.componentAnalysis') || 'Из чего складывается оценка'}</h5>
           {Object.entries(components).map(([key, value]) => (
             <div key={key} className="burnout-component">
               <div className="component-header">
@@ -134,25 +218,27 @@ export const BurnoutAnalysis = ({ data }) => {
         </div>
       )}
 
-      {recommendations && recommendations.length > 0 && (
-        <div className="burnout-recommendations">
-          <h5>{t('burnout.recommendations') || 'Recommendations'}</h5>
-          <ul>
-            {recommendations.map((rec, index) => (
-              <li key={index}>{translateRecommendation(rec)}</li>
-            ))}
-          </ul>
+      {/* State with history note */}
+      {state && (
+        <div className="burnout-state">
+          <span className="state-label">{t('burnout.state') || 'Результат анализа'}: </span>
+          <span className="state-value">{getStateTranslation(stateKey)}</span>
+          {requiresHistory(state) && (
+            <span className="state-note"> ({t('burnout.requiresHistory') || 'требуется несколько записей'})</span>
+          )}
         </div>
       )}
 
+      {/* System comment */}
       {comment && (
         <div className="burnout-comment">
-          <em>💡 {t(`burnout.comments.${comment.replace(/\s/g, '_').toLowerCase()}`) || comment}</em>
+          <em>💡 {translateComment(comment)}</em>
         </div>
       )}
 
+      {/* Disclaimer */}
       <div className="burnout-disclaimer">
-        {t('burnout.disclaimer') || 'This analysis is for informational purposes only and does not constitute medical advice.'}
+        {t('burnout.disclaimer')}
       </div>
     </div>
   );

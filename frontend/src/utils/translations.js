@@ -135,19 +135,26 @@ export const translations = {
       arousal: 'Интенсивность',
     },
     burnout: {
-      title: 'Анализ риска выгорания',
+      title: 'Анализ риска профессионального выгорания',
       low: 'Низкий риск',
       moderate: 'Умеренный риск',
       high: 'Высокий риск',
-      severe: 'Критический риск',
+      severe: 'Очень высокий риск',
       score: 'Уровень риска',
-      confidence: 'Уверенность',
-      topFactor: 'Основной фактор',
-      recommendations: 'Рекомендации',
-      disclaimer: 'Этот анализ носит информационный характер и не является медицинской консультацией.',
-      state: 'Состояние',
-      componentAnalysis: 'Анализ компонентов',
-      error: 'Ошибка анализа',
+      confidence: 'Надёжность оценки',
+      topFactor: 'Основной выявленный сигнал',
+      recommendations: 'Действия менеджера',
+      disclaimer: 'Результат основан на автоматическом анализе речевых характеристик и, при наличии данных, их динамики. Он не является медицинским диагнозом и не может использоваться как единственное основание для оценки эффективности, дисциплинарных мер или других кадровых решений.',
+      state: 'Результат анализа',
+      componentAnalysis: 'Из чего складывается оценка',
+      error: 'Не удалось выполнить анализ',
+      basis: 'На основании чего сделан вывод',
+      conclusion: 'Вывод для менеджера',
+      action: 'Что делать менеджеру',
+      urgency: 'Срочность и дальнейшие действия',
+      factorExplanation: 'Пояснение',
+      requiresHistory: 'требуется несколько записей',
+      
       components: {
         exhaustion: 'Эмоциональное истощение',
         prosodicFlattening: 'Просодическое уплощение',
@@ -155,6 +162,7 @@ export const translations = {
         negativeActivation: 'Негативная активация',
         positiveAffectLoss: 'Потеря положительного аффекта',
       },
+      
       states: {
         normal: 'Норма',
         shortStress: 'Кратковременный стресс',
@@ -163,6 +171,7 @@ export const translations = {
         lowAffect: 'Низкий аффект неспецифический',
         insufficientData: 'Недостаточно данных',
       },
+      
       factors: {
         'Positive Affect Loss': 'Потеря положительного аффекта',
         'Negative Activation': 'Негативная активация',
@@ -170,55 +179,96 @@ export const translations = {
         'Pause/Tempo Changes': 'Изменения пауз/темпа',
         'Emotional Exhaustion': 'Эмоциональное истощение',
       },
+      
+      // Keys for "На основании чего сделан вывод"
+      basisText: {
+        normal: 'Показатели энергии, эмоционального напряжения, интонационной выразительности, темпа речи и пауз находятся в нормальном диапазоне. Если есть предыдущие записи, отрицательной динамики не выявлено.',
+        shortStress: 'В текущей записи выявлены отдельные изменения: усиление эмоционального напряжёния, изменение темпа или пауз либо снижение эмоциональной выразительности. Данных о повторяемости этих изменений пока нет.',
+        sustainedStress: 'Изменения затрагивают несколько групп показателей и повторяются в нескольких сопоставимых записях: сохраняется напряжённая эмоциональная окраска, меняются темп и паузы, снижается положительная эмоциональная выразительность или появляются признаки снижения энергии.',
+        burnoutLike: 'В нескольких записях сохраняется сочетание выраженных изменений: признаки снижения энергии, уменьшение эмоциональной выразительности, снижение положительной эмоциональной окраски, напряжённый эмоциональный фон и изменения темпа речи или пауз.',
+        lowAffect: 'В речи выявлено снижение интонационного разнообразия и положительной эмоциональной окраски. Других признаков недостаточно, чтобы сделать вывод об устойчивом стрессе или выгорании.',
+        insufficientData: 'Запись слишком короткая, содержит недостаточно речи, посторонние шумы или технические искажения. Либо для оценки динамики недостаточно предыдущих записей.',
+        default: 'Недостаточно данных для надёжного вывода.'
+      },
+      
+      // Keys for "Вывод для менеджера"
+      conclusionText: {
+        normal: 'Значимых признаков риска не выявлено. На момент записи выраженных признаков повышенного стресса или эмоционального истощения не обнаружено.',
+        shortStress: 'Выявлены признаки кратковременного напряжения. Результат может отражать реакцию на срочную задачу, сложный разговор, высокую нагрузку, усталость или недосып. Он не указывает на сформировавшееся выгорание.',
+        sustainedStress: 'Выявлены признаки устойчивого напряжения. Динамика может свидетельствовать о продолжительной рабочей нагрузке и недостаточном восстановлении. Это не означает выгорание, но указывает на повышенный риск его развития.',
+        burnoutLike: 'Выявлены признаки, совместимые с профессиональным выгоранием. Результат требует внимания, но не является диагнозом и не позволяет автоматически определить причину состояния.',
+        lowAffect: 'Выявлена сниженная эмоциональная выразительность. Причиной могут быть усталость, смена настроения, содержание разговора, индивидуальная манера речи или условия записи. Результат не означает низкой мотивации, безразличия или нелояльности.',
+        insufficientData: 'Недостаточно данных для надёжного вывода. Результат анализа и уровень риска не определены.',
+        default: 'Недостаточно данных для вывода.'
+      },
+      
+      // Keys for "Срочность и дальнейшие действия"
+      urgencyText: {
+        low: 'Низкий риск. Выраженного сочетания неблагоприятных сигналов не выявлено. Специальные меры не требуются. Продолжайте плановое наблюдение.',
+        moderate: 'Умеренный риск. Выявлены отдельные изменения, которые могут быть связаны с повышенной нагрузкой или недостаточным восстановлением. В ближайшие несколько рабочих дней проведите короткую конфиденциальную беседу. Уточните нагрузку и согласуйте одну–две профилактические меры. Повторите оценку через 7–14 дней.',
+        high: 'Высокий риск. Выявлено сочетание нескольких выраженных или повторяющихся сигналов, требующих внимания руководителя. Свяжитесь с сотрудником в ближайший рабочий день. Обсудите нагрузку, сроки, переработки и необходимую поддержку. После принятых мер проверьте динамику.',
+        severe: 'Очень высокий риск — требуется повышенное внимание к состоянию сотрудника. Совокупность сигналов достигла верхнего порога риска. Свяжитесь с сотрудником в тот же рабочий день. Уточните самочувствие и возможность продолжать текущую работу, проверьте нагрузку. По возможности снимите необязательные срочные задачи и предложите корпоративные ресурсы поддержки.',
+        default: 'Уровень риска не определён.'
+      },
+      
+      // Keys for factor explanations
+      factorExplanations: {
+        'positive_affect_loss': 'Снижение положительной эмоциональной окраски. В речи стало меньше признаков положительной эмоциональной вовлечённости. Это не означает автоматически потерю мотивации, снижение лояльности или ухудшение качества работы.',
+        'negative_activation': 'Повышенный уровень напряжения. В речи выявлена усиленная напряжённая или негативная эмоциональная окраска. Система фиксирует изменение, но не определяет его причину.',
+        'prosodic_flattening': 'Снижение интонационной выразительности. Речь стала менее интонационно разнообразной. Это может быть связано с усталостью, напряжением, индивидуальной манерой речи или условиями записи.',
+        'pause/tempo_changes': 'Изменение темпа речи и пауз. Темп или продолжительность пауз отличаются от ожидаемого паттерна. Возможные причины включают усталость, высокую умственную нагрузку, сложность обсуждаемой темы или технические особенности записи.',
+        'emotional_exhaustion': 'Признаки снижения энергии. В речи выявлено сочетание характеристик, которое может наблюдаться при усталости и недостаточном восстановлении. Вывод необходимо сопоставлять с рабочей нагрузкой и динамикой предыдущих записей.'
+      },
+      
+      // Recommendation keys (all recommendations use keys, not text)
       recommendationsList: {
-        'moderate_risk_detected_-_take_action_to_prevent_burnout': '🟢 Обнаружен умеренный риск - примите меры для предотвращения выгорания',
-        'schedule_regular_breaks_throughout_the_day': 'Планируйте регулярные перерывы в течение дня',
-        'consider_therapy_or_counseling_sessions': 'Рассмотрите возможность терапии или консультаций',
-        'implement_relaxation_techniques': 'Внедрите техники релаксации',
-        'discuss_workload_with_your_supervisor': 'Обсудите нагрузку с руководителем',
-        'voice_monotony_detected_-_speech_therapy_may_help': 'Обнаружена монотонность голоса - может помочь логопед',
-        'speech_pattern_changes_-_consider_vocal_rest': 'Изменения речевого паттерна - рекомендуется голосовой отдых',
-        'reduced_positive_affect_-_consider_activities_that_boost_mood': 'Сниженный положительный аффект - рассмотрите занятия, повышающие настроение',
-        'normal_emotional_state_detected': '✅ Обнаружено нормальное эмоциональное состояние',
-        'continue_maintaining_healthy_habits': 'Продолжайте поддерживать здоровые привычки',
-        'practice_preventive_self-care': 'Практикуйте профилактический уход за собой',
-        'regular_check-ups_recommended': 'Рекомендуются регулярные проверки',
+        // Severe risk
+        'severe_risk_immediate_action': '⚠️ Очень высокий риск — требуется немедленное внимание',
+        'contact_employee_same_day': 'Свяжитесь с сотрудником в тот же рабочий день',
+        'check_wellbeing_and_workload': 'Уточните самочувствие и возможность продолжать текущую работу',
+        'remove_non_urgent_tasks': 'По возможности снимите необязательные срочные задачи',
+        'offer_support_resources': 'Предложите корпоративные ресурсы поддержки',
+        
+        // High risk
+        'high_risk_contact_supervisor': 'Свяжитесь с сотрудником в ближайший рабочий день',
+        'discuss_workload_and_deadlines': 'Обсудите нагрузку, сроки, переработки и необходимую поддержку',
+        'check_dynamics_after_actions': 'После принятых мер проверьте динамику',
+        
+        // Moderate risk
+        'moderate_risk_preventive_measures': 'Выявлены отдельные признаки повышенной нагрузки. Рекомендуются профилактические меры и наблюдение за динамикой.',
+        'discuss_workload_with_supervisor': 'Проведите конфиденциальную беседу о текущей нагрузке, сроках, приоритетах и переработках.',
+        'schedule_regular_breaks': 'Обсудите с сотрудником возможность регулярных перерывов и восстановления в течение рабочего дня.',
+        'repeat_assessment_7_14_days': 'Повторите оценку через 7–14 дней.',
+        
+        // Low risk / Normal
+        'normal_emotional_state_detected': 'Значимых признаков повышенного эмоционального напряжения не выявлено.',
+        'no_additional_measures': 'Дополнительные меры не требуются.',
+        'maintain_balanced_schedule': 'Рекомендуется сохранять сбалансированный режим работы и восстановления.',
+        'regular_check_ups': 'Следующую оценку рекомендуется провести по установленному графику наблюдения.',
+        
+        // Factor-specific recommendations
+        'emotional_exhaustion_detected': 'Признаки снижения энергии. Рекомендуется обратить внимание на режим работы и восстановления.',
+        'voice_monotony_detected': 'Выявлено снижение интонационной выразительности речи. Этот показатель следует оценивать только вместе с другими сигналами и динамикой предыдущих записей.',
+        'speech_pattern_changes': 'Выявлены изменения темпа речи или пауз. Уточните контекст записи и повторите оценку в сопоставимых условиях.',
+        'high_negative_activation': 'Выявлен повышенный уровень напряжения. Рекомендуется обсудить возможные источники стресса.',
+        'reduced_positive_affect': 'Выявлено снижение положительной эмоциональной окраски речи. Это неспецифический сигнал, который не следует интерпретировать как потерю мотивации или лояльности.',
+        
+        // Error
+        'analysis_failed_retry': '⚠️ Ошибка анализа. Пожалуйста, попробуйте снова.',
       },
+      
+      // System comments
       comments: {
-        'без_истории_нескольких_текущих_записей_нельзя_надежно_различить_short_stress_vs_chronic_burnout': 'Без истории нескольких текущих записей нельзя надежно различить кратковременный стресс и хроническое выгорание',
+        'need_history_to_distinguish_short_vs_chronic': 'Без истории нескольких текущих записей нельзя надежно различить кратковременное напряжение и хроническое выгорание.',
+        'need_dynamics_for_sustained_stress': 'Для разграничения кратковременного напряжения и устойчивого риска необходима динамика нескольких сопоставимых записей.',
+        'burnout_compatible_not_diagnosis': 'Результат совместим с профессиональным выгоранием, но не является диагнозом.',
+        'low_affect_nonspecific_signal': 'Сниженная эмоциональная выразительность — неспецифический сигнал, требующий сопоставления с контекстом.',
+        'без_истории_нескольких_текущих_записей_нельзя_надежно_различить_short_stress_vs_chronic_burnout': 'Для разграничения кратковременного напряжения и устойчивого риска необходима динамика нескольких сопоставимых записей. По одной записи нельзя надёжно сделать вывод о хроническом стрессе или признаках профессионального выгорания.',
       },
-    },
-    // Features page (top-level keys for Features.jsx)
-    features_title: 'Razuma – это экосистема ИИ-инструментов, которая сочетает методы нейромаркетинга, emotion AI и API-интеграции для бизнеса любого масштаба',
-    features_main: 'Основные возможности',
-    feature_card1: 'Распознавание эмоций в реальном времени по фото, видео и аудио',
-    feature_card2: 'Создание плагинов для CRM (Bitrix24, amoCRM и др.)',
-    feature_card3: 'Анализ A/B-тестирования рекламных креативов или упаковки продуктов',
-    feature_card4: 'Анализ UX интерфейса',
-    feature_card5: 'Автоматическая оценка параметров эмоционального состояния клиента и рекомендации на ее основе',
-    feature_card6: 'Интеграции через API и SDK',
-    feature_card7: 'Адаптация продукта и разработка white label по техническому заданию',
-    clients_title: 'Кто уже использует Razuma:',
-    clients_b2b: 'агентства, бренды, разработчики продуктов, обучающие платформы',
-    clients_b2c: 'специалисты, малый бизнес, консультанты',
-    contact: {
-      title: 'Контактная информация',
-      legalInfo: 'Юридическая информация',
-      contactDetails: 'Контактные данные',
-      companyNameLabel: 'Юридическое наименование',
-      legalAddressLabel: 'Юридический адрес',
-      innLabel: 'ИНН',
-      ogrnipLabel: 'ОГРНИП',
-      emailLabel: 'Email',
-      phoneLabel: 'Телефон',
-      workingHoursLabel: 'Режим работы',
-      companyName: 'ООО "РАЗУМНЫЕ ТЕХНОЛОГИИ"',
-      legalAddress: '121205, Г.МОСКВА, ВН.ТЕР.Г. МУНИЦИПАЛЬНЫЙ ОКРУГ МОЖАЙСКИЙ, ТЕР ИННОВАЦИОННОГО ЦЕНТРА СКОЛКОВО, Б-Р БОЛЬШОЙ, Д. 42, СТР. 1',
-      inn: '9731157733',
-      ogrnip: '1257700507745',
-      email: 'inbox@razuma.pro',
-      phone: '+7 (903) 295-89-71',
-      workingHours: 'Пн-Пт, 9:00-18:00',
+      
+      errors: {
+        'analysis_failed': 'Не удалось выполнить анализ. Пожалуйста, попробуйте снова.'
+      }
     },
     footer: {
       demo: 'Демо',
@@ -391,15 +441,22 @@ export const translations = {
       low: 'Low Risk',
       moderate: 'Moderate Risk',
       high: 'High Risk',
-      severe: 'Severe Risk',
+      severe: 'Very High Risk',
       score: 'Risk Score',
-      confidence: 'Confidence',
-      topFactor: 'Top Factor',
-      recommendations: 'Recommendations',
-      disclaimer: 'This analysis is for informational purposes only and does not constitute medical advice.',
-      state: 'State',
-      componentAnalysis: 'Component Analysis',
-      error: 'Analysis Error',
+      confidence: 'Assessment Confidence',
+      topFactor: 'Primary Signal Detected',
+      recommendations: 'Manager Actions',
+      disclaimer: 'This assessment is based on automated analysis of speech characteristics and their dynamics (when available). It is not a medical diagnosis and should not be used as the sole basis for performance evaluation, disciplinary actions, or other personnel decisions.',
+      state: 'Analysis Result',
+      componentAnalysis: 'Assessment Components',
+      error: 'Analysis Failed',
+      basis: 'Basis of Assessment',
+      conclusion: 'Manager Summary',
+      action: 'Recommended Actions',
+      urgency: 'Urgency and Next Steps',
+      factorExplanation: 'Explanation',
+      requiresHistory: 'multiple recordings required',
+      
       components: {
         exhaustion: 'Emotional Exhaustion',
         prosodicFlattening: 'Prosodic Flattening',
@@ -407,14 +464,16 @@ export const translations = {
         negativeActivation: 'Negative Activation',
         positiveAffectLoss: 'Positive Affect Loss',
       },
+      
       states: {
         normal: 'Normal',
         shortStress: 'Short-term Stress',
         sustainedStress: 'Sustained Stress',
         burnoutLike: 'Burnout-like State',
-        lowAffect: 'Low Affect Unspecified',
+        lowAffect: 'Low Affect (Unspecified)',
         insufficientData: 'Insufficient Data',
       },
+      
       factors: {
         'Positive Affect Loss': 'Positive Affect Loss',
         'Negative Activation': 'Negative Activation',
@@ -422,55 +481,90 @@ export const translations = {
         'Pause/Tempo Changes': 'Pause/Tempo Changes',
         'Emotional Exhaustion': 'Emotional Exhaustion',
       },
+      
+      basisText: {
+        normal: 'Energy levels, emotional tension, prosodic expressiveness, speech rate, and pause patterns are within the normal range. If previous recordings exist, no negative trend is detected.',
+        shortStress: 'Current recording shows isolated changes: increased emotional tension, altered tempo/pauses, or reduced emotional expressiveness. No data yet on whether these changes recur.',
+        sustainedStress: 'Changes affect multiple indicators and are observed across several comparable recordings: sustained emotional tension, altered tempo and pauses, reduced positive emotional expressiveness, or signs of decreased energy.',
+        burnoutLike: 'Across multiple recordings, a combination of pronounced changes persists: signs of reduced energy, diminished expressiveness, reduced positive emotional tone, tense emotional background, and altered speech rate or pauses.',
+        lowAffect: 'Reduced prosodic variety and positive emotional tone detected in speech. Other indicators are insufficient to conclude sustained stress or burnout.',
+        insufficientData: 'Recording is too short, contains insufficient speech, background noise, or technical artifacts. Or insufficient previous recordings for dynamic assessment.',
+        default: 'Insufficient data for a reliable conclusion.'
+      },
+      
+      conclusionText: {
+        normal: 'No significant risk indicators detected. At the time of recording, no pronounced signs of elevated stress or emotional exhaustion were found.',
+        shortStress: 'Signs of short-term tension detected. The result may reflect a reaction to an urgent task, difficult conversation, high workload, fatigue, or lack of sleep. It does not indicate burnout.',
+        sustainedStress: 'Signs of sustained tension detected. The dynamics may indicate prolonged workload and insufficient recovery. This is not burnout, but indicates an elevated risk of developing it.',
+        burnoutLike: 'Signs consistent with professional burnout detected. The result requires attention but is not a diagnosis and does not automatically identify the cause of the condition.',
+        lowAffect: 'Reduced emotional expressiveness detected. Causes may include fatigue, mood changes, conversation content, individual speech patterns, or recording conditions. This does not indicate low motivation, indifference, or disloyalty.',
+        insufficientData: 'Insufficient data for a reliable conclusion. Analysis result and risk level are undefined.',
+        default: 'Insufficient data for a conclusion.'
+      },
+      
+      urgencyText: {
+        low: 'Low risk. No significant combination of unfavorable signals detected. No special measures required. Continue routine monitoring.',
+        moderate: 'Moderate risk. Isolated changes detected that may be related to increased workload or insufficient recovery. In the coming workdays, have a brief confidential conversation. Clarify workload and agree on 1-2 preventive measures. Reassess in 7-14 days.',
+        high: 'High risk. Multiple significant or recurring signals detected requiring management attention. Contact the employee within the next working day. Discuss workload, deadlines, overtime, and necessary support. Monitor dynamics after actions taken.',
+        severe: 'Very high risk — requires heightened attention to the employee\'s condition. The combination of signals has reached the upper risk threshold. Contact the employee on the same working day. Clarify well-being and ability to continue current work, review workload. If possible, remove non-urgent tasks and offer corporate support resources.',
+        default: 'Risk level is undefined.'
+      },
+      
+      factorExplanations: {
+        'positive_affect_loss': 'Reduced positive emotional tone. Speech shows fewer signs of positive emotional engagement. This does not automatically indicate loss of motivation, reduced loyalty, or decreased work quality.',
+        'negative_activation': 'Elevated tension level. Speech shows intensified tense or negative emotional tone. The system detects the change but does not determine its cause.',
+        'prosodic_flattening': 'Reduced prosodic expressiveness. Speech has become less prosodically varied. This may be related to fatigue, tension, individual speech patterns, or recording conditions.',
+        'pause/tempo_changes': 'Changes in speech rate and pauses. Tempo or pause duration differs from the expected pattern. Possible causes include fatigue, high cognitive load, complexity of the subject matter, or technical recording conditions.',
+        'emotional_exhaustion': 'Signs of reduced energy. Speech shows a combination of characteristics that may be observed in fatigue and insufficient recovery. This finding should be correlated with workload and dynamics of previous recordings.'
+      },
+      
       recommendationsList: {
-        'moderate_risk_detected_-_take_action_to_prevent_burnout': '🟢 Moderate risk detected - take action to prevent burnout',
-        'schedule_regular_breaks_throughout_the_day': 'Schedule regular breaks throughout the day',
-        'consider_therapy_or_counseling_sessions': 'Consider therapy or counseling sessions',
-        'implement_relaxation_techniques': 'Implement relaxation techniques',
-        'discuss_workload_with_your_supervisor': 'Discuss workload with your supervisor',
-        'voice_monotony_detected_-_speech_therapy_may_help': 'Voice monotony detected - speech therapy may help',
-        'speech_pattern_changes_-_consider_vocal_rest': 'Speech pattern changes - consider vocal rest',
-        'reduced_positive_affect_-_consider_activities_that_boost_mood': 'Reduced positive affect - consider activities that boost mood',
-        'normal_emotional_state_detected': '✅ Normal emotional state detected',
-        'continue_maintaining_healthy_habits': 'Continue maintaining healthy habits',
-        'practice_preventive_self-care': 'Practice preventive self-care',
-        'regular_check-ups_recommended': 'Regular check-ups recommended',
+        // Severe risk
+        'severe_risk_immediate_action': '⚠️ Very high risk — immediate attention required',
+        'contact_employee_same_day': 'Contact the employee on the same working day',
+        'check_wellbeing_and_workload': 'Clarify well-being and ability to continue current work',
+        'remove_non_urgent_tasks': 'Remove non-urgent tasks if possible',
+        'offer_support_resources': 'Offer corporate support resources',
+        
+        // High risk
+        'high_risk_contact_supervisor': 'Contact the employee within the next working day',
+        'discuss_workload_and_deadlines': 'Discuss workload, deadlines, overtime, and necessary support',
+        'check_dynamics_after_actions': 'Monitor dynamics after actions taken',
+        
+        // Moderate risk
+        'moderate_risk_preventive_measures': 'Moderate risk indicators detected. Preventive measures and monitoring recommended.',
+        'discuss_workload_with_supervisor': 'Conduct a confidential discussion about current workload, deadlines, priorities, and overtime.',
+        'schedule_regular_breaks': 'Discuss the possibility of regular breaks and recovery time during the workday.',
+        'repeat_assessment_7_14_days': 'Reassess in 7-14 days.',
+        
+        // Low risk / Normal
+        'normal_emotional_state_detected': 'No significant signs of increased emotional tension detected.',
+        'no_additional_measures': 'No additional measures required.',
+        'maintain_balanced_schedule': 'Maintain a balanced work-rest schedule.',
+        'regular_check_ups': 'Next assessment recommended according to the established monitoring schedule.',
+        
+        // Factor-specific recommendations
+        'emotional_exhaustion_detected': 'Signs of reduced energy detected. Consider reviewing work and recovery patterns.',
+        'voice_monotony_detected': 'Reduced speech expressiveness detected. This indicator should be evaluated alongside other signals and historical data.',
+        'speech_pattern_changes': 'Changes in speech rate or pauses detected. Verify recording context and reassess under comparable conditions.',
+        'high_negative_activation': 'Elevated tension level detected. Consider discussing potential sources of stress.',
+        'reduced_positive_affect': 'Reduced positive emotional expression detected. This is a non-specific signal and should not be interpreted as loss of motivation or loyalty.',
+        
+        // Error
+        'analysis_failed_retry': '⚠️ Analysis failed. Please try again.',
       },
+      
       comments: {
-        'без_истории_нескольких_текущих_записей_нельзя_надежно_различить_short_stress_vs_chronic_burnout': 'Without a history of multiple recordings, it is not possible to reliably distinguish short-term stress from chronic burnout.',
+        'need_history_to_distinguish_short_vs_chronic': 'Without a history of multiple recordings, it is not possible to reliably distinguish short-term stress from chronic burnout.',
+        'need_dynamics_for_sustained_stress': 'To distinguish short-term stress from sustained risk, dynamics of multiple comparable recordings are needed.',
+        'burnout_compatible_not_diagnosis': 'Result is consistent with professional burnout, but is not a diagnosis.',
+        'low_affect_nonspecific_signal': 'Reduced emotional expressiveness is a non-specific signal requiring context analysis.',
+        'без_истории_нескольких_текущих_записей_нельзя_надежно_различить_short_stress_vs_chronic_burnout': 'To distinguish between short-term stress and sustained risk, multiple comparable recordings are needed. A single recording cannot reliably indicate chronic stress or professional burnout.',
       },
-    },
-    // Features page (top-level keys for Features.jsx)
-    features_title: 'Razuma is an ecosystem of AI tools that combines neuromarketing methods, emotion AI and API integrations for businesses of any scale',
-    features_main: 'Main Features',
-    feature_card1: 'Real-time emotion recognition from photos, videos and audio',
-    feature_card2: 'Creating plugins for CRM (Bitrix24, amoCRM, etc.)',
-    feature_card3: 'Analysis of A/B testing of advertising creatives or product packaging',
-    feature_card4: 'UX interface analysis',
-    feature_card5: 'Automatic assessment of customer emotional state parameters and recommendations based on it',
-    feature_card6: 'Integrations via API and SDK',
-    feature_card7: 'Product adaptation and white label development according to technical specifications',
-    clients_title: 'Who already uses Razuma:',
-    clients_b2b: 'agencies, brands, product developers, educational platforms',
-    clients_b2c: 'specialists, small businesses, consultants',
-    contact: {
-      title: 'Contact Information',
-      legalInfo: 'Legal Information',
-      contactDetails: 'Contact Details',
-      companyNameLabel: 'Company Name',
-      legalAddressLabel: 'Legal Address',
-      innLabel: 'Tax ID',
-      ogrnipLabel: 'State Registration Number',
-      emailLabel: 'Email',
-      phoneLabel: 'Phone',
-      workingHoursLabel: 'Working Hours',
-      companyName: 'RAZUMNYE TEKHNOLOGII LLC',
-      legalAddress: '121205, Moscow, Skolkovo Innovation Center, Bolshoy Blvd, 42, bldg. 1',
-      inn: '9731157733',
-      ogrnip: '1257700507745',
-      email: 'inbox@razuma.pro',
-      phone: '+7 (903) 295-89-71',
-      workingHours: 'Mon-Fri, 9:00-18:00',
+      
+      errors: {
+        'analysis_failed': 'Analysis failed. Please try again.'
+      }
     },
     footer: {
       demo: 'Demo',
