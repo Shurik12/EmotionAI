@@ -12,14 +12,14 @@ namespace audio {
 // BurnoutAnalyzer
 // 
 // Analyzes audio features and emotion probabilities to detect burnout risk
-// Based on the algorithm from the Python burnout_analyzer.py
+// Returns KEYS for frontend translations, not raw text
 //=============================================================================
 class BurnoutAnalyzer {
 public:
     BurnoutAnalyzer();
     ~BurnoutAnalyzer() = default;
     
-    // Main analysis method
+    // Main analysis method - returns Result with translation keys
     Result analyze(
         const nlohmann::json& current,
         const nlohmann::json& baseline,
@@ -121,12 +121,21 @@ private:
     // Get the dominant factor
     std::string getTopFactor(const std::unordered_map<std::string, double>& components);
     
-    // Generate recommendations
-    std::vector<std::string> generateRecommendations(
+    // Determine state with history-aware logic
+    State determineState(
+        double risk,
+        const std::unordered_map<std::string, double>& components,
+        const std::vector<nlohmann::json>& history
+    );
+    
+    // Generate recommendation KEYS for frontend translations
+    std::vector<std::string> generateRecommendationKeys(
         Level level,
-        const std::string& top_factor,
         const std::unordered_map<std::string, double>& components
     );
+    
+    // Generate comment KEY for frontend translations
+    std::string getCommentKey(State state, size_t history_size) const;
 };
 
 } // namespace audio

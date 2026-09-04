@@ -25,15 +25,12 @@ nlohmann::json Result::toJson() const {
     }
     j["components"] = comps;
     
-    // Recommendations
+    // Recommendations - these are KEYS, not text
     j["recommendations"] = recommendations;
     
     return j;
 }
 
-//=============================================================================
-// Result: fromJson
-//=============================================================================
 Result Result::fromJson(const nlohmann::json& data) {
     Result result;
     

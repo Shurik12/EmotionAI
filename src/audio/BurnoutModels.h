@@ -31,8 +31,8 @@ struct Result {
     double confidence = 0.0;     // 0.0 - 1.0
     std::string top_factor;
     std::unordered_map<std::string, double> components;
-    std::vector<std::string> recommendations;
-    std::string comment;
+    std::vector<std::string> recommendations;  // Stores KEYS for frontend translations
+    std::string comment;  // Stores a KEY for frontend translation
     std::string error;
     
     // Convert to JSON
