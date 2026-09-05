@@ -158,14 +158,6 @@ container's working directory is `/emotionai`, where `config.yaml` is mounted.
 
 `make help` lists every target.
 
-> **Known issue:** the `models` target runs `cd venv && python3 prepare_models_for_emotieffcpplib.py`,
-> but the script lives in `contrib/emotiefflib/models/`. Until the Makefile is fixed, run it directly:
->
-> ```bash
-> . venv/bin/activate
-> cd contrib/emotiefflib/models && python3 prepare_models_for_emotieffcpplib.py
-> ```
-
 ---
 
 ## Configuration
@@ -291,9 +283,13 @@ sudo certbot certificates
 ## Testing
 
 ```bash
-make unit_tests          # build/tests/EmotionAI_UnitTests
-make integration_tests   # build/tests/EmotionAI_IntegrationTests
+make test   # configures with -DBUILD_TESTS=ON, builds and runs build/tests/emotionai_tests
 ```
+
+> Tests are currently disabled in the build: `add_subdirectory(tests)` is commented out at
+> `CMakeLists.txt:211-213`, so `make test` fails until that block and `enable_testing()` on line 209
+> are restored. `option(BUILD_TESTS ... ON)` on line 4 is otherwise inert. GTest and gmock are
+> required (`sudo apt-get install -y libgtest-dev libgmock-dev`).
 
 - `tests/unit/` — config, db, logging
 - `tests/integration/` — server and end-to-end flows
@@ -347,7 +343,7 @@ and run the binary on an internal port.
 
 1. Open an issue: https://github.com/Shurik12/EmotionAI/issues
 2. Branch from `main`, keep changes focused, add tests for new behaviour.
-3. Run `make unit_tests` before opening a PR.
+3. Run `make test` before opening a PR.
 
 ## License
 

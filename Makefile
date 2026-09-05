@@ -1,86 +1,49 @@
-.PHONY: configure build build_frontend build_backend install run python_env models clean help unit_tests integration_tests deploy_production
-
-help:
-	@echo "Available commands:"
-	@echo ""
-	@echo "  Setup & Environment:"
-	@echo "    make install         Install system dependencies"
-	@echo "    make python_env      Create Python virtual env and install deps"
-	@echo "    make clean           Remove build artifacts, venv, and caches"
-	@echo ""
-	@echo "  Development Build:"
-	@echo "    make configure       Configure CMake build system"
-	@echo "    make models          Generate C++ models from Python scripts"
-	@echo "    make build_backend   Build backend C++ code"
-	@echo "    make build_frontend  Build frontend React application"
-	@echo "    make build           Full build (configure + backend + frontend)"
-	@echo ""
-	@echo "  Testing:"
-	@echo "    make unit_tests      Run unit tests"
-	@echo "    make integration_tests  Run integration tests"
-	@echo ""
-	@echo "  Deployment:"
-	@echo "    make restart         Restart Docker containers"
-	@echo "    make up         		Up Docker containers"
-	@echo "    make down         	Down Docker containers"
-	@echo ""
-	@echo "  Other:"
-	@echo "    make help            Show this help message"
-
 MODELS_DIR := contrib/emotiefflib/models
-CONFIG_DIR := config
-NGINX_SOURCE := $(CONFIG_DIR)/nginx
-NGINX_TARGET := /etc/nginx/sites-available/emotion-ai
-SERVICE_SOURCE := $(CONFIG_DIR)/service
-SERVICE_TARGET := /etc/systemd/system/emotion-ai.service
 
-install:
+.PHONY: help install python_env models configure build_backend build_frontend build test \
+        up up-build down restart clean
+
+help: ## List targets
+	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F'## ' \
+		'{split($$1,a,":"); printf "  \033[36m%-15s\033[0m %s\n", a[1], $$2}'
+
+install: ## System deps, submodules, libtorch/onnxruntime
 	bash install_deps.sh
 
-configure:
-	mkdir -p build && cd build && cmake .. -G Ninja
-
-build_backend:
-	cd build && ninja -j4
-
-build_frontend:
-	cd frontend && npm install && npm run build
-
-build: configure build_backend build_frontend
-
-up:
-	docker compose up -d
-
-up-build:
-	docker compose up -d --build
-
-down:
-	docker compose down
-
-restart: down up
-
-unit_tests:
-	cd build && ./tests/EmotionAI_UnitTests
-
-integration_tests:
-	cd build && ./tests/EmotionAI_IntegrationTests
-
-python_env: venv
+python_env: ## Create venv and install Python deps
+	python3 -m venv venv
 	. venv/bin/activate && pip install -r requirements.txt
 
-venv:
-	python3 -m venv venv
+models: python_env ## Export C++ model headers from emotiefflib
+	. venv/bin/activate && cd $(MODELS_DIR) && python3 prepare_models_for_emotieffcpplib.py
 
-models: python_env
-	. venv/bin/activate && cd venv && python3 prepare_models_for_emotieffcpplib.py
+configure: ## Configure CMake with Ninja
+	cmake -S . -B build -G Ninja
 
-clean-pyc:
-	find . -type d -name "__pycache__" -exec rm -rf {} +
+build_backend: configure ## Build the C++ server
+	cmake --build build
 
-clean:
-	rm -rf \
-		build \
-		frontend/node_modules \
-		frontend/build \
-		$(VENV_DIR) \
-		package-lock.json
+build_frontend: ## Build the React app into frontend/dist
+	cd frontend && npm install && npm run build
+
+build: build_backend build_frontend ## Configure and build everything
+
+test: ## Build and run tests; needs CMakeLists.txt:211-213 uncommented
+	cmake -S . -B build -G Ninja -DBUILD_TESTS=ON
+	cmake --build build --target emotionai_tests
+	./build/tests/emotionai_tests
+
+up: ## Start containers
+	docker compose up -d
+
+up-build: ## Start containers, rebuilding images
+	docker compose up -d --build
+
+down: ## Stop containers
+	docker compose down
+
+restart: down up ## Restart containers
+
+clean: ## Remove build output, venv, node_modules, caches
+	rm -rf build frontend/dist frontend/node_modules venv
+	find . -type d -name __pycache__ -prune -exec rm -rf {} +
