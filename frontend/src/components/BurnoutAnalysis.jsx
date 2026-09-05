@@ -40,15 +40,15 @@ export const BurnoutAnalysis = ({ data }) => {
   const getComponentName = (key) => {
     const componentMap = {
       exhaustion: t('burnout.components.exhaustion'),
-      emotional_tension: t('burnout.components.emotionalTension'),
+      emotional_tension: t('burnout.components.negativeActivation'),
       pause_tempo: t('burnout.components.pauseTempo'),
-      prosodic_flattening: t('burnout.components.speechColorReduction'),
-      negative_activation: t('burnout.components.emotionalTension'),
-      positive_affect_loss: t('burnout.components.speechColorReduction'),
-      'Positive Affect Loss': t('burnout.components.speechColorReduction'),
-      'Prosodic Flattening': t('burnout.components.speechColorReduction'),
+      prosodic_flattening: t('burnout.components.prosodicFlattening'),
+      negative_activation: t('burnout.components.negativeActivation'),
+      positive_affect_loss: t('burnout.components.positiveAffectLoss'),
+      'Positive Affect Loss': t('burnout.components.positiveAffectLoss'),
+      'Prosodic Flattening': t('burnout.components.prosodicFlattening'),
       'Pause/Tempo Changes': t('burnout.components.pauseTempo'),
-      'Negative Activation': t('burnout.components.emotionalTension'),
+      'Negative Activation': t('burnout.components.negativeActivation'),
       'Emotional Exhaustion': t('burnout.components.exhaustion'),
     };
     return componentMap[key] || key;
