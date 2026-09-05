@@ -206,9 +206,10 @@ export const translations = {
 
       components: {
         exhaustion: 'Эмоциональное истощение',
-        emotionalTension: 'Эмоциональное напряжение',
+        prosodicFlattening: 'Снижение интонационной выразительности',
         pauseTempo: 'Изменение темпа речи и паузы',
-        speechColorReduction: 'Снижение эмоциональной окраски речи',
+        negativeActivation: 'Эмоциональное напряжение',
+        positiveAffectLoss: 'Снижение положительной эмоциональной окраски',
       },
 
       states: {
