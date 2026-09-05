@@ -117,8 +117,15 @@ The codebase is **inconsistent** — match the file you are editing rather than 
 - **Never commit** `config.yaml`, `models/`, `venv/`, `build/`, `uploads/`, `results/`, `logs/`,
   `data/`, `frontend/dist/` — all gitignored, and `config.yaml` holds credentials
   (`dragonfly.password`, `gigachat.auth_key`).
-- **`contrib/emotiefflib` is a submodule and is currently dirty** (`git status` shows
-  ` m contrib/emotiefflib`). Inspect before staging; don't commit a stray submodule pointer bump.
+- **`contrib/emotiefflib` submodule is always dirty after `make install` — this is expected, not a
+  problem.** The two modified files (`emotieffcpplib/CMakeLists.txt`,
+  `models/prepare_models_for_emotieffcpplib.py`) are exactly the content of the tracked
+  `emotiefflib.patch`, applied by `install_deps.sh:43`. The changes live in the parent repo as the
+  patch file, so they are reproducible for anyone running `make install`. **Never commit inside the
+  submodule or bump the parent's submodule pointer** — a local fork commit is unreachable for other
+  clones and breaks their `git submodule update`, and `git apply` would then fail on re-install.
+  The long-term fix is a PR upstream to `sb-ai-lab/EmotiEffLib`; after it merges, bump the pointer
+  and delete the patch file plus the `git apply` line in `install_deps.sh`.
 - `requirements.txt` is for **training/export only**. Adding a package there does not make it
   available to the running server.
 - The systemd unit `config/service` will not start as written: `ExecStart` points at
