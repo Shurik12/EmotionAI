@@ -4,52 +4,45 @@ import { useLanguage } from '../hooks/useLanguage';
 export const Contact = () => {
   const { t } = useLanguage();
 
-  // Use translations for both labels and values
-  const legalInfo = [
-    { label: t('contact.companyNameLabel'), value: t('contact.companyName') },
-    { label: t('contact.legalAddressLabel'), value: t('contact.legalAddress') },
-    { label: t('contact.innLabel'), value: t('contact.inn') },
-    { label: t('contact.ogrnipLabel'), value: t('contact.ogrnip') },
-  ];
-
-  const contactInfo = [
-    { label: t('contact.emailLabel'), value: t('contact.email') },
-    { label: t('contact.phoneLabel'), value: t('contact.phone') },
-    { label: t('contact.workingHoursLabel'), value: t('contact.workingHours') },
-  ];
-
   return (
-    <div className="contact-container">
+    <div className="contact-page">
       <div className="container">
-        <section className="contact-hero">
-          <h1>{t('contact.title')}</h1>
-        </section>
-
-        <section className="contact-content">
-          <div className="contact-card">
-            <h2>{t('contact.legalInfo')}</h2>
-            <div className="info-grid">
-              {legalInfo.map((item, index) => (
-                <div key={index} className="info-row">
-                  <strong>{item.label}:</strong>
-                  <span>{item.value}</span>
-                </div>
-              ))}
-            </div>
+        <h1>{t('contact.title')}</h1>
+        
+        <div className="contact-section">
+          <h2>{t('contact.legalInfo')}</h2>
+          <div className="contact-info">
+            <p>
+              <strong>{t('contact.companyNameLabel')}: </strong> {t('contact.companyName')}
+            </p>
+            <p>
+              <strong>{t('contact.legalAddressLabel')}: </strong> {t('contact.legalAddress')}
+            </p>
+            <p>
+              <strong>{t('contact.inlnLabel')}: </strong> {t('contact.inln')}
+            </p>
+            <p>
+              <strong>{t('contact.ogrnipLabel')}: </strong> {t('contact.ogrnip')}
+            </p>
           </div>
-
-          <div className="contact-card">
-            <h2>{t('contact.contactDetails')}</h2>
-            <div className="info-grid">
-              {contactInfo.map((item, index) => (
-                <div key={index} className="info-row">
-                  <strong>{item.label}:</strong>
-                  <span>{item.value}</span>
-                </div>
-              ))}
-            </div>
+        </div>
+        
+        <div className="contact-section">
+          <h2>{t('contact.contactDetails')}</h2>
+          <div className="contact-info">
+            <p>
+              <strong>{t('contact.emailLabel')}: </strong> 
+              <a href={`mailto:${t('contact.email')}`}>{t('contact.email')}</a>
+            </p>
+            <p>
+              <strong>{t('contact.phoneLabel')}: </strong> 
+              <a href={`tel:${t('contact.phone').replace(/\s/g, '')}`}>{t('contact.phone')}</a>
+            </p>
+            <p>
+              <strong>{t('contact.workingHoursLabel')}: </strong> {t('contact.workingHours')}
+            </p>
           </div>
-        </section>
+        </div>
       </div>
     </div>
   );
