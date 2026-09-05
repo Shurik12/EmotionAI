@@ -4,21 +4,14 @@ import { useLanguage } from '../hooks/useLanguage';
 export const Features = () => {
   const { t } = useLanguage();
 
-  const featureCards = [
-    t('feature_card1'),
-    t('feature_card2'),
-    t('feature_card3'),
-    t('feature_card4'),
-    t('feature_card5'),
-    t('feature_card6'),
-    t('feature_card7'),
-  ];
+  // Get feature cards from translations
+  const featureCards = t('features.cards', [], true); // Pass true to get array
 
   return (
     <section className="features-section">
       <div className="container">
-        <h1>{t('features_title')}</h1>
-        <h2 className="section-title">{t('features_main')}</h2>
+        <h1>{t('features.title')}</h1>
+        <h2 className="section-title">{t('features.main')}</h2>
 
         <div className="features-grid">
           {featureCards.map((text, index) => (
@@ -29,9 +22,9 @@ export const Features = () => {
         </div>
 
         <div className="clients-block">
-          <p>{t('clients_title')}</p>
-          <p><strong>B2B:</strong> {t('clients_b2b')}</p>
-          <p><strong>B2C / МСП:</strong> {t('clients_b2c')}</p>
+          <p>{t('features.clients.title')}</p>
+          <p><strong>B2B:</strong> {t('features.clients.b2b')}</p>
+          <p><strong>B2C / МСП:</strong> {t('features.clients.b2c')}</p>
         </div>
       </div>
     </section>

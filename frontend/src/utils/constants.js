@@ -20,6 +20,31 @@ export const BURNOUT_COLORS = {
   severe: '#dc3545',
 };
 
+export const BURNOUT_STATE_COLORS = {
+  NORMAL: '#28a745',
+  SHORT_STRESS: '#ffc107',
+  SUSTAINED_STRESS: '#fd7e14',
+  BURNOUT_LIKE: '#dc3545',
+  LOW_AFFECT_UNSPECIFIC: '#6c757d',
+  INSUFFICIENT_DATA: '#6c757d',
+};
+
+export const BURNOUT_STATE_MAP = {
+  NORMAL: 'normal',
+  SHORT_STRESS: 'shortStress',
+  SUSTAINED_STRESS: 'sustainedStress',
+  BURNOUT_LIKE: 'burnoutLike',
+  LOW_AFFECT_UNSPECIFIC: 'lowAffect',
+  INSUFFICIENT_DATA: 'insufficientData',
+};
+
+export const BURNOUT_LEVEL_CLASSES = {
+  low: 'level-low',
+  moderate: 'level-moderate',
+  high: 'level-high',
+  severe: 'level-severe',
+};
+
 export const BURNOUT_LABELS = {
   low: 'Low Risk',
   moderate: 'Moderate Risk',
@@ -28,18 +53,15 @@ export const BURNOUT_LABELS = {
 };
 
 export const FILE_CONSTANTS = {
-  MAX_SIZE: 50 * 1024 * 1024, // 50MB
+  MAX_SIZE: 50 * 1024 * 1024,
   VALID_TYPES: [
-    // Images
     'image/jpeg',
     'image/png',
     'image/jpg',
-    // Videos
     'video/mp4',
     'video/avi',
     'video/webm',
     'video/x-msvideo',
-    // Audio
     'audio/mpeg',
     'audio/mp3',
     'audio/wav',
@@ -57,15 +79,35 @@ export const FILE_CONSTANTS = {
   ],
 };
 
-// Processing modes with translation keys instead of static labels
 export const PROCESSING_MODES = [
-  { value: 'standard', labelKey: 'detector.modes.standard' },
   { value: 'burnout', labelKey: 'detector.modes.burnout' },
+  { value: 'standard', labelKey: 'detector.modes.standard' },
   { value: 'realtime', labelKey: 'detector.modes.realtime' },
 ];
 
-// Helper function to get translated mode labels
 export const getProcessingModeLabel = (value, t) => {
-  const mode = PROCESSING_MODES.find(m => m.value === value);
+  const mode = PROCESSING_MODES.find((m) => m.value === value);
   return mode ? t(mode.labelKey) : value;
+};
+
+export const getBurnoutStateColor = (state) => {
+  return BURNOUT_STATE_COLORS[state] || '#6c757d';
+};
+
+export const getBurnoutStateKey = (state) => {
+  return BURNOUT_STATE_MAP[state] || 'insufficientData';
+};
+
+export const getBurnoutLevelClass = (level) => {
+  return BURNOUT_LEVEL_CLASSES[level] || 'level-low';
+};
+
+export const getBurnoutLevelColor = (level) => {
+  const colorMap = {
+    low: '#28a745',
+    moderate: '#ffc107',
+    high: '#fd7e14',
+    severe: '#dc3545',
+  };
+  return colorMap[level] || '#28a745';
 };
