@@ -15,8 +15,10 @@ Repo: `git@github.com:Shurik12/EmotionAI.git`, branch `main`. No CI is configure
 ## Commands that actually work
 
 ```bash
+make help             # self-documenting target list, generated from the Makefile
 make install          # apt deps + submodules + libtorch/onnxruntime into contrib/ + emotiefflib patch
 make python_env       # venv + requirements.txt
+make models           # export C++ model headers from contrib/emotiefflib/models
 make build            # configure (CMake+Ninja) + build_backend + build_frontend
 make up               # docker compose: dragonfly + server
 ./build/emotionai     # run binary directly (from repo root only)
@@ -26,16 +28,15 @@ make up               # docker compose: dragonfly + server
 
 | Command | Why it fails |
 |---|---|
-| `make run` | Listed in `.PHONY` but **no such target exists**. Use `make up` or run the binary. |
-| `make unit_tests` / `make integration_tests` | Point at `build/tests/EmotionAI_*Tests`, but `add_subdirectory(tests)` is **commented out** in `CMakeLists.txt:211-213`. The binaries are never built. Uncomment (and `enable_testing()` at line 209) before attempting to run tests. |
-| `make models` | Runs `cd venv && python3 prepare_models_for_emotieffcpplib.py`, but the script is at `contrib/emotiefflib/models/`. The Makefile defines an unused `MODELS_DIR` with the correct path. Run manually: `. venv/bin/activate && cd contrib/emotiefflib/models && python3 prepare_models_for_emotieffcpplib.py` |
-| `make clean` | Help text claims it removes venv and caches. It references an **undefined** `$(VENV_DIR)`, and targets `frontend/build` + root `package-lock.json`, neither of which exists (real dir is `frontend/dist`). |
-| `install_deps.sh` | Does **not** install `libfftw3-dev` or FFmpeg dev packages. FFTW3 is mandatory — a clean install fails at build. Also its "Verifying installations" output claims to check PostgreSQL client, httplib and redis-plus-plus, none of which it installs. |
+| `make run` | **No such target.** Use `make up` or run `./build/emotionai` from the repo root. |
+| `make test` | Correctly targets the single real binary `build/tests/emotionai_tests` and passes `-DBUILD_TESTS=ON`, but `add_subdirectory(tests)` is **commented out** in `CMakeLists.txt:211-213`, so the target is never generated. Uncomment that block plus `enable_testing()` on line 209. Note `tests/CMakeLists.txt` builds **one** binary, `emotionai_tests` — there is no unit/integration split despite what older docs claimed. |
+| `install_deps.sh` | Does **not** install `libfftw3-dev` or FFmpeg dev packages. FFTW3 is mandatory — a clean install fails at build. It also omits `libgtest-dev`, needed for `make test`. Its "Verifying installations" output claims to check PostgreSQL client, httplib and redis-plus-plus, none of which it installs. |
 
 Install the missing deps manually:
 
 ```bash
-sudo apt-get install -y libfftw3-dev ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
+sudo apt-get install -y libfftw3-dev libgtest-dev libgmock-dev \
+  ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
 ```
 
 ## Non-obvious facts
