@@ -10,7 +10,7 @@ import { PROCESSING_MODES } from '../utils/constants';
 
 export const Detector = () => {
   const { t } = useLanguage();
-  const [mode, setMode] = useState('standard');
+  const [mode, setMode] = useState('burnout'); // Changed from 'audio_burnout' to 'burnout'
   const [consentGiven, setConsentGiven] = useState(false);
   const [results, setResults] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);

@@ -4,116 +4,276 @@
 
 .burnout-analysis {
   margin-top: var(--spacing-lg);
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--color-border);
-}
-
-.burnout-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-md);
-}
-
-.burnout-badge {
-  padding: var(--spacing-xs) var(--spacing-md);
-  border-radius: 20px;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: white;
-}
-
-.burnout-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
-}
-
-.metric {
-  background: var(--color-bg-light);
   padding: var(--spacing-md);
-  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+/* Insufficient Data */
+.burnout-insufficient {
+  padding: var(--spacing-md);
   text-align: center;
-}
-
-.metric-label {
-  display: block;
-  font-size: var(--font-size-sm);
   color: var(--color-text-light);
-  margin-bottom: var(--spacing-xs);
 }
 
-.metric-value {
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-}
-
-.burnout-components {
-  margin-bottom: var(--spacing-lg);
-}
-
-.burnout-components h5 {
-  margin-bottom: var(--spacing-md);
-}
-
-.burnout-component {
-  margin-bottom: var(--spacing-sm);
-}
-
-.component-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--font-size-sm);
-  margin-bottom: 2px;
-}
-
-.component-bar {
-  width: 100%;
-  height: 6px;
-  background: var(--color-bg-light);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.component-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.5s ease;
-}
-
-.burnout-recommendations {
-  background: #e3f2fd;
-  padding: var(--spacing-md);
-  border-radius: var(--radius-sm);
-  margin-bottom: var(--spacing-md);
-}
-
-.burnout-recommendations h5 {
-  color: #0d47a1;
-  margin-bottom: var(--spacing-sm);
-}
-
-.burnout-recommendations ul {
-  padding-left: var(--spacing-lg);
+.burnout-insufficient p {
   margin: 0;
 }
 
-.burnout-recommendations li {
-  margin-bottom: var(--spacing-xs);
+.burnout-help-text {
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
 }
 
-.burnout-comment {
-  background: #fff8e1;
-  padding: var(--spacing-md);
-  border-radius: var(--radius-sm);
+/* State Header */
+.burnout-header {
   margin-bottom: var(--spacing-md);
 }
 
-.burnout-disclaimer {
+.burnout-state-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  color: #fff;
+  font-weight: 600;
+  font-size: var(--font-size-md);
+}
+
+/* State Description */
+.burnout-state-description {
+  padding: var(--spacing-md);
+  background: var(--color-bg-light);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-lg);
+  border-left: 4px solid var(--color-primary);
+}
+
+.burnout-state-description p {
+  margin: 0;
   font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
+/* Attention Level */
+.burnout-attention {
+  background: var(--color-bg-light);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+}
+
+.burnout-attention-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--spacing-md);
+}
+
+.burnout-attention-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.burnout-attention-label {
+  font-size: var(--font-size-xs);
   color: var(--color-text-light);
-  text-align: center;
-  padding-top: var(--spacing-md);
-  border-top: 1px solid var(--color-border);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.burnout-attention-value {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  transition: color 0.3s ease;
+}
+
+.burnout-attention-signal {
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+/* Indicators */
+.burnout-indicators {
+  margin-bottom: var(--spacing-lg);
+}
+
+.burnout-indicators h4 {
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-md);
+  color: var(--color-text);
+}
+
+.burnout-indicators-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-sm);
+}
+
+.burnout-indicator-item {
+  margin-bottom: var(--spacing-xs);
+}
+
+.burnout-indicator-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+  font-size: var(--font-size-sm);
+}
+
+.burnout-indicator-label span:first-child {
+  color: var(--color-text);
+}
+
+.burnout-indicator-value {
+  font-weight: 600;
+  color: var(--color-text-light);
+}
+
+.burnout-indicator-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--color-bg-light);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.burnout-indicator-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+/* Sections */
+.burnout-section {
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.burnout-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.burnout-section h4 {
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-md);
+  color: var(--color-text);
+}
+
+.burnout-section p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-light);
+}
+
+.burnout-section ul {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+}
+
+.burnout-section li {
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-light);
+  margin-bottom: var(--spacing-xs);
+}
+
+/* Recommendations */
+.burnout-recommendations {
+  list-style: none;
+  padding: 0;
+}
+
+.burnout-recommendations li {
+  padding: var(--spacing-xs) 0;
+  padding-left: var(--spacing-md);
+  position: relative;
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-light);
+}
+
+.burnout-recommendations li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Disclaimer */
+.burnout-disclaimer {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: #fff8e1;
+  border-radius: var(--radius-sm);
+  border: 1px solid #ffecb3;
+}
+
+.burnout-disclaimer h4 {
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: #f57c00;
+}
+
+.burnout-disclaimer p {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  color: var(--color-text-light);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .burnout-analysis {
+    padding: var(--spacing-sm);
+  }
+
+  .burnout-attention-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+
+  .burnout-state-badge {
+    font-size: var(--font-size-sm);
+    padding: 4px 12px;
+  }
+
+  .burnout-attention-value {
+    font-size: var(--font-size-md);
+  }
+
+  .burnout-attention-signal {
+    font-size: var(--font-size-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .burnout-analysis {
+    padding: var(--spacing-sm);
+  }
+
+  .burnout-indicator-bar {
+    height: 6px;
+  }
+
+  .burnout-state-description {
+    padding: var(--spacing-sm);
+  }
+
+  .burnout-attention {
+    padding: var(--spacing-sm);
+  }
 }
