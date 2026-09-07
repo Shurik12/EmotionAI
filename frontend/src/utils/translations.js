@@ -148,7 +148,6 @@ export const translations = {
       averageEmotions: 'Средние эмоции',
       duration: 'Длительность',
       sampleRate: 'Частота дискретизации',
-      taskId: 'ID задачи',
       noBurnoutData: 'Нет данных анализа выгорания.',
       analysisResults: 'Результаты анализа',
       startingProcessing: 'Начало обработки...',
@@ -341,8 +340,8 @@ export const translations = {
     externalInfluence: {
       title: 'Сигнал возможного внешнего воздействия',
       subtitle: 'Антифрод-ориентир по аудиозаписи разговора (пилот)',
-      score: 'Индекс сигнала',
-      confidence: 'Надёжность оценки',
+      score: 'Индекс выраженности сигнала',
+      scoreHint: 'Не является вероятностью мошенничества.',
       quality: 'Качество аудио',
       persistentPattern: 'Устойчивое сочетание признаков',
       contextConfirmed: 'Подтверждено контекстными признаками',
@@ -350,7 +349,6 @@ export const translations = {
       componentsTitle: 'Из чего складывается оценка',
       fragmentTimeline: 'Оценки по фрагментам разговора',
       fragmentLabel: 'Фрагмент {n}',
-      fragmentsCount: 'Фрагментов обработано: {valid} из {total}',
       contextApplied: 'Контекстные признаки (учтены при расчёте)',
       managerAction: 'Действие менеджера',
       importantNote: 'Важно знать',
@@ -364,6 +362,20 @@ export const translations = {
         possiblePressure: 'Возможное внешнее давление',
         probableInfluence: 'Вероятное внешнее воздействие',
         highRisk: 'Высокий риск внешнего воздействия',
+      },
+
+      explanationLabel: 'Пояснение',
+
+      stateExplanations: {
+        low: 'Выраженных изменений эмоционального состояния и речевого поведения по голосовому сигналу не выявлено. Это не исключает воздействие, которое не проявилось в голосе.',
+        elevatedTension:
+          'Выявлены изменения эмоционального состояния и речевого поведения. Причина изменений по голосовому сигналу не определяется.',
+        possiblePressure:
+          'Выявлены отдельные изменения эмоционального состояния и речевого поведения, возможные при внешнем давлении. Сами по себе они не являются признаком мошенничества.',
+        probableInfluence:
+          'Изменения эмоционального состояния и речевого поведения устойчивы и сочетаются с признаками, характерными для внешнего воздействия. Причина изменений по голосовому сигналу однозначно не определяется.',
+        highRisk:
+          'Выявлено устойчивое сочетание выраженных изменений и признаков, характерных для внешнего воздействия. Результат — пилотный сигнал и не является доказательством мошенничества.',
       },
 
       factors: {
@@ -388,13 +400,6 @@ export const translations = {
         pauseTempoDeviation: 'Темп речи и паузы',
         prosodicDeviation: 'Интонационная выразительность',
         positiveAffectLoss: 'Положительная эмоциональная окраска',
-      },
-
-      confidenceParts: {
-        audioQuality: 'Качество аудио',
-        baselineReliability: 'Базовый профиль',
-        meanModelProbability: 'Уверенность модели',
-        speechCoverage: 'Покрытие речью',
       },
 
       context: {
@@ -604,7 +609,6 @@ export const translations = {
       averageEmotions: 'Average Emotions',
       duration: 'Duration',
       sampleRate: 'Sample Rate',
-      taskId: 'Task ID',
       noBurnoutData: 'No burnout analysis data available.',
       analysisResults: 'Analysis Results',
       startingProcessing: 'Starting processing...',
@@ -763,8 +767,8 @@ export const translations = {
     externalInfluence: {
       title: 'Possible External Influence Signal',
       subtitle: 'Anti-fraud aid from a call recording (pilot)',
-      score: 'Signal Index',
-      confidence: 'Assessment Confidence',
+      score: 'Signal Intensity Index',
+      scoreHint: 'Not a probability of fraud.',
       quality: 'Audio Quality',
       persistentPattern: 'Persistent Pattern',
       contextConfirmed: 'Context Confirmed',
@@ -772,7 +776,6 @@ export const translations = {
       componentsTitle: 'Assessment Components',
       fragmentTimeline: 'Fragment Scores',
       fragmentLabel: 'Fragment {n}',
-      fragmentsCount: 'Fragments analyzed: {valid} of {total}',
       contextApplied: 'Context flags (applied to the analysis)',
       managerAction: 'Manager Action',
       importantNote: 'Important to Know',
@@ -786,6 +789,20 @@ export const translations = {
         possiblePressure: 'Possible External Pressure',
         probableInfluence: 'Probable External Influence',
         highRisk: 'High External Influence Risk',
+      },
+
+      explanationLabel: 'Explanation',
+
+      stateExplanations: {
+        low: 'No pronounced changes in emotional state or speech behavior were detected in the voice signal. This does not rule out influence that did not manifest in the voice.',
+        elevatedTension:
+          'Changes in emotional state and speech behavior were detected. The cause of the changes cannot be determined from the voice signal.',
+        possiblePressure:
+          'Some changes in emotional state and speech behavior consistent with external pressure were detected. On their own they are not evidence of fraud.',
+        probableInfluence:
+          'Changes in emotional state and speech behavior are sustained and combine with features typical of external influence. The cause cannot be determined unambiguously from the voice signal.',
+        highRisk:
+          'A persistent combination of pronounced changes and features typical of external influence was detected. The result is a pilot signal and is not proof of fraud.',
       },
 
       factors: {
@@ -810,13 +827,6 @@ export const translations = {
         pauseTempoDeviation: 'Speech tempo and pauses',
         prosodicDeviation: 'Prosodic expressiveness',
         positiveAffectLoss: 'Positive emotional tone',
-      },
-
-      confidenceParts: {
-        audioQuality: 'Audio quality',
-        baselineReliability: 'Baseline profile',
-        meanModelProbability: 'Model confidence',
-        speechCoverage: 'Speech coverage',
       },
 
       context: {
