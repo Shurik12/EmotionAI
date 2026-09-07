@@ -4,7 +4,6 @@ import {
   getExternalInfluenceStatusColor,
   getExternalInfluenceStatusKey,
   EXTERNAL_INFLUENCE_STATUS_COLORS,
-  EXTERNAL_INFLUENCE_CONFIDENCE_PARTS,
 } from '../utils/constants';
 
 const pct = (value) => Math.round((value || 0) * 100);
@@ -36,7 +35,6 @@ export const ExternalInfluenceResults = ({ results }) => {
   const envelope = results?.result || {};
   const res = envelope.result || null;
   const diag = envelope.diagnostics || null;
-  const taskId = results?.task_id;
 
   if (!res || !diag) {
     return (
@@ -82,17 +80,6 @@ export const ExternalInfluenceResults = ({ results }) => {
         <span>
           {t('externalInfluence.quality')}: {pct(diag.audioQuality)}%
         </span>
-        <span>
-          {t('externalInfluence.fragmentsCount', {
-            valid: diag.fragmentCount || 0,
-            total: diag.totalFragmentCount || 0,
-          })}
-        </span>
-        {taskId && (
-          <span>
-            {t('detector.taskId')}: {taskId}
-          </span>
-        )}
       </div>
 
       <div className="ei-header">
@@ -102,6 +89,13 @@ export const ExternalInfluenceResults = ({ results }) => {
         <div className="ei-subtitle">{t('externalInfluence.subtitle')}</div>
       </div>
 
+      {!isInsufficient && (
+        <div className="ei-state-explanation">
+          <strong>{t('externalInfluence.explanationLabel')}: </strong>
+          {t(`externalInfluence.stateExplanations.${statusKey}`)}
+        </div>
+      )}
+
       {isInsufficient && (
         <div className="ei-insufficient">
           <p className="ei-guidance-text">{t('externalInfluence.guidance.insufficientData')}</p>
@@ -109,21 +103,14 @@ export const ExternalInfluenceResults = ({ results }) => {
             <p className="ei-reason-text">{t(`externalInfluence.reasons.${reasonKey}`)}</p>
           )}
           <div className="ei-insufficient-detail">
-            <span>{t('externalInfluence.confidence')}: {pct(res.confidence)}%</span>
             <span>{t('externalInfluence.quality')}: {pct(diag.audioQuality)}%</span>
             <span>{t('externalInfluence.score')}: {pct(res.score)}%</span>
-            <span>
-              {t('externalInfluence.fragmentsCount', {
-                valid: diag.fragmentCount || 0,
-                total: diag.totalFragmentCount || 0,
-              })}
-            </span>
           </div>
         </div>
       )}
 
       <div className="ei-metrics-grid">
-        <div className="ei-metric-item">
+        <div className="ei-metric-item ei-score-metric">
           <span className="ei-metric-label">{t('externalInfluence.score')}</span>
           <div className="ei-score-bar">
             <div
@@ -132,27 +119,8 @@ export const ExternalInfluenceResults = ({ results }) => {
             />
           </div>
           <span className="ei-metric-value">{pct(res.score)}%</span>
+          <span className="ei-score-hint">{t('externalInfluence.scoreHint')}</span>
         </div>
-        <div className="ei-metric-item">
-          <span className="ei-metric-label">{t('externalInfluence.confidence')}</span>
-          <div className="ei-metric-value">{pct(res.confidence)}%</div>
-        </div>
-      </div>
-
-      <div className="ei-confidence-parts">
-        {EXTERNAL_INFLUENCE_CONFIDENCE_PARTS.map(({ key, weight }) => {
-          const raw = diag[key] || 0;
-          return (
-            <span key={key} className="ei-confidence-part">
-              {weight} × {t(`externalInfluence.confidenceParts.${key}`)} {pct(raw)}%
-              {' → '}
-              <b>{pct(raw * weight)}%</b>
-            </span>
-          );
-        })}
-        <span className="ei-confidence-total">
-          = {pct(res.confidence)}%
-        </span>
       </div>
 
       <div className="ei-chip-row">

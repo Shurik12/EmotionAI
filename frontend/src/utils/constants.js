@@ -140,13 +140,3 @@ export const getExternalInfluenceStatusColor = (status) => {
 export const getExternalInfluenceStatusKey = (status) => {
   return EXTERNAL_INFLUENCE_STATE_MAP[status] || 'insufficientData';
 };
-
-// Confidence composition parity with the backend ExternalInfluenceConfig
-// confidence_weight_* fields (sum = 1.0). Keys must match diagnostics field
-// names (audioQuality etc. are mapped here). Keep in sync when recalibrating.
-export const EXTERNAL_INFLUENCE_CONFIDENCE_PARTS = [
-  { key: 'audioQuality', weight: 0.4 },
-  { key: 'baselineReliability', weight: 0.25 },
-  { key: 'meanModelProbability', weight: 0.2 },
-  { key: 'speechCoverage', weight: 0.15 },
-];

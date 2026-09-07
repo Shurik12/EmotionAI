@@ -14,11 +14,56 @@ BurnoutAnalyzer::BurnoutAnalyzer() {
 }
 
 //=============================================================================
+// Helper: getNestedData - unwraps nested JSON structures
+//=============================================================================
+static nlohmann::json getNestedData(const nlohmann::json& data) {
+    // If data has a "result" field with the actual data (common in API responses)
+    if (data.contains("result") && data["result"].is_object()) {
+        return data["result"];
+    }
+    // If data has a "data" field with the actual data
+    if (data.contains("data") && data["data"].is_object()) {
+        return data["data"];
+    }
+    return data;
+}
+
+//=============================================================================
+// Helper: addLabelAliases - canonicalizes WavLM labels to BurnoutAnalyzer labels
+//=============================================================================
+static void addLabelAliases(nlohmann::json& probs_json) {
+    if (!probs_json.is_object()) return;
+    
+    auto alias = [&probs_json](const std::string& from, const std::string& to) {
+        if (!probs_json.contains(to) && probs_json.contains(from)) {
+            probs_json[to] = probs_json[from];
+        }
+    };
+    
+    // WavLM uses "anger" and "happiness", BurnoutAnalyzer expects "angry" and "happy"
+    alias("anger", "angry");
+    alias("angry", "anger");
+    alias("happiness", "happy");
+    alias("happy", "happiness");
+    
+    // Also handle other potential label variations
+    alias("fearful", "fear");
+    alias("fear", "fearful");
+    alias("disgusted", "disgust");
+    alias("disgust", "disgusted");
+    alias("surprised", "surprise");
+    alias("surprise", "surprised");
+    alias("neutral", "neutral");
+    alias("sad", "sad");
+    alias("sadness", "sad");
+}
+
+//=============================================================================
 // Main analyze method - Returns keys for frontend translations
 //=============================================================================
 Result BurnoutAnalyzer::analyze(
-    const nlohmann::json& current,
-    const nlohmann::json& baseline,
+    const nlohmann::json& current_raw,
+    const nlohmann::json& baseline_raw,
     const std::vector<nlohmann::json>& history,
     double audio_quality,
     double baseline_reliability)
@@ -27,6 +72,10 @@ Result BurnoutAnalyzer::analyze(
     
     try {
         LOG_INFO("Starting burnout analysis...");
+        
+        // Unwrap nested data structures
+        const nlohmann::json current = getNestedData(current_raw);
+        const nlohmann::json baseline = getNestedData(baseline_raw);
         
         // Check baseline
         if (baseline.empty() || baseline.is_null()) {
@@ -257,52 +306,111 @@ std::vector<std::string> BurnoutAnalyzer::generateRecommendationKeys(
 }
 
 //=============================================================================
-// getEmotionProbabilities
+// getEmotionProbabilities - WITH LABEL CANONICALIZATION
 //=============================================================================
 std::unordered_map<std::string, double> BurnoutAnalyzer::getEmotionProbabilities(
     const nlohmann::json& data)
 {
     std::unordered_map<std::string, double> probs;
     
-    // Try model_results
-    if (data.contains("model_results") && data["model_results"].is_array() && 
-        !data["model_results"].empty()) {
-        const auto& first = data["model_results"][0];
-        if (first.contains("all_probabilities") && first["all_probabilities"].is_object()) {
-            for (auto& [key, value] : first["all_probabilities"].items()) {
-                if (value.is_number()) probs[key] = value.get<double>();
+    // Unwrap nested data if needed
+    const nlohmann::json& input = getNestedData(data);
+    
+    // Helper to canonicalize labels in a probabilities object
+    auto canonicalizeAndExtract = [&](const nlohmann::json& probs_json) -> bool {
+        if (!probs_json.is_object()) return false;
+        
+        // Make a mutable copy and add aliases
+        nlohmann::json mutable_probs = probs_json;
+        addLabelAliases(mutable_probs);
+        
+        // Extract all probabilities
+        for (auto& [key, value] : mutable_probs.items()) {
+            if (value.is_number()) {
+                probs[key] = value.get<double>();
+            } else if (value.is_string()) {
+                try { 
+                    probs[key] = std::stod(value.get<std::string>()); 
+                } catch (...) { 
+                    // Skip non-numeric strings
+                }
             }
-            return probs;
+        }
+        return !probs.empty();
+    };
+    
+    // Try model_results (WavLM format)
+    if (input.contains("model_results") && input["model_results"].is_array() && 
+        !input["model_results"].empty()) {
+        const auto& first = input["model_results"][0];
+        if (first.contains("all_probabilities") && first["all_probabilities"].is_object()) {
+            if (canonicalizeAndExtract(first["all_probabilities"])) {
+                return probs;
+            }
+        }
+        
+        // Try model_results[0] directly (some formats)
+        if (first.is_object()) {
+            if (canonicalizeAndExtract(first)) {
+                return probs;
+            }
         }
     }
     
     // Try additional_probs (EmotionAI format)
-    if (data.contains("additional_probs") && data["additional_probs"].is_object()) {
-        for (auto& [key, value] : data["additional_probs"].items()) {
-            if (value.is_string()) {
-                try { probs[key] = std::stod(value.get<std::string>()); }
-                catch (...) { probs[key] = 0.0; }
-            } else if (value.is_number()) {
-                probs[key] = value.get<double>();
-            }
+    if (input.contains("additional_probs") && input["additional_probs"].is_object()) {
+        if (canonicalizeAndExtract(input["additional_probs"])) {
+            return probs;
         }
-        return probs;
     }
     
     // Try detailed_analysis
-    if (data.contains("detailed_analysis") && data["detailed_analysis"].is_object()) {
-        for (auto& [key, value] : data["detailed_analysis"].items()) {
+    if (input.contains("detailed_analysis") && input["detailed_analysis"].is_object()) {
+        const auto& detailed = input["detailed_analysis"];
+        
+        // Try wavlm_emotion_probabilities (common in detailed_analysis)
+        if (detailed.contains("wavlm_emotion_probabilities") && 
+            detailed["wavlm_emotion_probabilities"].is_object()) {
+            if (canonicalizeAndExtract(detailed["wavlm_emotion_probabilities"])) {
+                return probs;
+            }
+        }
+        
+        // Try any field ending with "probabilities"
+        for (auto& [key, value] : detailed.items()) {
             if (key.find("probabilities") != std::string::npos && value.is_object()) {
-                for (auto& [emotion, prob] : value.items()) {
-                    if (prob.is_number()) probs[emotion] = prob.get<double>();
+                if (canonicalizeAndExtract(value)) {
+                    return probs;
                 }
-                break;
             }
         }
     }
     
-    // Default values
+    // Try top-level probabilities
+    if (input.contains("probabilities") && input["probabilities"].is_object()) {
+        if (canonicalizeAndExtract(input["probabilities"])) {
+            return probs;
+        }
+    }
+    
+    // Try reading from main_prediction
+    if (input.contains("main_prediction") && input["main_prediction"].is_object()) {
+        const auto& main = input["main_prediction"];
+        if (main.contains("label") && main.contains("probability")) {
+            std::string label = main["label"].get<std::string>();
+            double prob = main["probability"].get<double>();
+            
+            // Map WavLM labels to BurnoutAnalyzer labels
+            if (label == "anger") label = "angry";
+            if (label == "happiness") label = "happy";
+            
+            probs[label] = prob;
+        }
+    }
+    
+    // Default values if nothing found
     if (probs.empty()) {
+        LOG_DEBUG("No emotion probabilities found, using defaults");
         probs["neutral"] = 0.2;
         probs["happy"] = 0.3;
         probs["sad"] = 0.1;
@@ -323,8 +431,10 @@ double BurnoutAnalyzer::getAcousticFeature(
     const std::string& key,
     double default_val)
 {
-    if (data.contains("acoustic_features") && data["acoustic_features"].is_object()) {
-        const auto& features = data["acoustic_features"];
+    const nlohmann::json& input = getNestedData(data);
+    
+    if (input.contains("acoustic_features") && input["acoustic_features"].is_object()) {
+        const auto& features = input["acoustic_features"];
         if (features.contains(key)) {
             const auto& val = features[key];
             if (val.is_number()) return val.get<double>();
