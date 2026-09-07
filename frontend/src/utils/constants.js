@@ -80,6 +80,7 @@ export const FILE_CONSTANTS = {
 };
 
 export const PROCESSING_MODES = [
+  { value: 'external_influence', labelKey: 'detector.modes.externalInfluence' },
   { value: 'burnout', labelKey: 'detector.modes.burnout' },
   { value: 'standard', labelKey: 'detector.modes.standard' },
   { value: 'realtime', labelKey: 'detector.modes.realtime' },
@@ -111,3 +112,41 @@ export const getBurnoutLevelColor = (level) => {
   };
   return colorMap[level] || '#28a745';
 };
+
+// External influence (scam signal) status ladder - codes must match the
+// backend ExternalInfluenceStatus enum exactly.
+export const EXTERNAL_INFLUENCE_STATUS_COLORS = {
+  INSUFFICIENT_DATA: '#6c757d',
+  LOW: '#28a745',
+  ELEVATED_TENSION: '#ffc107',
+  POSSIBLE_EXTERNAL_PRESSURE: '#fd7e14',
+  PROBABLE_EXTERNAL_INFLUENCE: '#dc3545',
+  HIGH_EXTERNAL_INFLUENCE_RISK: '#8b0000',
+};
+
+export const EXTERNAL_INFLUENCE_STATE_MAP = {
+  INSUFFICIENT_DATA: 'insufficientData',
+  LOW: 'low',
+  ELEVATED_TENSION: 'elevatedTension',
+  POSSIBLE_EXTERNAL_PRESSURE: 'possiblePressure',
+  PROBABLE_EXTERNAL_INFLUENCE: 'probableInfluence',
+  HIGH_EXTERNAL_INFLUENCE_RISK: 'highRisk',
+};
+
+export const getExternalInfluenceStatusColor = (status) => {
+  return EXTERNAL_INFLUENCE_STATUS_COLORS[status] || '#6c757d';
+};
+
+export const getExternalInfluenceStatusKey = (status) => {
+  return EXTERNAL_INFLUENCE_STATE_MAP[status] || 'insufficientData';
+};
+
+// Confidence composition parity with the backend ExternalInfluenceConfig
+// confidence_weight_* fields (sum = 1.0). Keys must match diagnostics field
+// names (audioQuality etc. are mapped here). Keep in sync when recalibrating.
+export const EXTERNAL_INFLUENCE_CONFIDENCE_PARTS = [
+  { key: 'audioQuality', weight: 0.4 },
+  { key: 'baselineReliability', weight: 0.25 },
+  { key: 'meanModelProbability', weight: 0.2 },
+  { key: 'speechCoverage', weight: 0.15 },
+];

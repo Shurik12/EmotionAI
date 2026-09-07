@@ -327,7 +327,11 @@ void Server::setupRoutes()
         {"/api/burnout/analyze", [this](auto &&ctx, auto &&body)
          { handleBurnoutAnalyze(ctx, body); }},
         {"/api/burnout/baseline", [this](auto &&ctx, auto &&body)
-         { handleBurnoutBaseline(ctx, body); }}
+         { handleBurnoutBaseline(ctx, body); }},
+        {"/api/upload_external_influence", [this](auto &&ctx, auto &&body)
+         { handleUploadExternalInfluence(ctx, body); }},
+        {"/api/external-influence/analyze", [this](auto &&ctx, auto &&body)
+         { handleExternalInfluenceAnalyze(ctx, body); }}
     };
 
     // GET routes
@@ -351,7 +355,8 @@ void Server::setupRoutes()
     // OPTIONS routes
     for (const auto &route : {"/api/upload", "/api/upload_realtime", "/api/upload_burnout",
                               "/api/submit_application", "/api/progress", "/api/results", 
-                              "/api/health", "/api/burnout/analyze", "/api/burnout/baseline", "/static"})
+                              "/api/health", "/api/burnout/analyze", "/api/burnout/baseline", "/static",
+                              "/api/upload_external_influence", "/api/external-influence/analyze"})
     {
         options_routes_[route] = [this](auto &&ctx)
         { handleOptions(ctx); };
@@ -1229,6 +1234,55 @@ void Server::handleUploadBurnout(
     }
 }
 
+void Server::handleUploadExternalInfluence(
+    const std::shared_ptr<ClientContext> &context,
+    const std::string &body)
+{
+    try {
+        LOG_DEBUG("Handling external influence upload request");
+
+        auto content_type_it = context->headers.find("content-type");
+        if (content_type_it == context->headers.end() ||
+            content_type_it->second.find("multipart/form-data") == std::string::npos) {
+            sendErrorResponse(context->fd, 400, "Expected multipart form data");
+            return;
+        }
+
+        std::string boundary = extractBoundary(content_type_it->second);
+        if (boundary.empty()) {
+            sendErrorResponse(context->fd, 400, "Invalid multipart data");
+            return;
+        }
+
+        auto form_data = parseMultipartFormData(body, boundary);
+        auto file_it = form_data.find("file");
+        if (file_it == form_data.end() || file_it->second.empty()) {
+            sendErrorResponse(context->fd, 400, "No file provided");
+            return;
+        }
+
+        std::string filename = form_data.contains("filename") ? form_data["filename"] : "uploaded_file";
+        if (filename.empty()) {
+            filename = "uploaded_file";
+        }
+
+        if (!file_processor_ || !file_processor_->allowed_file(filename)) {
+            sendErrorResponse(context->fd, 400, "Invalid file type");
+            return;
+        }
+
+        // Use the external influence upload handler
+        std::string task_id = handleUploadExternalInfluenceCommon(file_it->second, filename);
+        LOG_INFO("External influence upload accepted from client {}, task_id: {}", context->fd, task_id);
+
+        sendHttpResponse(context->fd, 202, "application/json",
+                         fmt::format(R"({{"task_id": "{}", "mode": "external_influence"}})", task_id));
+    } catch (const std::exception &e) {
+        LOG_ERROR("Exception in external influence upload from client {}: {}", context->fd, e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
 void Server::handleBurnoutAnalyze(
     const std::shared_ptr<ClientContext> &context,
     const std::string &body)
@@ -1270,6 +1324,72 @@ void Server::handleBurnoutAnalyze(
         sendErrorResponse(context->fd, 400, "Invalid JSON");
     } catch (const std::exception &e) {
         LOG_ERROR("Exception in burnout analyze: {}", e.what());
+        sendErrorResponse(context->fd, 500, fmt::format("Internal server error: {}", e.what()));
+    }
+}
+
+void Server::handleExternalInfluenceAnalyze(
+    const std::shared_ptr<ClientContext> &context,
+    const std::string &body)
+{
+    try {
+        LOG_DEBUG("Handling external influence analysis request");
+        
+        auto json_body = nlohmann::json::parse(body);
+        
+        std::string task_id = json_body.value("task_id", "");
+        if (task_id.empty()) {
+            sendErrorResponse(context->fd, 400, "task_id required");
+            return;
+        }
+        
+        // Get the stored analysis envelope (fragment records etc.)
+        auto &task_manager = TaskManager::instance();
+        auto task_status = task_manager.get_task_status(task_id);
+        
+        if (!task_status || !task_status->contains("result") ||
+            !(*task_status)["result"].is_object()) {
+            sendErrorResponse(context->fd, 404, "Task not found");
+            return;
+        }
+        
+        const auto &envelope = (*task_status)["result"];
+        if (envelope.value("type", "") != "audio_external_influence") {
+            sendErrorResponse(context->fd, 400, "Task is not an external influence analysis");
+            return;
+        }
+        if (!envelope.contains("fragments") || !envelope["fragments"].is_array()) {
+            sendErrorResponse(context->fd, 400, "Task has no fragment records");
+            return;
+        }
+        
+        // Get baseline if user_id provided
+        nlohmann::json baseline;
+        if (json_body.contains("user_id") && json_body["user_id"].is_string()) {
+            std::string user_id = json_body["user_id"];
+            baseline = file_processor_->get_user_baseline(user_id);
+        }
+        
+        // Optional context flags; unknown flags are ignored (analyzer warns)
+        std::vector<std::string> context_flags;
+        if (json_body.contains("context_flags") && json_body["context_flags"].is_array()) {
+            for (const auto &flag : json_body["context_flags"]) {
+                if (flag.is_string()) {
+                    context_flags.push_back(flag.get<std::string>());
+                }
+            }
+        }
+        
+        // Re-run the status logic on the stored fragments (no model re-run)
+        auto response = file_processor_->analyze_external_influence(envelope, baseline, context_flags);
+        
+        sendHttpResponse(context->fd, 200, "application/json", response.dump());
+        
+    } catch (const nlohmann::json::parse_error &e) {
+        LOG_ERROR("JSON parse error in external influence analyze: {}", e.what());
+        sendErrorResponse(context->fd, 400, "Invalid JSON");
+    } catch (const std::exception &e) {
+        LOG_ERROR("Exception in external influence analyze: {}", e.what());
         sendErrorResponse(context->fd, 500, fmt::format("Internal server error: {}", e.what()));
     }
 }
@@ -1606,6 +1726,124 @@ std::string Server::handleUploadBurnoutCommon(const std::string &file_content, c
                     {"error", e.what()},
                     {"complete", true},
                     {"mode", "burnout"},
+                    {"instance_id", instance_id_},
+                    {"storage_path", storage_path},
+                    {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now().time_since_epoch()).count()}
+                });
+            } catch (const std::exception& db_error) {
+                LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
+            }
+        }
+    });
+
+    return task_id;
+}
+
+std::string Server::handleUploadExternalInfluenceCommon(
+    const std::string &file_content, const std::string &filename)
+{
+    std::string task_id = DragonflyManager::generate_uuid();
+    
+    // Get extension
+    std::string extension;
+    size_t dot_pos = filename.find_last_of('.');
+    if (dot_pos != std::string::npos) {
+        extension = filename.substr(dot_pos);
+    } else {
+        extension = ".bin";
+    }
+    
+    std::string safe_filename = task_id + extension;
+    std::string storage_path = "uploads/" + safe_filename;
+    
+    LOG_INFO("Saving file to storage for external influence analysis: {} (original: {})", storage_path, filename);
+    
+    if (!file_storage_->saveFile(file_content, storage_path)) {
+        throw std::runtime_error("Failed to save uploaded file to storage");
+    }
+    
+    // Verify file was saved
+    if (!file_storage_->fileExists(storage_path)) {
+        throw std::runtime_error("Failed to verify uploaded file in storage");
+    }
+    
+    LOG_INFO("File saved successfully to storage: {}, size: {} bytes", 
+             storage_path, file_content.size());
+    
+    // For file processor, we still need a local path in the uploads folder
+    fs::path local_path = upload_folder_ / safe_filename;
+    
+    // Copy from storage to local uploads folder for processing
+    try {
+        std::string file_content_from_storage = file_storage_->readFile(storage_path);
+        fs::create_directories(local_path.parent_path());
+        std::ofstream local_file(local_path, std::ios::binary);
+        local_file.write(file_content_from_storage.data(), file_content_from_storage.size());
+        local_file.close();
+        LOG_INFO("Copied file to local path for external influence processing: {}", local_path.string());
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to copy file to local path: {}", e.what());
+        throw std::runtime_error("Failed to prepare file for processing");
+    }
+    
+    // Process with external influence analysis
+    auto *file_processor = file_processor_.get();
+    
+    thread_pool_->enqueue([this, file_processor, task_id, local_path, safe_filename, storage_path]() {
+        try {
+            LOG_INFO("Starting external influence analysis for task: {}", task_id);
+            
+            auto& task_manager = TaskManager::instance();
+            
+            // Initial status
+            task_manager.set_task_status(task_id, {
+                {"task_id", task_id},
+                {"progress", 10},
+                {"message", "Processing audio for external influence analysis"},
+                {"error", nullptr},
+                {"complete", false},
+                {"mode", "external_influence"},
+                {"instance_id", instance_id_},
+                {"storage_path", storage_path},
+                {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count()}
+            });
+            
+            // Process - fragments the call into windows, runs per-window inference
+            auto result = file_processor->process_external_influence(task_id, local_path.string(), safe_filename);
+
+            task_manager.set_task_status(task_id, {
+                {"task_id", task_id},
+                {"progress", 100},
+                {"message", "External influence analysis complete"},
+                {"error", nullptr},
+                {"complete", true},
+                {"mode", "external_influence"},
+                {"instance_id", instance_id_},
+                {"storage_path", storage_path},
+                {"type", "audio_external_influence"},
+                {"result", result},
+                {"duration", result.value("duration", 0.0)},
+                {"sample_rate", result.value("sample_rate", 0)},
+                {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count()}
+            });
+
+            LOG_INFO("External influence analysis completed for task: {}", task_id);
+            
+        } catch (const std::exception &e) {
+            LOG_ERROR("External influence analysis failed for task {}: {}", task_id, e.what());
+            
+            try {
+                auto& task_manager = TaskManager::instance();
+                task_manager.set_task_status(task_id, {
+                    {"task_id", task_id},
+                    {"progress", 0},
+                    {"message", "External influence analysis failed"},
+                    {"error", e.what()},
+                    {"complete", true},
+                    {"mode", "external_influence"},
                     {"instance_id", instance_id_},
                     {"storage_path", storage_path},
                     {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(

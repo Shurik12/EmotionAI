@@ -8,6 +8,7 @@
 #include <atomic>
 #include <mutex>
 #include <spdlog/spdlog.h>
+#include <audio/ExternalInfluenceModels.h>
 
 class Config
 {
@@ -45,6 +46,7 @@ public:
 	const auto &queue() const { return data_.queue; }
 	const auto &storage() const { return data_.storage; }
 	const auto &gigachat() const { return data_.gigachat; }
+	const auto &externalInfluence() const { return data_.external_influence; }
 
 	// Check if config is loaded
 	bool isLoaded() const { return loaded_.load(); }
@@ -195,6 +197,7 @@ private:
 		TaskManagementConfig task_management;
 		StorageConfig storage;
 		GigaChatConfig gigachat;
+		audio::ExternalInfluenceConfig external_influence;
 	};
 
 	ConfigData data_;

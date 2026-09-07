@@ -130,6 +130,7 @@ export const translations = {
       modes: {
         standard: 'Стандартный анализ',
         burnout: 'Анализ состояния человека',
+        externalInfluence: 'Анализ внешнего влияния',
         realtime: 'Анализ в реальном времени',
       },
       processing: 'Обработка...',
@@ -147,6 +148,7 @@ export const translations = {
       averageEmotions: 'Средние эмоции',
       duration: 'Длительность',
       sampleRate: 'Частота дискретизации',
+      taskId: 'ID задачи',
       noBurnoutData: 'Нет данных анализа выгорания.',
       analysisResults: 'Результаты анализа',
       startingProcessing: 'Начало обработки...',
@@ -155,6 +157,7 @@ export const translations = {
       processingImage: 'Обработка изображения...',
       processingComplete: 'Обработка завершена!',
       burnoutComplete: 'Анализ выгорания завершен',
+      externalInfluenceComplete: 'Анализ внешнего влияния завершен',
       fileProcessing: 'Обработка файла...',
       processingFrame: 'Обработка кадра {current} из {total}',
       processingSegment: 'Обработка сегмента {current} из {total}',
@@ -335,6 +338,92 @@ export const translations = {
         analysis_failed: 'Не удалось выполнить анализ. Пожалуйста, попробуйте снова.',
       },
     },
+    externalInfluence: {
+      title: 'Сигнал возможного внешнего воздействия',
+      subtitle: 'Антифрод-ориентир по аудиозаписи разговора (пилот)',
+      score: 'Индекс сигнала',
+      confidence: 'Надёжность оценки',
+      quality: 'Качество аудио',
+      persistentPattern: 'Устойчивое сочетание признаков',
+      contextConfirmed: 'Подтверждено контекстными признаками',
+      topFactors: 'Ключевые сигналы',
+      componentsTitle: 'Из чего складывается оценка',
+      fragmentTimeline: 'Оценки по фрагментам разговора',
+      fragmentLabel: 'Фрагмент {n}',
+      fragmentsCount: 'Фрагментов обработано: {valid} из {total}',
+      contextApplied: 'Контекстные признаки (учтены при расчёте)',
+      managerAction: 'Действие менеджера',
+      importantNote: 'Важно знать',
+      disclaimer:
+        'Результат — пилотный сигнал возможного внешнего воздействия на сотрудника. Он не является доказательством мошенничества, не определяет виновность и сам по себе не должен блокировать операции или служить единственным основанием для решений.',
+
+      states: {
+        insufficientData: 'Недостаточно данных для оценки',
+        low: 'Выраженных признаков не выявлено',
+        elevatedTension: 'Повышенное напряжение',
+        possiblePressure: 'Возможное внешнее давление',
+        probableInfluence: 'Вероятное внешнее воздействие',
+        highRisk: 'Высокий риск внешнего воздействия',
+      },
+
+      factors: {
+        'NEGATIVE_ACTIVATION_HIGH': 'Повышенное эмоциональное напряжение',
+        'PAUSE_TEMPO_DEVIATION': 'Отклонение темпа речи и пауз',
+        'PROSODIC_DEVIATION': 'Отклонение интонационной выразительности',
+        'POSITIVE_AFFECT_LOSS_HIGH': 'Снижение положительной эмоциональной окраски',
+        'PERSISTENT_PATTERN': 'Устойчивое сочетание признаков (не менее 2 из 3 фрагментов)',
+        'CONTEXT_CONFIRMED': 'Подтверждено контекстными признаками',
+      },
+
+      actions: {
+        'STANDARD_PROCESS': 'Обрабатывать в стандартном порядке',
+        'CONTINUE_NO_BLOCK': 'Продолжить без блокировки',
+        'ASK_CONTROL_QUESTIONS': 'Задать контрольные вопросы',
+        'ENHANCED_ANTIFRAUD_CHECK': 'Провести усиленную антифрод-проверку',
+        'PRIORITY_ANTIFRAUD_REVIEW': 'Провести приоритетную антифрод-проверку',
+      },
+
+      components: {
+        negativeActivation: 'Эмоциональное напряжение',
+        pauseTempoDeviation: 'Темп речи и паузы',
+        prosodicDeviation: 'Интонационная выразительность',
+        positiveAffectLoss: 'Положительная эмоциональная окраска',
+      },
+
+      confidenceParts: {
+        audioQuality: 'Качество аудио',
+        baselineReliability: 'Базовый профиль',
+        meanModelProbability: 'Уверенность модели',
+        speechCoverage: 'Покрытие речью',
+      },
+
+      context: {
+        'THIRD_PARTY_INSTRUCTIONS': 'Слышны инструкции третьих лиц',
+        'COACHED_ANSWERS': 'Подсказанные ответы',
+        'COVER_STORY': 'Легенда / прикрытие',
+        'AUDIBLE_THIRD_PARTY_PROMPT': 'Слышны подсказки третьего лица',
+        'URGENCY': 'Давление по времени / срочность',
+        'SECRECY': 'Требование секретности',
+        'SAFE_ACCOUNT': 'Упоминание «безопасного счёта»',
+        'AUTHORITY_IMPERSONATION': 'Имитация авторитета (руководство, банк)',
+        'PURPOSE_INCONSISTENCY': 'Несоответствие цели звонка',
+        'UNKNOWN_PAYEE': 'Неизвестный получатель перевода',
+        'EXTERNAL_CALL_IN_PROGRESS': 'Идёт внешний звонок / перевод разговора',
+      },
+
+      guidance: {
+        insufficientData:
+          'Недостаточно данных: запись короче 30 секунд осмысленной речи, низкое качество аудио или низкая надёжность оценки. Загрузите более длинную и чистую запись разговора.',
+        noResult: 'Результат недоступен.',
+      },
+
+      reasons: {
+        lowAudioQuality: 'Причина: качество аудио ниже порога — запись слишком тихая, шумная или без речи.',
+        tooFewFragments: 'Причина: менее 3 валидных фрагментов — слишком короткая или прерывистая запись.',
+        noValidFragments: 'Причина: ни один фрагмент не удалось сопоставить с базовым профилем.',
+        lowConfidence: 'Причина: надёжность оценки ниже порога достоверности (обычно малый объём распознанной речи или слабый сигнал модели).',
+      },
+    },
     footer: {
       demo: 'Демо',
       privacy: 'Политика конфиденциальности',
@@ -497,6 +586,7 @@ export const translations = {
       modes: {
         standard: 'Standard Analysis',
         burnout: 'Analysis of a person’s condition',
+        externalInfluence: 'External Influence Analysis',
         realtime: 'Real-time Analysis',
       },
       processing: 'Processing...',
@@ -514,6 +604,7 @@ export const translations = {
       averageEmotions: 'Average Emotions',
       duration: 'Duration',
       sampleRate: 'Sample Rate',
+      taskId: 'Task ID',
       noBurnoutData: 'No burnout analysis data available.',
       analysisResults: 'Analysis Results',
       startingProcessing: 'Starting processing...',
@@ -522,6 +613,7 @@ export const translations = {
       processingImage: 'Processing image...',
       processingComplete: 'Processing complete!',
       burnoutComplete: 'Burnout analysis complete',
+      externalInfluenceComplete: 'External influence analysis complete',
       fileProcessing: 'Processing file...',
       processingFrame: 'Processing frame {current} of {total}',
       processingSegment: 'Processing segment {current} of {total}',
@@ -667,6 +759,92 @@ export const translations = {
       errors: {
         'analysis_failed': 'Analysis failed. Please try again.'
       }
+    },
+    externalInfluence: {
+      title: 'Possible External Influence Signal',
+      subtitle: 'Anti-fraud aid from a call recording (pilot)',
+      score: 'Signal Index',
+      confidence: 'Assessment Confidence',
+      quality: 'Audio Quality',
+      persistentPattern: 'Persistent Pattern',
+      contextConfirmed: 'Context Confirmed',
+      topFactors: 'Key Signals',
+      componentsTitle: 'Assessment Components',
+      fragmentTimeline: 'Fragment Scores',
+      fragmentLabel: 'Fragment {n}',
+      fragmentsCount: 'Fragments analyzed: {valid} of {total}',
+      contextApplied: 'Context flags (applied to the analysis)',
+      managerAction: 'Manager Action',
+      importantNote: 'Important to Know',
+      disclaimer:
+        'The result is a pilot signal of possible external influence on the employee. It is not proof of fraud, does not establish culpability, and on its own must not block operations or be the sole basis for decisions.',
+
+      states: {
+        insufficientData: 'Insufficient Data',
+        low: 'No Pronounced Signs Detected',
+        elevatedTension: 'Elevated Tension',
+        possiblePressure: 'Possible External Pressure',
+        probableInfluence: 'Probable External Influence',
+        highRisk: 'High External Influence Risk',
+      },
+
+      factors: {
+        'NEGATIVE_ACTIVATION_HIGH': 'Elevated emotional tension',
+        'PAUSE_TEMPO_DEVIATION': 'Speech tempo / pause deviation',
+        'PROSODIC_DEVIATION': 'Prosodic expressiveness deviation',
+        'POSITIVE_AFFECT_LOSS_HIGH': 'Reduced positive emotional tone',
+        'PERSISTENT_PATTERN': 'Persistent pattern (at least 2 of 3 fragments)',
+        'CONTEXT_CONFIRMED': 'Confirmed by context flags',
+      },
+
+      actions: {
+        'STANDARD_PROCESS': 'Process in standard order',
+        'CONTINUE_NO_BLOCK': 'Continue without blocking',
+        'ASK_CONTROL_QUESTIONS': 'Ask control questions',
+        'ENHANCED_ANTIFRAUD_CHECK': 'Run enhanced anti-fraud check',
+        'PRIORITY_ANTIFRAUD_REVIEW': 'Run priority anti-fraud review',
+      },
+
+      components: {
+        negativeActivation: 'Emotional tension',
+        pauseTempoDeviation: 'Speech tempo and pauses',
+        prosodicDeviation: 'Prosodic expressiveness',
+        positiveAffectLoss: 'Positive emotional tone',
+      },
+
+      confidenceParts: {
+        audioQuality: 'Audio quality',
+        baselineReliability: 'Baseline profile',
+        meanModelProbability: 'Model confidence',
+        speechCoverage: 'Speech coverage',
+      },
+
+      context: {
+        'THIRD_PARTY_INSTRUCTIONS': 'Third-party instructions audible',
+        'COACHED_ANSWERS': 'Coached answers',
+        'COVER_STORY': 'Cover story',
+        'AUDIBLE_THIRD_PARTY_PROMPT': 'Audible prompting by a third party',
+        'URGENCY': 'Urgency / time pressure',
+        'SECRECY': 'Secrecy demands',
+        'SAFE_ACCOUNT': '“Safe account” mention',
+        'AUTHORITY_IMPERSONATION': 'Authority impersonation (boss, bank)',
+        'PURPOSE_INCONSISTENCY': 'Call purpose inconsistency',
+        'UNKNOWN_PAYEE': 'Unknown transfer recipient',
+        'EXTERNAL_CALL_IN_PROGRESS': 'External call / call transfer in progress',
+      },
+
+      guidance: {
+        insufficientData:
+          'Insufficient data: the recording contains less than ~30 seconds of meaningful speech, low audio quality, or low assessment confidence. Upload a longer, cleaner call recording.',
+        noResult: 'Result unavailable.',
+      },
+
+      reasons: {
+        lowAudioQuality: 'Reason: audio quality is below the threshold — the recording is too quiet, noisy, or speechless.',
+        tooFewFragments: 'Reason: fewer than 3 valid fragments — the recording is too short or too discontinuous.',
+        noValidFragments: 'Reason: no fragment could be matched against the baseline profile.',
+        lowConfidence: 'Reason: assessment confidence is below the reliability threshold (usually little recognized speech or a weak model signal).',
+      },
     },
     footer: {
       demo: 'Demo',

@@ -27,6 +27,7 @@ export const apiClient = {
       standard: '/upload',
       burnout: '/upload_burnout',
       realtime: '/upload_realtime',
+      external_influence: '/upload_external_influence',
     };
 
     const response = await fetch(`${API_BASE}${endpoints[mode]}`, {
