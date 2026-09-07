@@ -63,6 +63,27 @@ public:
     nlohmann::json get_user_baseline(const std::string& user_id);
     // =========================================
 
+    // ============ NEW: External influence (scam signal) API ============
+    // Split one call recording into consecutive windows and compute the
+    // external-influence signal over them. Returns the full analysis
+    // envelope (fragment records + result), saved to storage as well.
+    nlohmann::json process_external_influence(
+        const std::string& task_id,
+        const std::string& filepath,
+        const std::string& filename,
+        const nlohmann::json& baseline = {}
+    );
+
+    // Re-run the status logic on stored fragment records (no model re-run)
+    // with a (user) baseline and context flags. Expects the analysis data
+    // envelope: {fragments: [...], audio_quality: ...}.
+    nlohmann::json analyze_external_influence(
+        const nlohmann::json& analysis_data,
+        const nlohmann::json& baseline = {},
+        const std::vector<std::string>& context_flags = {}
+    );
+    // ===========================================
+
     // Getters
     EmotiEffLib::EmotiEffLibRecognizer* get_emotion_recognizer() const { return fer_.get(); }
     torch::jit::Module* get_audio_torch_model() { return audio_torch_model_.get(); }

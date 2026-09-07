@@ -2,6 +2,7 @@ import React from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 import { EmotionBar } from './EmotionBar';
 import { BurnoutAnalysis } from './BurnoutAnalysis';
+import { ExternalInfluenceResults } from './ExternalInfluenceResults';
 import { getEmotionEntries, getBurnoutAnalysis } from '../utils/helpers';
 
 export const DetectorResults = ({ results }) => {
@@ -36,6 +37,8 @@ export const DetectorResults = ({ results }) => {
         return <AudioResults results={results} resultData={resultData} />;
       case 'audio_burnout':
         return <AudioBurnoutResults results={results} resultData={resultData} burnout={burnout} />;
+      case 'audio_external_influence':
+        return <ExternalInfluenceResults key={results.task_id} results={results} />;
       default:
         // If we have result data but type is not specified, try to render it
         if (results.result) {
