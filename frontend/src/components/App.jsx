@@ -16,7 +16,7 @@ import '../styles/global.css';
 
 // Main app content with hooks
 const AppContent = () => {
-  const { currentPage, navigateTo } = useNavigation();
+  const { currentPage } = useNavigation();
   const { language, setLanguage } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('');
@@ -31,11 +31,9 @@ const AppContent = () => {
   };
 
   const renderContent = () => {
-    const props = { navigateTo, openModal };
-    
     switch (currentPage) {
       case 'home':
-        return <Home {...props} />;
+        return <Home />;
       case 'features':
         return <Features />;
       case 'detector':
@@ -45,14 +43,13 @@ const AppContent = () => {
       case 'contact':
         return <Contact />;
       default:
-        return <Home {...props} />;
+        return <Home />;
     }
   };
 
   return (
     <div className="app">
       <Header 
-        navigateTo={navigateTo} 
         language={language} 
         setLanguage={setLanguage} 
       />
@@ -61,7 +58,7 @@ const AppContent = () => {
         {renderContent()}
       </main>
       
-      <Footer navigateTo={navigateTo} />
+      <Footer />
       <CookieConsent />
       
       {showModal && (

@@ -18,6 +18,12 @@ export const translations = {
       privacy: 'Конфиденциальность',
       contacts: 'Контакты',
       tryDemo: 'Попробовать демо',
+      solutions: 'Решения',
+      industries: 'Отрасли',
+      technology: 'Технология',
+      cases: 'Кейсы',
+      about: 'О компании',
+      contactUs: 'Связаться с нами',
     },
     home: {
       title: 'Razuma – флагманская ИИ-платформа для комплексного анализа эмоций по фото и видео',
@@ -32,6 +38,163 @@ export const translations = {
       },
       analyzeNow: 'Анализировать сейчас',
       learnMore: 'Узнать больше',
+    },
+    landing: {
+      eyebrow: 'ТЕХНОЛОГИИ. ЛЮДИ. РЕШЕНИЯ.',
+      heroTitle: 'Технология,\nкоторая помогает\nвидеть больше',
+      heroLead: 'ИИ-платформа анализа состояния и реакций человека по видео и голосу.',
+      heroSub: 'RAZUMA превращает невербальные и речевые сигналы в измеримые показатели, которые помогают принимать более взвешенные бизнес-решения.',
+      tryDemo: 'Попробуйте демо',
+      discussPilot: 'Обсудить пилот',
+      industriesLabel: 'Отрасли',
+      how: {
+        title: 'Как это работает',
+        subtitle: 'От видео и голоса — к сигналу для ваших решений.',
+        link: 'Подробнее о технологии',
+        steps: [
+          {
+            title: 'Видео и голос',
+            text: 'Анализ мимики, голоса и речевых характеристик',
+          },
+          {
+            title: 'ИИ-анализ',
+            text: 'Мультимодальная оценка и отслеживание динамики во времени',
+          },
+          {
+            title: 'Измеримые показатели',
+            text: 'Выявление значимых изменений и паттернов',
+          },
+          {
+            title: 'Сигнал для решения',
+            text: 'Интеграция в ваши бизнес-процессы',
+          },
+        ],
+      },
+      analysis: {
+        title: 'Что анализирует RAZUMA',
+        subtitle: 'Комплексный подход: мимика, голос и их взаимосвязь.',
+        cards: [
+          {
+            title: 'Видео',
+            items: [
+              'Мимические реакции',
+              'Интенсивность и динамика эмоций',
+              'Изменение эмоционального состояния во времени',
+            ],
+          },
+          {
+            title: 'Голос',
+            items: [
+              'Темп речи',
+              'Паузы',
+              'Интонационная динамика',
+              'Эмоциональная окраска',
+              'Изменение голосовых характеристик',
+            ],
+          },
+          {
+            title: 'Совместный анализ',
+            items: [
+              'Динамика показателей во времени',
+              'Согласованность сигналов',
+              'Изменения относительно обычного состояния',
+              'Эпизоды, требующие дополнительного внимания',
+            ],
+          },
+        ],
+      },
+      industries: {
+        title: 'Где и как используется',
+        subtitle: 'Реальные задачи. Измеримые результаты.',
+        link: 'Все отрасли',
+        more: 'Подробнее',
+        cards: [
+          {
+            title: 'HR',
+            alt: 'HR и работа с сотрудниками',
+            headline: 'Раньше замечать изменение состояния сотрудников',
+            bullets: [
+              'Регулярная оценка состояния',
+              'HR-опросы и интервью',
+              'Профилактика выгорания',
+              'Оценка команд с высокой нагрузкой',
+            ],
+          },
+          {
+            title: 'Промышленность',
+            alt: 'Промышленная безопасность',
+            headline: 'Дополнительный сигнал риска перед работой',
+            bullets: [
+              'Предсменный контроль',
+              'Оценка уровня внимания',
+              'Профилактика инцидентов',
+              'Снижение человеческого фактора',
+            ],
+          },
+          {
+            title: 'Банки',
+            alt: 'Банки и безопасность клиентов',
+            headline: 'Выявление возможного внешнего воздействия',
+            bullets: [
+              'Нетипичные операции',
+              'Взаимодействие с клиентом',
+              'Дополнительная проверка',
+              'Больше уверенности в безопасности клиентов',
+            ],
+          },
+          {
+            title: 'Маркетинговые исследования',
+            alt: 'Маркетинговые исследования',
+            headline: 'Настоящие реакции — более точные инсайты',
+            bullets: [
+              'Тестирование рекламы',
+              'Концепт- и продукт-тесты',
+              'Глубинные интервью',
+              'UX/CX-исследования',
+              'Customer Journey',
+            ],
+          },
+        ],
+      },
+      solutions: {
+        title: 'Что получает ваш бизнес',
+        subtitle: 'От сигналов — к возможностям.',
+        cards: [
+          {
+            title: 'Ранний сигнал',
+            text: 'Возможность действовать до того, как проблема проявилась в результате.',
+          },
+          {
+            title: 'Дополнительный слой данных',
+            text: 'Не только слова и анкеты, но и реальная динамика поведения.',
+          },
+          {
+            title: 'Динамика, а не единичная оценка',
+            text: 'Можно отслеживать изменения во времени.',
+          },
+          {
+            title: 'Интеграция в ваши процессы',
+            text: 'RAZUMA дополняет существующие процессы и не заменяет решения специалистов.',
+          },
+        ],
+      },
+      decision: {
+        title: 'RAZUMA помогает принимать решения,\nа не принимает их вместо вас',
+        text: 'Платформа формирует измеримые показатели и сигналы, которые используются в существующих процессах компании — HR, HSE, antifraud, исследованиях и других сценариях.',
+        signal: 'Сигнал',
+        yours: 'Ваше решение',
+      },
+      cta: {
+        title: 'Одна технология —\nразные задачи',
+        text: 'RAZUMA применяется в разных отраслях, помогая решать их уникальные задачи.',
+        note: 'Технологии, которые работают\nс человеком и для человека.',
+        demoTitle: 'Попробуйте технологию\nв действии',
+        demoText: 'Загрузите пример видео или аудио и получите пример анализа.',
+        demoBtn: 'Попробуйте демо',
+        contactTitle: 'Обсудим, как RAZUMA\nможет работать в вашей компании',
+        contactText: 'Расскажите о вашей задаче — и мы предложим оптимальный сценарий внедрения.',
+        contactBtn: 'Обсудить пилот',
+      },
     },
     features: {
       title: 'Возможности Razuma',
@@ -120,10 +283,21 @@ export const translations = {
       workingHours: 'Пн-Пт: 10:00 - 19:00 (МСК)'
     },
     detector: {
-      title: 'Распознавание эмоций с помощью ИИ',
+      heroTagline: 'ТЕХНОЛОГИИ. ЛЮДИ. РЕШЕНИЯ.',
+      heroTitle: 'Попробуйте демо RAZUMA',
+      heroLead: 'Оцените возможности нашей платформы и узнайте, как ИИ помогает видеть больше в эмоциях, поведении и реакции человека.',
+      panelInstruction: 'Загрузите ваш файл аудио, видео или фото и выберите режим обработки.',
+      benefits: {
+        fastTitle: 'Быстрая загрузка',
+        fastText: 'Поддерживаем основные форматы фото, аудио и видео.',
+        modeTitle: 'Выбор режима',
+        modeText: 'Используйте готовые сценарии анализа под ваши задачи.',
+        resultTitle: 'Результат анализа',
+        resultText: 'Получите детальный анализ и ценные инсайты.',
+      },
       dragFile: 'Перетащите файл сюда',
       chooseFile: 'Выбрать файл',
-      supportedFormats: 'Поддерживаемые форматы: JPG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (макс. 50MB)',
+      supportedFormats: 'JPG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (макс. 50 МБ)',
       consent: 'Я даю согласие на обработку моих персональных данных в соответствии с',
       analyze: 'Анализ',
       processingMode: 'Режим обработки',
@@ -430,10 +604,8 @@ export const translations = {
       },
     },
     footer: {
-      demo: 'Демо',
-      privacy: 'Политика конфиденциальности',
-      contacts: 'Контакты',
-      copyright: '© 2025 Razuma Technologies. Все права защищены.',
+      tagline: 'People insights for a safer and brighter tomorrow.',
+      copyright: '© 2026 RAZUMA',
     },
     cookies: {
       text: 'Мы используем файлы cookie для улучшения работы сайта.',
@@ -479,6 +651,12 @@ export const translations = {
       privacy: 'Privacy',
       contacts: 'Contacts',
       tryDemo: 'Try Demo',
+      solutions: 'Solutions',
+      industries: 'Industries',
+      technology: 'Technology',
+      cases: 'Cases',
+      about: 'About us',
+      contactUs: 'Contact us',
     },
     home: {
       title: 'Razuma - flagship AI platform for comprehensive emotion analysis from photos and videos',
@@ -493,6 +671,163 @@ export const translations = {
       },
       analyzeNow: 'Analyze now',
       learnMore: 'Learn more',
+    },
+    landing: {
+      eyebrow: 'TECHNOLOGY. PEOPLE. SOLUTIONS.',
+      heroTitle: 'Technology that\nhelps you see more',
+      heroLead: 'AI platform for analyzing a person’s state and reactions from video and voice.',
+      heroSub: 'RAZUMA turns non-verbal and speech signals into measurable indicators that help make more informed business decisions.',
+      tryDemo: 'Try the demo',
+      discussPilot: 'Discuss a pilot',
+      industriesLabel: 'Industries',
+      how: {
+        title: 'How it works',
+        subtitle: 'From video and voice — to a signal for your decisions.',
+        link: 'More about the technology',
+        steps: [
+          {
+            title: 'Video and voice',
+            text: 'Analysis of facial expressions, voice, and speech characteristics',
+          },
+          {
+            title: 'AI analysis',
+            text: 'Multimodal assessment and tracking of dynamics over time',
+          },
+          {
+            title: 'Measurable indicators',
+            text: 'Identification of significant changes and patterns',
+          },
+          {
+            title: 'Signal for decision',
+            text: 'Integration into your business processes',
+          },
+        ],
+      },
+      analysis: {
+        title: 'What RAZUMA analyzes',
+        subtitle: 'A comprehensive approach: facial expressions, voice, and their relationship.',
+        cards: [
+          {
+            title: 'Video',
+            items: [
+              'Facial reactions',
+              'Intensity and dynamics of emotions',
+              'Changes in emotional state over time',
+            ],
+          },
+          {
+            title: 'Voice',
+            items: [
+              'Speech tempo',
+              'Pauses',
+              'Intonation dynamics',
+              'Emotional coloring',
+              'Changes in voice characteristics',
+            ],
+          },
+          {
+            title: 'Joint analysis',
+            items: [
+              'Dynamics of indicators over time',
+              'Consistency of signals',
+              'Changes relative to the usual state',
+              'Episodes requiring additional attention',
+            ],
+          },
+        ],
+      },
+      industries: {
+        title: 'Where and how it is used',
+        subtitle: 'Real tasks. Measurable results.',
+        link: 'All industries',
+        more: 'Learn more',
+        cards: [
+          {
+            title: 'HR',
+            alt: 'HR and employee care',
+            headline: 'Notice changes in employee state earlier',
+            bullets: [
+              'Regular state assessment',
+              'HR surveys and interviews',
+              'Burnout prevention',
+              'Assessing high-load teams',
+            ],
+          },
+          {
+            title: 'Industry',
+            alt: 'Industrial safety',
+            headline: 'An additional risk signal before work',
+            bullets: [
+              'Pre-shift control',
+              'Attention level assessment',
+              'Incident prevention',
+              'Reducing human factors',
+            ],
+          },
+          {
+            title: 'Banks',
+            alt: 'Banks and client security',
+            headline: 'Identifying possible external influence',
+            bullets: [
+              'Atypical operations',
+              'Interaction with the client',
+              'Additional verification',
+              'More confidence in client security',
+            ],
+          },
+          {
+            title: 'Marketing research',
+            alt: 'Marketing research',
+            headline: 'Real reactions — more accurate insights',
+            bullets: [
+              'Ad testing',
+              'Concept and product tests',
+              'In-depth interviews',
+              'UX/CX research',
+              'Customer Journey',
+            ],
+          },
+        ],
+      },
+      solutions: {
+        title: 'What your business gets',
+        subtitle: 'From signals — to opportunities.',
+        cards: [
+          {
+            title: 'Early signal',
+            text: 'The ability to act before a problem shows up in the results.',
+          },
+          {
+            title: 'An additional data layer',
+            text: 'Not just words and surveys, but the real dynamics of behavior.',
+          },
+          {
+            title: 'Dynamics, not a single assessment',
+            text: 'You can track changes over time.',
+          },
+          {
+            title: 'Integration into your processes',
+            text: 'RAZUMA complements existing processes and does not replace specialists’ decisions.',
+          },
+        ],
+      },
+      decision: {
+        title: 'RAZUMA helps make decisions,\nrather than making them instead of you',
+        text: 'The platform produces measurable indicators and signals that are used in the company’s existing processes — HR, HSE, antifraud, research, and other scenarios.',
+        signal: 'Signal',
+        yours: 'Your decision',
+      },
+      cta: {
+        title: 'One technology —\ndifferent tasks',
+        text: 'RAZUMA is used across industries to solve their unique tasks.',
+        note: 'Technologies that work\nwith people and for people.',
+        demoTitle: 'Try the technology\nin action',
+        demoText: 'Upload a sample video or audio and get a sample analysis.',
+        demoBtn: 'Try the demo',
+        contactTitle: 'Let’s discuss how RAZUMA\ncan work in your company',
+        contactText: 'Tell us about your task — and we will suggest the optimal implementation scenario.',
+        contactBtn: 'Discuss a pilot',
+      },
     },
     features: {
       title: 'Razuma Features',
@@ -581,10 +916,21 @@ export const translations = {
       workingHours: 'Mon-Fri: 10:00 - 19:00 (MSK)'
     },
     detector: {
-      title: 'Emotion Recognition with AI',
+      heroTagline: 'TECHNOLOGY. PEOPLE. SOLUTIONS.',
+      heroTitle: 'Try the RAZUMA demo',
+      heroLead: 'Explore the capabilities of our platform and learn how AI helps see more in human emotions, behavior, and reactions.',
+      panelInstruction: 'Upload your photo, audio, or video file and choose a processing mode.',
+      benefits: {
+        fastTitle: 'Fast upload',
+        fastText: 'We support the main photo, audio, and video formats.',
+        modeTitle: 'Mode selection',
+        modeText: 'Use ready-made analysis scenarios for your tasks.',
+        resultTitle: 'Analysis result',
+        resultText: 'Get detailed analysis and valuable insights.',
+      },
       dragFile: 'Drag file here',
       chooseFile: 'Choose file',
-      supportedFormats: 'Supported formats: JPG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (max. 50MB)',
+      supportedFormats: 'JPG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (max. 50 MB)',
       consent: 'I consent to the processing of my personal data in accordance with the',
       analyze: 'Analyze',
       processingMode: 'Processing Mode',
@@ -654,6 +1000,17 @@ export const translations = {
       urgency: 'Urgency and Next Steps',
       factorExplanation: 'Explanation',
       requiresHistory: 'multiple recordings required',
+      importantNote: 'Important to Know',
+
+      attentionLevel: {
+        title: 'Attention Level',
+        mainSignal: 'Primary Signal',
+        low: 'Low',
+        moderate: 'Moderate',
+        high: 'High',
+        severe: 'Very High',
+        noSignals: 'No pronounced signals detected',
+      },
       
       components: {
         exhaustion: 'Emotional Exhaustion',
@@ -857,10 +1214,8 @@ export const translations = {
       },
     },
     footer: {
-      demo: 'Demo',
-      privacy: 'Privacy Policy',
-      contacts: 'Contacts',
-      copyright: '© 2025 Razuma Technologies. All rights reserved.',
+      tagline: 'People insights for a safer and brighter tomorrow.',
+      copyright: '© 2026 RAZUMA',
     },
     cookies: {
       text: 'We use cookies to improve website functionality.',
