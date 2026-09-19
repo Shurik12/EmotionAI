@@ -41,21 +41,23 @@ export const DetectorUpload = ({
     e.target.value = '';
   };
 
-  // Only ONE supported formats line
-  const supportedFormats = 'JPG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (макс. 50MB)';
-
   return (
     <div className="detector-upload">
-      <div 
-        className={`upload-zone ${isDragging ? 'dragging' : ''}`}
+      <div
+        className={`dropzone ${isDragging ? 'is-dragover' : ''}`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        <div className="upload-icon">📁</div>
-        <h3>{t('detector.dragFile')}</h3>
-        <p className="or-text">{t('common.or')}</p>
-        
+        <div className="upload-icon" aria-hidden="true">
+          <svg viewBox="0 0 64 64">
+            <path d="M20 44H14a10 10 0 0 1-1-19.95A16 16 0 0 1 43 20a12 12 0 0 1 2 23.83h-7" />
+            <path d="M32 48V24M23 33l9-9 9 9" />
+          </svg>
+        </div>
+        <strong>{t('detector.dragFile')}</strong>
+        <span className="or">{t('common.or')}</span>
+
         <input
           ref={inputRef}
           type="file"
@@ -64,33 +66,33 @@ export const DetectorUpload = ({
           onChange={handleFileChange}
           disabled={isProcessing}
         />
-        
-        <button 
-          className="btn btn-secondary"
+
+        <button
+          type="button"
+          className="btn choose-file"
           onClick={() => inputRef.current?.click()}
           disabled={isProcessing}
         >
           {t('detector.chooseFile')}
         </button>
-        
-        <small className="supported-formats">
-          {supportedFormats}
-        </small>
-      </div>
 
-      {fileName && (
-        <div className="file-info">
-          <span className="file-name">{fileName}</span>
-          <span className="file-size">({fileSize})</span>
-          <button 
-            className="btn btn-clear"
-            onClick={onClear}
-            disabled={isProcessing}
-          >
-            {t('common.clear')}
-          </button>
-        </div>
-      )}
+        <p className="formats">{t('detector.supportedFormats')}</p>
+
+        {fileName && (
+          <div className="file-info">
+            <span>{fileSize ? `${fileName} (${fileSize})` : fileName}</span>
+            <button
+              type="button"
+              className="remove-file"
+              onClick={onClear}
+              disabled={isProcessing}
+              aria-label={t('common.clear')}
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
 
       {preview?.type === 'audio' && (
         <div className="audio-preview">
