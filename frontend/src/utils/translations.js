@@ -40,39 +40,13 @@ export const translations = {
       learnMore: 'Узнать больше',
     },
     landing: {
-      eyebrow: 'ТЕХНОЛОГИИ. ЛЮДИ. РЕШЕНИЯ.',
       heroTitle: 'Технология,\nкоторая помогает\nвидеть больше',
       heroLead: 'ИИ-платформа анализа состояния и реакций человека по видео и голосу.',
-      heroSub: 'RAZUMA превращает невербальные и речевые сигналы в измеримые показатели, которые помогают принимать более взвешенные бизнес-решения.',
       tryDemo: 'Попробуйте демо',
       discussPilot: 'Обсудить пилот',
       industriesLabel: 'Отрасли',
-      how: {
-        title: 'Как это работает',
-        subtitle: 'От видео и голоса — к сигналу для ваших решений.',
-        link: 'Подробнее о технологии',
-        steps: [
-          {
-            title: 'Видео и голос',
-            text: 'Анализ мимики, голоса и речевых характеристик',
-          },
-          {
-            title: 'ИИ-анализ',
-            text: 'Мультимодальная оценка и отслеживание динамики во времени',
-          },
-          {
-            title: 'Измеримые показатели',
-            text: 'Выявление значимых изменений и паттернов',
-          },
-          {
-            title: 'Сигнал для решения',
-            text: 'Интеграция в ваши бизнес-процессы',
-          },
-        ],
-      },
       analysis: {
-        title: 'Что анализирует RAZUMA',
-        subtitle: 'Комплексный подход: мимика, голос и их взаимосвязь.',
+        title: 'RAZUMA анализирует не только то, что человек говорит',
         cards: [
           {
             title: 'Видео',
@@ -99,15 +73,14 @@ export const translations = {
               'Согласованность сигналов',
               'Изменения относительно обычного состояния',
               'Эпизоды, требующие дополнительного внимания',
+              'Часть показателей — в процессе обучения',
             ],
           },
         ],
       },
       industries: {
-        title: 'Где и как используется',
-        subtitle: 'Реальные задачи. Измеримые результаты.',
+        title: 'Где уже используют',
         link: 'Все отрасли',
-        more: 'Подробнее',
         cards: [
           {
             title: 'HR',
@@ -122,7 +95,7 @@ export const translations = {
           },
           {
             title: 'Промышленность',
-            alt: 'Промышленная безопасность',
+            alt: 'Промышленность и предсменный контроль',
             headline: 'Дополнительный сигнал риска перед работой',
             bullets: [
               'Предсменный контроль',
@@ -156,9 +129,7 @@ export const translations = {
           },
         ],
       },
-      solutions: {
-        title: 'Что получает ваш бизнес',
-        subtitle: 'От сигналов — к возможностям.',
+      benefits: {
         cards: [
           {
             title: 'Ранний сигнал',
@@ -178,16 +149,8 @@ export const translations = {
           },
         ],
       },
-      decision: {
-        title: 'RAZUMA помогает принимать решения,\nа не принимает их вместо вас',
-        text: 'Платформа формирует измеримые показатели и сигналы, которые используются в существующих процессах компании — HR, HSE, antifraud, исследованиях и других сценариях.',
-        signal: 'Сигнал',
-        yours: 'Ваше решение',
-      },
+      decision: 'RAZUMA помогает принимать решения,\nа не принимает их вместо заказчика.',
       cta: {
-        title: 'Одна технология —\nразные задачи',
-        text: 'RAZUMA применяется в разных отраслях, помогая решать их уникальные задачи.',
-        note: 'Технологии, которые работают\nс человеком и для человека.',
         demoTitle: 'Попробуйте технологию\nв действии',
         demoText: 'Загрузите пример видео или аудио и получите пример анализа.',
         demoBtn: 'Попробуйте демо',
@@ -604,7 +567,6 @@ export const translations = {
       },
     },
     footer: {
-      tagline: 'People insights for a safer and brighter tomorrow.',
       copyright: '© 2026 RAZUMA',
     },
     cookies: {
@@ -673,39 +635,13 @@ export const translations = {
       learnMore: 'Learn more',
     },
     landing: {
-      eyebrow: 'TECHNOLOGY. PEOPLE. SOLUTIONS.',
       heroTitle: 'Technology that\nhelps you see more',
       heroLead: 'AI platform for analyzing a person’s state and reactions from video and voice.',
-      heroSub: 'RAZUMA turns non-verbal and speech signals into measurable indicators that help make more informed business decisions.',
       tryDemo: 'Try the demo',
       discussPilot: 'Discuss a pilot',
       industriesLabel: 'Industries',
-      how: {
-        title: 'How it works',
-        subtitle: 'From video and voice — to a signal for your decisions.',
-        link: 'More about the technology',
-        steps: [
-          {
-            title: 'Video and voice',
-            text: 'Analysis of facial expressions, voice, and speech characteristics',
-          },
-          {
-            title: 'AI analysis',
-            text: 'Multimodal assessment and tracking of dynamics over time',
-          },
-          {
-            title: 'Measurable indicators',
-            text: 'Identification of significant changes and patterns',
-          },
-          {
-            title: 'Signal for decision',
-            text: 'Integration into your business processes',
-          },
-        ],
-      },
       analysis: {
-        title: 'What RAZUMA analyzes',
-        subtitle: 'A comprehensive approach: facial expressions, voice, and their relationship.',
+        title: 'RAZUMA analyzes more than just what a person says',
         cards: [
           {
             title: 'Video',
@@ -732,15 +668,14 @@ export const translations = {
               'Consistency of signals',
               'Changes relative to the usual state',
               'Episodes requiring additional attention',
+              'Some indicators are still in the learning process',
             ],
           },
         ],
       },
       industries: {
-        title: 'Where and how it is used',
-        subtitle: 'Real tasks. Measurable results.',
+        title: 'Where it is already used',
         link: 'All industries',
-        more: 'Learn more',
         cards: [
           {
             title: 'HR',
@@ -755,7 +690,7 @@ export const translations = {
           },
           {
             title: 'Industry',
-            alt: 'Industrial safety',
+            alt: 'Industry and pre-shift control',
             headline: 'An additional risk signal before work',
             bullets: [
               'Pre-shift control',
@@ -789,9 +724,7 @@ export const translations = {
           },
         ],
       },
-      solutions: {
-        title: 'What your business gets',
-        subtitle: 'From signals — to opportunities.',
+      benefits: {
         cards: [
           {
             title: 'Early signal',
@@ -811,16 +744,8 @@ export const translations = {
           },
         ],
       },
-      decision: {
-        title: 'RAZUMA helps make decisions,\nrather than making them instead of you',
-        text: 'The platform produces measurable indicators and signals that are used in the company’s existing processes — HR, HSE, antifraud, research, and other scenarios.',
-        signal: 'Signal',
-        yours: 'Your decision',
-      },
+      decision: 'RAZUMA helps make decisions,\nrather than making them instead of the customer.',
       cta: {
-        title: 'One technology —\ndifferent tasks',
-        text: 'RAZUMA is used across industries to solve their unique tasks.',
-        note: 'Technologies that work\nwith people and for people.',
         demoTitle: 'Try the technology\nin action',
         demoText: 'Upload a sample video or audio and get a sample analysis.',
         demoBtn: 'Try the demo',
@@ -1214,7 +1139,6 @@ export const translations = {
       },
     },
     footer: {
-      tagline: 'People insights for a safer and brighter tomorrow.',
       copyright: '© 2026 RAZUMA',
     },
     cookies: {
