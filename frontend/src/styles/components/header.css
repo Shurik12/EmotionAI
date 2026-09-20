@@ -119,8 +119,8 @@
     display: none;
     position: absolute;
     top: 100%;
-    left: calc(-1 * var(--layout-padding-x));
-    right: calc(-1 * var(--layout-padding-x));
+    left: 0;
+    right: 0;
     flex-direction: column;
     gap: 0;
     background: var(--color-bg);
