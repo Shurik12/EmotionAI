@@ -52,13 +52,13 @@ export const Header = ({ language, setLanguage }) => {
         aria-label="RAZUMA — участник Сколково"
       >
         <img 
-          src="/static/razuma-mark.svg" 
+          src="/static/razuma.svg" 
           alt="" 
           className="brand-mark"
         />
         <span className="brand-divider" aria-hidden="true" />
         <img 
-          src="/static/skolkovo-participant.png" 
+          src="/static/skolkovo.webp" 
           alt="Участник Сколково" 
           className="brand-skolkovo"
         />

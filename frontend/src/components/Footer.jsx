@@ -11,15 +11,13 @@ export const Footer = () => {
     { section: 'industries', label: t('nav.industries') },
     { section: 'technology', label: t('nav.technology') },
     { section: 'cases', label: t('nav.cases') },
-    { section: 'about', label: t('nav.about') },
   ];
 
   return (
     <footer className="footer" id="about">
       <div className="footer-content">
-        <div className="footer-logo">RAZUMA</div>
-        <div className="footer-tagline">{t('footer.tagline')}</div>
-        
+        <p className="footer-copyright">{t('footer.copyright')}</p>
+
         <div className="footer-links">
           {footerLinks.map(({ section, label }) => (
             <a
@@ -34,8 +32,6 @@ export const Footer = () => {
             </a>
           ))}
         </div>
-        
-        <p className="footer-copyright">{t('footer.copyright')}</p>
       </div>
     </footer>
   );
