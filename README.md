@@ -36,7 +36,8 @@ Python at runtime. Python is used only for model training and for exporting mode
 - **Observability** — Prometheus metrics endpoint with provisioned Grafana dashboards.
 - **Optional GigaChat enrichment** — LLM-generated commentary on detected emotions, gated behind a
   confidence threshold.
-- **React frontend** — Vite build, react-router, multilingual (RU/EN), cookie consent, charts.
+- **React frontend** — Vite 5 SPA served by the same binary (SPA fallback), multilingual (RU/EN),
+  landing page with anchored sections, detector workspace, contact page, cookie consent, charts.
 
 Accepted uploads: `png`, `jpg`, `jpeg`, `mp4`, `avi`, `webm`, `mp3`, `wav` (50 MB default limit).
 
@@ -239,6 +240,44 @@ curl http://localhost/api/progress/<task_id>
 
 ---
 
+## Frontend
+
+React 18 + Vite 5 SPA in `frontend/`. The compiled app is served by the binary itself: any path that
+is not `/api/...` returns `index.html`, so client-side routes work without server configuration.
+
+Pages (`src/components/App.jsx`): `home` (landing), `features`, `detector` (demo workspace),
+`privacy`, `contact`. Routing is a small in-house context (`src/context/NavigationContext.jsx`)
+built on `history.pushState` — `react-router-dom` is a leftover dependency and is not imported
+anywhere in `src/`.
+
+The landing page is composed of anchored sections that the header and footer menus scroll to:
+
+| Anchor | Section |
+|---|---|
+| `technology` | hero — headline, demo and pilot buttons |
+| `solutions` | what RAZUMA analyses (three cards) |
+| `industries` | where it is already used (four cards) |
+| `cases` | what your business gets (four cards + decision banner) |
+| `demo` | bottom CTA band — RAZUMA / Skolkovo lockup, demo and contact blocks |
+| `contact` | contact column inside the CTA band |
+| `about` | the footer element |
+
+Every "Обсудить пилот" button and the header CTA open the contact page; the frontend never sends
+email and the contact page only displays `mailto:` / `tel:` links.
+
+Localisation lives in `src/utils/translations.js` (RU and EN in one file; a missing key renders as
+the raw key in the UI). Static images live in `frontend/public/static/` and are referenced as
+`/static/...`; photos ship as `.webp`.
+
+```bash
+make build_frontend         # npm install + vite build -> frontend/dist
+cd frontend && npm run dev  # dev server on :3000, proxies /api to API_URL (default http://localhost:5000)
+```
+
+Details in [frontend/README.md](frontend/README.md).
+
+---
+
 ## Deployment
 
 ### Docker
@@ -309,8 +348,12 @@ make test   # configures with -DBUILD_TESTS=ON, builds and runs build/tests/emot
 Frontend:
 
 ```bash
-cd frontend && npm test && npm run lint
+cd frontend
+npm run build    # vite build -> frontend/dist (same as make build_frontend)
 ```
+
+> `npm test` (jest) and `npm run lint` (eslint) are declared in `package.json` but not configured —
+> no jest config, no eslint config and no test files exist, so both commands fail.
 
 ---
 
