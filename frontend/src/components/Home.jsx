@@ -10,24 +10,6 @@ const stroke = {
   strokeLinejoin: 'round',
 };
 
-const STEP_ICONS = [
-  <svg viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
-    <rect x="3" y="7" width="12" height="10" rx="2" />
-    <path d="M15 10.5 21 7v10l-6-3.5z" />
-  </svg>,
-  <svg viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
-    <rect x="7" y="7" width="10" height="10" rx="2" />
-    <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
-  </svg>,
-  <svg viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
-    <path d="M5 20v-8M12 20V6M19 20v-6" />
-    <path d="M3 20h18" />
-  </svg>,
-  <svg viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
-    <path d="M4 13l5 5L20 6" />
-  </svg>,
-];
-
 const ANALYSIS_ICONS = [
   <svg viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
     <rect x="3" y="7" width="12" height="10" rx="2" />
@@ -61,23 +43,21 @@ const BENEFIT_ICONS = [
 ];
 
 const INDUSTRY_META = [
-  { anchor: 'hr', num: '01', image: '/static/hr.png' },
-  { anchor: 'industry', num: '02', image: '/static/industry.png' },
-  { anchor: 'bank', num: '03', image: '/static/bank.png' },
-  { anchor: 'research', num: '04', image: '/static/research.png' },
+  { anchor: 'hr', num: '01', image: '/static/hr.webp' },
+  { anchor: 'industry', num: '02', image: '/static/industry.webp' },
+  { anchor: 'bank', num: '03', image: '/static/bank.webp' },
+  { anchor: 'research', num: '04', image: '/static/research.webp' },
 ];
 
 export const Home = () => {
   const { t } = useLanguage();
   const { navigateTo, navigateToSection } = useNavigation();
-
-  const steps = t('landing.how.steps');
   const analysisCards = t('landing.analysis.cards');
   const industryCards = t('landing.industries.cards').map((card, index) => ({
     ...card,
     ...INDUSTRY_META[index],
   }));
-  const solutionCards = t('landing.solutions.cards');
+  const benefitCards = t('landing.benefits.cards');
 
   const handleSectionClick = (section) => (e) => {
     e.preventDefault();
@@ -91,14 +71,12 @@ export const Home = () => {
 
   return (
     <div className="landing-page">
-      <section className="landing-hero">
+      <section className="landing-hero" id="technology">
         <div className="landing-hero-media" aria-hidden="true" />
         <div className="landing-container landing-hero-grid">
           <div className="landing-hero-copy">
-            <p className="landing-eyebrow">{t('landing.eyebrow')}</p>
             <h1>{t('landing.heroTitle')}</h1>
             <p className="landing-hero-lead">{t('landing.heroLead')}</p>
-            <p className="landing-hero-sub">{t('landing.heroSub')}</p>
 
             <div className="landing-hero-actions">
               <button
@@ -131,44 +109,10 @@ export const Home = () => {
         </div>
       </section>
 
-      <section className="landing-section" id="technology">
+      <section className="landing-section" id="solutions">
         <div className="landing-container">
           <div className="landing-section-head">
-            <div>
-              <h2>{t('landing.how.title')}</h2>
-              <p>{t('landing.how.subtitle')}</p>
-            </div>
-            <a className="landing-text-link" href="#analysis" onClick={handleSectionClick('analysis')}>
-              {t('landing.how.link')} →
-            </a>
-          </div>
-
-          <div className="landing-steps">
-            {steps.map((step, index) => (
-              <React.Fragment key={step.title}>
-                {index > 0 && (
-                  <div className="landing-arrow" aria-hidden="true">
-                    ›
-                  </div>
-                )}
-                <article className="landing-step">
-                  <div className="landing-step-icon">{STEP_ICONS[index]}</div>
-                  <h3>{step.title}</h3>
-                  <p>{step.text}</p>
-                </article>
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="landing-section landing-section-tint" id="analysis">
-        <div className="landing-container">
-          <div className="landing-section-head">
-            <div>
-              <h2>{t('landing.analysis.title')}</h2>
-              <p>{t('landing.analysis.subtitle')}</p>
-            </div>
+            <h2>{t('landing.analysis.title')}</h2>
           </div>
 
           <div className="landing-analysis-grid">
@@ -192,10 +136,7 @@ export const Home = () => {
       <section className="landing-section" id="industries">
         <div className="landing-container">
           <div className="landing-section-head">
-            <div>
-              <h2>{t('landing.industries.title')}</h2>
-              <p>{t('landing.industries.subtitle')}</p>
-            </div>
+            <h2>{t('landing.industries.title')}</h2>
             <a className="landing-text-link" href="#contact" onClick={handleContactClick}>
               {t('landing.industries.link')} →
             </a>
@@ -213,26 +154,16 @@ export const Home = () => {
                     <li key={bullet}>{bullet}</li>
                   ))}
                 </ul>
-                <a className="landing-card-link" href="#contact" onClick={handleContactClick}>
-                  {t('landing.industries.more')} →
-                </a>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="landing-section landing-section-tint" id="solutions">
+      <section className="landing-section landing-section-tint" id="cases">
         <div className="landing-container">
-          <div className="landing-section-head">
-            <div>
-              <h2>{t('landing.solutions.title')}</h2>
-              <p>{t('landing.solutions.subtitle')}</p>
-            </div>
-          </div>
-
           <div className="landing-benefit-grid">
-            {solutionCards.map((card, index) => (
+            {benefitCards.map((card, index) => (
               <article className="landing-benefit" key={card.title}>
                 <div className="landing-circle-icon">{BENEFIT_ICONS[index]}</div>
                 <h3>{card.title}</h3>
@@ -240,33 +171,18 @@ export const Home = () => {
               </article>
             ))}
           </div>
-        </div>
-      </section>
 
-      <section className="landing-decision" id="cases">
-        <div className="landing-container landing-decision-grid">
-          <div>
-            <h2>{t('landing.decision.title')}</h2>
-            <p>{t('landing.decision.text')}</p>
-          </div>
-          <div className="landing-decision-flow">
-            <span>RAZUMA</span>
-            <b aria-hidden="true">→</b>
-            <span>{t('landing.decision.signal')}</span>
-            <b aria-hidden="true">→</b>
-            <span>{t('landing.decision.yours')}</span>
-          </div>
+          <div className="landing-decision-banner">{t('landing.decision')}</div>
         </div>
       </section>
 
       <section className="landing-cta" id="demo">
         <div className="landing-container landing-cta-grid">
-          <div>
-            <h2>{t('landing.cta.title')}</h2>
-            <p>{t('landing.cta.text')}</p>
+          <div className="landing-cta-logos" aria-label="RAZUMA — участник Сколково">
+            <img className="landing-cta-r" src="/static/razuma.svg" alt="RAZUMA" />
+            <span className="landing-logo-divider" aria-hidden="true" />
+            <img className="landing-cta-sk" src="/static/skolkovo.webp" alt="Участник Сколково" />
           </div>
-
-          <div className="landing-cta-note">{t('landing.cta.note')}</div>
 
           <div>
             <h3>{t('landing.cta.demoTitle')}</h3>
@@ -279,6 +195,8 @@ export const Home = () => {
               {t('landing.cta.demoBtn')} <span aria-hidden="true">→</span>
             </button>
           </div>
+
+          <div className="landing-cta-divider" aria-hidden="true" />
 
           <div id="contact">
             <h3>{t('landing.cta.contactTitle')}</h3>
