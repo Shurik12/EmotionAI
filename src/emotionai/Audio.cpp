@@ -666,7 +666,11 @@ audio::AcousticFeatures Audio::extract_acoustic_features() const
     
     audio::LibrosaFeatureExtractor::Config config;
     config.sample_rate = TARGET_SR;
-    return audio::LibrosaFeatureExtractor::extractAllFeatures(audio, config);
+    // Burnout scoring consumes only the scalar groups (pitch, intensity,
+    // pauses, speech rate, voice activity). The Mel spectrogram and MFCCs
+    // are not part of the five-component model, so the burnout path does
+    // not pay for them; they remain available via extractAllFeatures().
+    return audio::LibrosaFeatureExtractor::extractAcousticFeaturesOnly(audio, config);
 }
 
 nlohmann::json Audio::add_burnout_analysis(

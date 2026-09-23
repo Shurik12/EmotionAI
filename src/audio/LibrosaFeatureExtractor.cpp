@@ -47,7 +47,6 @@ AcousticFeatures LibrosaFeatureExtractor::extractAllFeatures(
             config.fmin,
             config.fmax
         );
-        features.mel_spectrogram = mels;
         
         // 2. Compute MFCC using LibrosaCpp
         auto mfcc = librosa::Feature::mfcc(
@@ -66,7 +65,6 @@ AcousticFeatures LibrosaFeatureExtractor::extractAllFeatures(
             config.norm,
             config.dct_type
         );
-        features.mfcc = mfcc;
         
         // 3. Extract traditional acoustic features (these don't use LibrosaCpp)
         auto pitch_feat = extractPitchFeatures(audio, config);
@@ -75,9 +73,14 @@ AcousticFeatures LibrosaFeatureExtractor::extractAllFeatures(
         auto speech_feat = extractSpeechRateFeatures(audio, config);
         auto voice_feat = extractVoiceActivityFeatures(audio, config);
         
-        // 4. Merge all features
+        // 4. Merge scalar features and re-attach the spectral blocks.
+        //    mergeFeatures() carries only the scalar groups, so assigning
+        //    them here is what makes "all features" actually be all of them
+        //    (previously MFCC/mel were computed and silently discarded).
         features = mergeFeatures({pitch_feat, intensity_feat, pause_feat, 
                                    speech_feat, voice_feat});
+        features.mfcc = std::move(mfcc);
+        features.mel_spectrogram = std::move(mels);
         
         // 5. Set total duration (from voice activity)
         features.total_duration = voice_feat.total_duration;
