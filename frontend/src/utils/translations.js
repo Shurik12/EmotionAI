@@ -18,6 +18,12 @@ export const translations = {
       privacy: 'Конфиденциальность',
       contacts: 'Контакты',
       tryDemo: 'Попробовать демо',
+      solutions: 'Решения',
+      industries: 'Отрасли',
+      technology: 'Технология',
+      cases: 'Кейсы',
+      about: 'О компании',
+      contactUs: 'Связаться с нами',
     },
     home: {
       title: 'Razuma – флагманская ИИ-платформа для комплексного анализа эмоций по фото и видео',
@@ -32,6 +38,126 @@ export const translations = {
       },
       analyzeNow: 'Анализировать сейчас',
       learnMore: 'Узнать больше',
+    },
+    landing: {
+      heroTitle: 'Технология,\nкоторая помогает\nвидеть больше',
+      heroLead: 'ИИ-платформа анализа состояния и реакций человека по видео и голосу.',
+      tryDemo: 'Попробуйте демо',
+      discussPilot: 'Обсудить пилот',
+      industriesLabel: 'Отрасли',
+      analysis: {
+        title: 'RAZUMA анализирует не только то, что человек говорит',
+        cards: [
+          {
+            title: 'Видео',
+            items: [
+              'Мимические реакции',
+              'Интенсивность и динамика эмоций',
+              'Изменение эмоционального состояния во времени',
+            ],
+          },
+          {
+            title: 'Голос',
+            items: [
+              'Темп речи',
+              'Паузы',
+              'Интонационная динамика',
+              'Эмоциональная окраска',
+              'Изменение голосовых характеристик',
+            ],
+          },
+          {
+            title: 'Совместный анализ',
+            items: [
+              'Динамика показателей во времени',
+              'Согласованность сигналов',
+              'Изменения относительно обычного состояния',
+              'Эпизоды, требующие дополнительного внимания',
+              'Часть показателей — в процессе обучения',
+            ],
+          },
+        ],
+      },
+      industries: {
+        title: 'Где уже используют',
+        link: 'Все отрасли',
+        cards: [
+          {
+            title: 'HR',
+            alt: 'HR и работа с сотрудниками',
+            headline: 'Раньше замечать изменение состояния сотрудников',
+            bullets: [
+              'Регулярная оценка состояния',
+              'HR-опросы и интервью',
+              'Профилактика выгорания',
+              'Оценка команд с высокой нагрузкой',
+            ],
+          },
+          {
+            title: 'Промышленность',
+            alt: 'Промышленность и предсменный контроль',
+            headline: 'Дополнительный сигнал риска перед работой',
+            bullets: [
+              'Предсменный контроль',
+              'Оценка уровня внимания',
+              'Профилактика инцидентов',
+              'Снижение человеческого фактора',
+            ],
+          },
+          {
+            title: 'Банки',
+            alt: 'Банки и безопасность клиентов',
+            headline: 'Выявление возможного внешнего воздействия',
+            bullets: [
+              'Нетипичные операции',
+              'Взаимодействие с клиентом',
+              'Дополнительная проверка',
+              'Больше уверенности в безопасности клиентов',
+            ],
+          },
+          {
+            title: 'Маркетинговые исследования',
+            alt: 'Маркетинговые исследования',
+            headline: 'Настоящие реакции — более точные инсайты',
+            bullets: [
+              'Тестирование рекламы',
+              'Концепт- и продукт-тесты',
+              'Глубинные интервью',
+              'UX/CX-исследования',
+              'Customer Journey',
+            ],
+          },
+        ],
+      },
+      benefits: {
+        cards: [
+          {
+            title: 'Ранний сигнал',
+            text: 'Возможность действовать до того, как проблема проявилась в результате.',
+          },
+          {
+            title: 'Дополнительный слой данных',
+            text: 'Не только слова и анкеты, но и реальная динамика поведения.',
+          },
+          {
+            title: 'Динамика, а не единичная оценка',
+            text: 'Можно отслеживать изменения во времени.',
+          },
+          {
+            title: 'Интеграция в ваши процессы',
+            text: 'RAZUMA дополняет существующие процессы и не заменяет решения специалистов.',
+          },
+        ],
+      },
+      decision: 'RAZUMA помогает принимать решения,\nа не принимает их вместо заказчика.',
+      cta: {
+        demoTitle: 'Попробуйте технологию\nв действии',
+        demoText: 'Загрузите пример видео или аудио и получите пример анализа.',
+        demoBtn: 'Попробуйте демо',
+        contactTitle: 'Обсудим, как RAZUMA\nможет работать в вашей компании',
+        contactText: 'Расскажите о вашей задаче — и мы предложим оптимальный сценарий внедрения.',
+        contactBtn: 'Обсудить пилот',
+      },
     },
     features: {
       title: 'Возможности Razuma',
@@ -115,21 +241,33 @@ export const translations = {
       emailLabel: 'Email',
       email: 'info@razuma.tech',
       phoneLabel: 'Телефон',
-      phone: '+7 (999) 123-45-67',
+      phone: '+7 (961) 063-67-71',
       workingHoursLabel: 'Режим работы',
       workingHours: 'Пн-Пт: 10:00 - 19:00 (МСК)'
     },
     detector: {
-      title: 'Распознавание эмоций с помощью ИИ',
+      heroTagline: 'ТЕХНОЛОГИИ. ЛЮДИ. РЕШЕНИЯ.',
+      heroTitle: 'Попробуйте демо RAZUMA',
+      heroLead: 'Оцените возможности нашей платформы и узнайте, как ИИ помогает видеть больше в эмоциях, поведении и реакции человека.',
+      panelInstruction: 'Загрузите ваш файл аудио, видео или фото и выберите режим обработки.',
+      benefits: {
+        fastTitle: 'Быстрая загрузка',
+        fastText: 'Поддерживаем основные форматы фото, аудио и видео.',
+        modeTitle: 'Выбор режима',
+        modeText: 'Используйте готовые сценарии анализа под ваши задачи.',
+        resultTitle: 'Результат анализа',
+        resultText: 'Получите детальный анализ и ценные инсайты.',
+      },
       dragFile: 'Перетащите файл сюда',
       chooseFile: 'Выбрать файл',
-      supportedFormats: 'Поддерживаемые форматы: JPG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (макс. 50MB)',
+      supportedFormats: 'JPG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (макс. 50 МБ)',
       consent: 'Я даю согласие на обработку моих персональных данных в соответствии с',
       analyze: 'Анализ',
       processingMode: 'Режим обработки',
       modes: {
         standard: 'Стандартный анализ',
         burnout: 'Анализ состояния человека',
+        externalInfluence: 'Анализ внешнего влияния',
         realtime: 'Анализ в реальном времени',
       },
       processing: 'Обработка...',
@@ -155,6 +293,7 @@ export const translations = {
       processingImage: 'Обработка изображения...',
       processingComplete: 'Обработка завершена!',
       burnoutComplete: 'Анализ выгорания завершен',
+      externalInfluenceComplete: 'Анализ внешнего влияния завершен',
       fileProcessing: 'Обработка файла...',
       processingFrame: 'Обработка кадра {current} из {total}',
       processingSegment: 'Обработка сегмента {current} из {total}',
@@ -335,11 +474,100 @@ export const translations = {
         analysis_failed: 'Не удалось выполнить анализ. Пожалуйста, попробуйте снова.',
       },
     },
+    externalInfluence: {
+      title: 'Сигнал возможного внешнего воздействия',
+      subtitle: 'Антифрод-ориентир по аудиозаписи разговора (пилот)',
+      score: 'Индекс выраженности сигнала',
+      scoreHint: 'Не является вероятностью мошенничества.',
+      quality: 'Качество аудио',
+      persistentPattern: 'Устойчивое сочетание признаков',
+      contextConfirmed: 'Подтверждено контекстными признаками',
+      topFactors: 'Ключевые сигналы',
+      componentsTitle: 'Из чего складывается оценка',
+      fragmentTimeline: 'Оценки по фрагментам разговора',
+      fragmentLabel: 'Фрагмент {n}',
+      contextApplied: 'Контекстные признаки (учтены при расчёте)',
+      managerAction: 'Действие менеджера',
+      importantNote: 'Важно знать',
+      disclaimer:
+        'Результат — пилотный сигнал возможного внешнего воздействия на сотрудника. Он не является доказательством мошенничества, не определяет виновность и сам по себе не должен блокировать операции или служить единственным основанием для решений.',
+
+      states: {
+        insufficientData: 'Недостаточно данных для оценки',
+        low: 'Выраженных признаков не выявлено',
+        elevatedTension: 'Повышенное напряжение',
+        possiblePressure: 'Возможное внешнее давление',
+        probableInfluence: 'Вероятное внешнее воздействие',
+        highRisk: 'Высокий риск внешнего воздействия',
+      },
+
+      explanationLabel: 'Пояснение',
+
+      stateExplanations: {
+        low: 'Выраженных изменений эмоционального состояния и речевого поведения по голосовому сигналу не выявлено. Это не исключает воздействие, которое не проявилось в голосе.',
+        elevatedTension:
+          'Выявлены изменения эмоционального состояния и речевого поведения. Причина изменений по голосовому сигналу не определяется.',
+        possiblePressure:
+          'Выявлены отдельные изменения эмоционального состояния и речевого поведения, возможные при внешнем давлении. Сами по себе они не являются признаком мошенничества.',
+        probableInfluence:
+          'Изменения эмоционального состояния и речевого поведения устойчивы и сочетаются с признаками, характерными для внешнего воздействия. Причина изменений по голосовому сигналу однозначно не определяется.',
+        highRisk:
+          'Выявлено устойчивое сочетание выраженных изменений и признаков, характерных для внешнего воздействия. Результат — пилотный сигнал и не является доказательством мошенничества.',
+      },
+
+      factors: {
+        'NEGATIVE_ACTIVATION_HIGH': 'Повышенное эмоциональное напряжение',
+        'PAUSE_TEMPO_DEVIATION': 'Отклонение темпа речи и пауз',
+        'PROSODIC_DEVIATION': 'Отклонение интонационной выразительности',
+        'POSITIVE_AFFECT_LOSS_HIGH': 'Снижение положительной эмоциональной окраски',
+        'PERSISTENT_PATTERN': 'Устойчивое сочетание признаков (не менее 2 из 3 фрагментов)',
+        'CONTEXT_CONFIRMED': 'Подтверждено контекстными признаками',
+      },
+
+      actions: {
+        'STANDARD_PROCESS': 'Обрабатывать в стандартном порядке',
+        'CONTINUE_NO_BLOCK': 'Продолжить без блокировки',
+        'ASK_CONTROL_QUESTIONS': 'Задать контрольные вопросы',
+        'ENHANCED_ANTIFRAUD_CHECK': 'Провести усиленную антифрод-проверку',
+        'PRIORITY_ANTIFRAUD_REVIEW': 'Провести приоритетную антифрод-проверку',
+      },
+
+      components: {
+        negativeActivation: 'Эмоциональное напряжение',
+        pauseTempoDeviation: 'Темп речи и паузы',
+        prosodicDeviation: 'Интонационная выразительность',
+        positiveAffectLoss: 'Положительная эмоциональная окраска',
+      },
+
+      context: {
+        'THIRD_PARTY_INSTRUCTIONS': 'Слышны инструкции третьих лиц',
+        'COACHED_ANSWERS': 'Подсказанные ответы',
+        'COVER_STORY': 'Легенда / прикрытие',
+        'AUDIBLE_THIRD_PARTY_PROMPT': 'Слышны подсказки третьего лица',
+        'URGENCY': 'Давление по времени / срочность',
+        'SECRECY': 'Требование секретности',
+        'SAFE_ACCOUNT': 'Упоминание «безопасного счёта»',
+        'AUTHORITY_IMPERSONATION': 'Имитация авторитета (руководство, банк)',
+        'PURPOSE_INCONSISTENCY': 'Несоответствие цели звонка',
+        'UNKNOWN_PAYEE': 'Неизвестный получатель перевода',
+        'EXTERNAL_CALL_IN_PROGRESS': 'Идёт внешний звонок / перевод разговора',
+      },
+
+      guidance: {
+        insufficientData:
+          'Недостаточно данных: запись короче 30 секунд осмысленной речи, низкое качество аудио или низкая надёжность оценки. Загрузите более длинную и чистую запись разговора.',
+        noResult: 'Результат недоступен.',
+      },
+
+      reasons: {
+        lowAudioQuality: 'Причина: качество аудио ниже порога — запись слишком тихая, шумная или без речи.',
+        tooFewFragments: 'Причина: менее 3 валидных фрагментов — слишком короткая или прерывистая запись.',
+        noValidFragments: 'Причина: ни один фрагмент не удалось сопоставить с базовым профилем.',
+        lowConfidence: 'Причина: надёжность оценки ниже порога достоверности (обычно малый объём распознанной речи или слабый сигнал модели).',
+      },
+    },
     footer: {
-      demo: 'Демо',
-      privacy: 'Политика конфиденциальности',
-      contacts: 'Контакты',
-      copyright: '© 2025 Razuma Technologies. Все права защищены.',
+      copyright: '© 2026 RAZUMA',
     },
     cookies: {
       text: 'Мы используем файлы cookie для улучшения работы сайта.',
@@ -385,6 +613,12 @@ export const translations = {
       privacy: 'Privacy',
       contacts: 'Contacts',
       tryDemo: 'Try Demo',
+      solutions: 'Solutions',
+      industries: 'Industries',
+      technology: 'Technology',
+      cases: 'Cases',
+      about: 'About us',
+      contactUs: 'Contact us',
     },
     home: {
       title: 'Razuma - flagship AI platform for comprehensive emotion analysis from photos and videos',
@@ -399,6 +633,126 @@ export const translations = {
       },
       analyzeNow: 'Analyze now',
       learnMore: 'Learn more',
+    },
+    landing: {
+      heroTitle: 'Technology that\nhelps you see more',
+      heroLead: 'AI platform for analyzing a person’s state and reactions from video and voice.',
+      tryDemo: 'Try the demo',
+      discussPilot: 'Discuss a pilot',
+      industriesLabel: 'Industries',
+      analysis: {
+        title: 'RAZUMA analyzes more than just what a person says',
+        cards: [
+          {
+            title: 'Video',
+            items: [
+              'Facial reactions',
+              'Intensity and dynamics of emotions',
+              'Changes in emotional state over time',
+            ],
+          },
+          {
+            title: 'Voice',
+            items: [
+              'Speech tempo',
+              'Pauses',
+              'Intonation dynamics',
+              'Emotional coloring',
+              'Changes in voice characteristics',
+            ],
+          },
+          {
+            title: 'Joint analysis',
+            items: [
+              'Dynamics of indicators over time',
+              'Consistency of signals',
+              'Changes relative to the usual state',
+              'Episodes requiring additional attention',
+              'Some indicators are still in the learning process',
+            ],
+          },
+        ],
+      },
+      industries: {
+        title: 'Where it is already used',
+        link: 'All industries',
+        cards: [
+          {
+            title: 'HR',
+            alt: 'HR and employee care',
+            headline: 'Notice changes in employee state earlier',
+            bullets: [
+              'Regular state assessment',
+              'HR surveys and interviews',
+              'Burnout prevention',
+              'Assessing high-load teams',
+            ],
+          },
+          {
+            title: 'Industry',
+            alt: 'Industry and pre-shift control',
+            headline: 'An additional risk signal before work',
+            bullets: [
+              'Pre-shift control',
+              'Attention level assessment',
+              'Incident prevention',
+              'Reducing human factors',
+            ],
+          },
+          {
+            title: 'Banks',
+            alt: 'Banks and client security',
+            headline: 'Identifying possible external influence',
+            bullets: [
+              'Atypical operations',
+              'Interaction with the client',
+              'Additional verification',
+              'More confidence in client security',
+            ],
+          },
+          {
+            title: 'Marketing research',
+            alt: 'Marketing research',
+            headline: 'Real reactions — more accurate insights',
+            bullets: [
+              'Ad testing',
+              'Concept and product tests',
+              'In-depth interviews',
+              'UX/CX research',
+              'Customer Journey',
+            ],
+          },
+        ],
+      },
+      benefits: {
+        cards: [
+          {
+            title: 'Early signal',
+            text: 'The ability to act before a problem shows up in the results.',
+          },
+          {
+            title: 'An additional data layer',
+            text: 'Not just words and surveys, but the real dynamics of behavior.',
+          },
+          {
+            title: 'Dynamics, not a single assessment',
+            text: 'You can track changes over time.',
+          },
+          {
+            title: 'Integration into your processes',
+            text: 'RAZUMA complements existing processes and does not replace specialists’ decisions.',
+          },
+        ],
+      },
+      decision: 'RAZUMA helps make decisions,\nrather than making them instead of the customer.',
+      cta: {
+        demoTitle: 'Try the technology\nin action',
+        demoText: 'Upload a sample video or audio and get a sample analysis.',
+        demoBtn: 'Try the demo',
+        contactTitle: 'Let’s discuss how RAZUMA\ncan work in your company',
+        contactText: 'Tell us about your task — and we will suggest the optimal implementation scenario.',
+        contactBtn: 'Discuss a pilot',
+      },
     },
     features: {
       title: 'Razuma Features',
@@ -473,11 +827,11 @@ export const translations = {
       companyNameLabel: 'Company Name',
       companyName: 'Razuma Technologies LLC',
       legalAddressLabel: 'Legal Address',
-      legalAddress: '123456, Moscow, Example St., 1, office 101',
+      legalAddress: 'Moscow, the territory of the Skolkovo Innovation Center, Bolshoy Boulevard, house 42, building 1',
       inlnLabel: 'Tax ID',
-      inln: '7701234567',
+      inln: '9731157733',
       ogrnipLabel: 'State Registration Number',
-      ogrnip: '123456789012345',
+      ogrnip: '1257700507745',
       contactDetails: 'Contact Details',
       emailLabel: 'Email',
       email: 'info@razuma.tech',
@@ -487,16 +841,28 @@ export const translations = {
       workingHours: 'Mon-Fri: 10:00 - 19:00 (MSK)'
     },
     detector: {
-      title: 'Emotion Recognition with AI',
+      heroTagline: 'TECHNOLOGY. PEOPLE. SOLUTIONS.',
+      heroTitle: 'Try the RAZUMA demo',
+      heroLead: 'Explore the capabilities of our platform and learn how AI helps see more in human emotions, behavior, and reactions.',
+      panelInstruction: 'Upload your photo, audio, or video file and choose a processing mode.',
+      benefits: {
+        fastTitle: 'Fast upload',
+        fastText: 'We support the main photo, audio, and video formats.',
+        modeTitle: 'Mode selection',
+        modeText: 'Use ready-made analysis scenarios for your tasks.',
+        resultTitle: 'Analysis result',
+        resultText: 'Get detailed analysis and valuable insights.',
+      },
       dragFile: 'Drag file here',
       chooseFile: 'Choose file',
-      supportedFormats: 'Supported formats: JPG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (max. 50MB)',
+      supportedFormats: 'JPG, PNG, MP4, AVI, WEBM, MP3, WAV, AAC, OGG, FLAC (max. 50 MB)',
       consent: 'I consent to the processing of my personal data in accordance with the',
       analyze: 'Analyze',
       processingMode: 'Processing Mode',
       modes: {
         standard: 'Standard Analysis',
         burnout: 'Analysis of a person’s condition',
+        externalInfluence: 'External Influence Analysis',
         realtime: 'Real-time Analysis',
       },
       processing: 'Processing...',
@@ -522,6 +888,7 @@ export const translations = {
       processingImage: 'Processing image...',
       processingComplete: 'Processing complete!',
       burnoutComplete: 'Burnout analysis complete',
+      externalInfluenceComplete: 'External influence analysis complete',
       fileProcessing: 'Processing file...',
       processingFrame: 'Processing frame {current} of {total}',
       processingSegment: 'Processing segment {current} of {total}',
@@ -558,6 +925,17 @@ export const translations = {
       urgency: 'Urgency and Next Steps',
       factorExplanation: 'Explanation',
       requiresHistory: 'multiple recordings required',
+      importantNote: 'Important to Know',
+
+      attentionLevel: {
+        title: 'Attention Level',
+        mainSignal: 'Primary Signal',
+        low: 'Low',
+        moderate: 'Moderate',
+        high: 'High',
+        severe: 'Very High',
+        noSignals: 'No pronounced signals detected',
+      },
       
       components: {
         exhaustion: 'Emotional Exhaustion',
@@ -668,11 +1046,100 @@ export const translations = {
         'analysis_failed': 'Analysis failed. Please try again.'
       }
     },
+    externalInfluence: {
+      title: 'Possible External Influence Signal',
+      subtitle: 'Anti-fraud aid from a call recording (pilot)',
+      score: 'Signal Intensity Index',
+      scoreHint: 'Not a probability of fraud.',
+      quality: 'Audio Quality',
+      persistentPattern: 'Persistent Pattern',
+      contextConfirmed: 'Context Confirmed',
+      topFactors: 'Key Signals',
+      componentsTitle: 'Assessment Components',
+      fragmentTimeline: 'Fragment Scores',
+      fragmentLabel: 'Fragment {n}',
+      contextApplied: 'Context flags (applied to the analysis)',
+      managerAction: 'Manager Action',
+      importantNote: 'Important to Know',
+      disclaimer:
+        'The result is a pilot signal of possible external influence on the employee. It is not proof of fraud, does not establish culpability, and on its own must not block operations or be the sole basis for decisions.',
+
+      states: {
+        insufficientData: 'Insufficient Data',
+        low: 'No Pronounced Signs Detected',
+        elevatedTension: 'Elevated Tension',
+        possiblePressure: 'Possible External Pressure',
+        probableInfluence: 'Probable External Influence',
+        highRisk: 'High External Influence Risk',
+      },
+
+      explanationLabel: 'Explanation',
+
+      stateExplanations: {
+        low: 'No pronounced changes in emotional state or speech behavior were detected in the voice signal. This does not rule out influence that did not manifest in the voice.',
+        elevatedTension:
+          'Changes in emotional state and speech behavior were detected. The cause of the changes cannot be determined from the voice signal.',
+        possiblePressure:
+          'Some changes in emotional state and speech behavior consistent with external pressure were detected. On their own they are not evidence of fraud.',
+        probableInfluence:
+          'Changes in emotional state and speech behavior are sustained and combine with features typical of external influence. The cause cannot be determined unambiguously from the voice signal.',
+        highRisk:
+          'A persistent combination of pronounced changes and features typical of external influence was detected. The result is a pilot signal and is not proof of fraud.',
+      },
+
+      factors: {
+        'NEGATIVE_ACTIVATION_HIGH': 'Elevated emotional tension',
+        'PAUSE_TEMPO_DEVIATION': 'Speech tempo / pause deviation',
+        'PROSODIC_DEVIATION': 'Prosodic expressiveness deviation',
+        'POSITIVE_AFFECT_LOSS_HIGH': 'Reduced positive emotional tone',
+        'PERSISTENT_PATTERN': 'Persistent pattern (at least 2 of 3 fragments)',
+        'CONTEXT_CONFIRMED': 'Confirmed by context flags',
+      },
+
+      actions: {
+        'STANDARD_PROCESS': 'Process in standard order',
+        'CONTINUE_NO_BLOCK': 'Continue without blocking',
+        'ASK_CONTROL_QUESTIONS': 'Ask control questions',
+        'ENHANCED_ANTIFRAUD_CHECK': 'Run enhanced anti-fraud check',
+        'PRIORITY_ANTIFRAUD_REVIEW': 'Run priority anti-fraud review',
+      },
+
+      components: {
+        negativeActivation: 'Emotional tension',
+        pauseTempoDeviation: 'Speech tempo and pauses',
+        prosodicDeviation: 'Prosodic expressiveness',
+        positiveAffectLoss: 'Positive emotional tone',
+      },
+
+      context: {
+        'THIRD_PARTY_INSTRUCTIONS': 'Third-party instructions audible',
+        'COACHED_ANSWERS': 'Coached answers',
+        'COVER_STORY': 'Cover story',
+        'AUDIBLE_THIRD_PARTY_PROMPT': 'Audible prompting by a third party',
+        'URGENCY': 'Urgency / time pressure',
+        'SECRECY': 'Secrecy demands',
+        'SAFE_ACCOUNT': '“Safe account” mention',
+        'AUTHORITY_IMPERSONATION': 'Authority impersonation (boss, bank)',
+        'PURPOSE_INCONSISTENCY': 'Call purpose inconsistency',
+        'UNKNOWN_PAYEE': 'Unknown transfer recipient',
+        'EXTERNAL_CALL_IN_PROGRESS': 'External call / call transfer in progress',
+      },
+
+      guidance: {
+        insufficientData:
+          'Insufficient data: the recording contains less than ~30 seconds of meaningful speech, low audio quality, or low assessment confidence. Upload a longer, cleaner call recording.',
+        noResult: 'Result unavailable.',
+      },
+
+      reasons: {
+        lowAudioQuality: 'Reason: audio quality is below the threshold — the recording is too quiet, noisy, or speechless.',
+        tooFewFragments: 'Reason: fewer than 3 valid fragments — the recording is too short or too discontinuous.',
+        noValidFragments: 'Reason: no fragment could be matched against the baseline profile.',
+        lowConfidence: 'Reason: assessment confidence is below the reliability threshold (usually little recognized speech or a weak model signal).',
+      },
+    },
     footer: {
-      demo: 'Demo',
-      privacy: 'Privacy Policy',
-      contacts: 'Contacts',
-      copyright: '© 2025 Razuma Technologies. All rights reserved.',
+      copyright: '© 2026 RAZUMA',
     },
     cookies: {
       text: 'We use cookies to improve website functionality.',

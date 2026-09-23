@@ -47,7 +47,6 @@ AcousticFeatures LibrosaFeatureExtractor::extractAllFeatures(
             config.fmin,
             config.fmax
         );
-        features.mel_spectrogram = mels;
         
         // 2. Compute MFCC using LibrosaCpp
         auto mfcc = librosa::Feature::mfcc(
@@ -66,7 +65,6 @@ AcousticFeatures LibrosaFeatureExtractor::extractAllFeatures(
             config.norm,
             config.dct_type
         );
-        features.mfcc = mfcc;
         
         // 3. Extract traditional acoustic features (these don't use LibrosaCpp)
         auto pitch_feat = extractPitchFeatures(audio, config);
@@ -75,9 +73,14 @@ AcousticFeatures LibrosaFeatureExtractor::extractAllFeatures(
         auto speech_feat = extractSpeechRateFeatures(audio, config);
         auto voice_feat = extractVoiceActivityFeatures(audio, config);
         
-        // 4. Merge all features
+        // 4. Merge scalar features and re-attach the spectral blocks.
+        //    mergeFeatures() carries only the scalar groups, so assigning
+        //    them here is what makes "all features" actually be all of them
+        //    (previously MFCC/mel were computed and silently discarded).
         features = mergeFeatures({pitch_feat, intensity_feat, pause_feat, 
                                    speech_feat, voice_feat});
+        features.mfcc = std::move(mfcc);
+        features.mel_spectrogram = std::move(mels);
         
         // 5. Set total duration (from voice activity)
         features.total_duration = voice_feat.total_duration;
@@ -124,6 +127,73 @@ AcousticFeatures LibrosaFeatureExtractor::extractAcousticFeaturesOnly(
     }
     
     return features;
+}
+
+//=============================================================================
+// estimateAudioQuality
+//
+// Heuristic whole-recording quality in 0..1 used by the external-influence
+// gate: rewards recordings with little near-silence, a healthy SPEECH level
+// and no heavy clipping. The level is measured on non-silent frames only so
+// a long silent tail (typical for call recordings) does not drag it down,
+// and up to ~75% silence still leaves partial credit - real two-party calls
+// are mostly pauses. Internal thresholds only; the analysis minimum
+// (audio_quality_min) lives in config. Expects float PCM in [-1, 1] as
+// produced by Audio::decode (int16 / 32768 or FFmpeg float).
+//=============================================================================
+double LibrosaFeatureExtractor::estimateAudioQuality(
+    const std::vector<float>& audio,
+    const Config& config)
+{
+    if (audio.empty() || config.sample_rate <= 0) {
+        return 0.0;
+    }
+
+    const int frame_length = static_cast<int>(FRAME_LENGTH_MS * config.sample_rate / 1000);
+    const int hop_length = static_cast<int>(HOP_LENGTH_MS * config.sample_rate / 1000);
+    if (frame_length <= 0 || hop_length <= 0 ||
+        audio.size() < static_cast<size_t>(frame_length)) {
+        return 0.0;
+    }
+
+    double speech_rms_sum = 0.0;
+    size_t silence_frames = 0;
+    size_t speech_frames = 0;
+    size_t clip_frames = 0;
+    size_t total_frames = 0;
+
+    for (size_t i = 0; i + frame_length <= audio.size(); i += hop_length) {
+        double sum_sq = 0.0;
+        float peak = 0.0f;
+        for (size_t j = 0; j < static_cast<size_t>(frame_length); ++j) {
+            const float sample = audio[i + j];
+            sum_sq += static_cast<double>(sample) * sample;
+            peak = std::max(peak, std::abs(sample));
+        }
+        const double rms = std::sqrt(sum_sq / frame_length);
+        ++total_frames;
+        if (rms < 0.005) {
+            ++silence_frames;
+        } else {
+            ++speech_frames;
+            speech_rms_sum += rms;
+        }
+        if (peak >= 0.98f) ++clip_frames;
+    }
+    if (total_frames == 0) {
+        return 0.0;
+    }
+
+    const double silence_ratio = static_cast<double>(silence_frames) / total_frames;
+    const double clip_ratio = static_cast<double>(clip_frames) / total_frames;
+    const double speech_rms = speech_frames > 0 ? speech_rms_sum / speech_frames : 0.0;
+
+    const double silence_score = 1.0 - std::min(1.0, silence_ratio / 0.75);
+    const double level_score = std::min(1.0, speech_rms / 0.03);
+    const double clip_score = 1.0 - std::min(1.0, clip_ratio / 0.05);
+
+    return std::max(0.0, std::min(1.0,
+        0.60 * silence_score + 0.25 * level_score + 0.15 * clip_score));
 }
 
 //=============================================================================

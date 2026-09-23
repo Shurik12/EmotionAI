@@ -21,6 +21,12 @@ Python at runtime. Python is used only for model training and for exporting mode
   weighted components: emotional exhaustion (0.25), prosodic flattening (0.25), pause tempo (0.20),
   negative activation (0.15), positive affect loss (0.15). History-aware, returns translation keys
   so the frontend localises the verdict.
+- **External influence (scam) signal** — pilot anti-fraud aid: splits one call recording into
+  consecutive ≤10 s windows and flags a *sustained* combination of emotional tension and two-sided
+  speech-behavior change (tempo/pauses/prosody deviating in either direction) across ≥3 fragments,
+  optionally confirmed by context flags (urgency, coached answers, "safe account", …). Emits a
+  severity status + manager action — **not** fraud proof, never blocks an operation. All weights
+  and boundaries live in the `external_influence:` config section for recalibration.
 - **Batch and realtime pipelines** — two Dragonfly/Redis queues with visibility timeouts and
   retries, so long video jobs never block quick single-image requests.
 - **Pluggable storage** — local, NFS, or S3 (MinIO) behind one `FileStorage` interface, selected by
@@ -30,7 +36,8 @@ Python at runtime. Python is used only for model training and for exporting mode
 - **Observability** — Prometheus metrics endpoint with provisioned Grafana dashboards.
 - **Optional GigaChat enrichment** — LLM-generated commentary on detected emotions, gated behind a
   confidence threshold.
-- **React frontend** — Vite build, react-router, multilingual (RU/EN), cookie consent, charts.
+- **React frontend** — Vite 5 SPA served by the same binary (SPA fallback), multilingual (RU/EN),
+  landing page with anchored sections, detector workspace, contact page, cookie consent, charts.
 
 Accepted uploads: `png`, `jpg`, `jpeg`, `mp4`, `avi`, `webm`, `mp3`, `wav` (50 MB default limit).
 
@@ -73,7 +80,7 @@ src/
 ├── server/      epoll HTTP server, routing, thread pool
 ├── emotionai/   Image / Audio / FileProcessor inference orchestration
 ├── mtcnn/       face detection (pnet, rnet, onet)
-├── audio/       acoustic feature extraction, burnout analyzer
+├── audio/       acoustic feature extraction, burnout + external-influence analyzers
 ├── db/          Redis + Dragonfly managers, TaskManager
 ├── cluster/     ClusterManager, DistributedTaskManager
 ├── storage/     FileStorage interface + Local / NFS / S3 backends
@@ -186,6 +193,7 @@ Key sections (see `config_template.yaml` for full annotated defaults):
 | `model`             | backend (`torch`/`onnx`), emotion model, audio model, det. path |
 | `cluster`           | enable distributed coordination                                 |
 | `gigachat`          | optional LLM enrichment, auth key, min confidence               |
+| `external_influence`| all weights/boundaries of the scam-signal analyzer (pilot)      |
 
 Unit, integration and e2e tests use separate configs in `tests/configs/` on ports 8081–8083 and
 Redis DBs 1–3, so they never collide with a running dev server.
@@ -207,6 +215,8 @@ All endpoints are under `/api`. CORS preflight (`OPTIONS`) is handled for every 
 | `/api/batch_progress`     | Progress for a set of task ids                         |
 | `/api/burnout/analyze`    | Analyze current sample against a supplied baseline     |
 | `/api/burnout/baseline`   | Create or update a user's burnout baseline             |
+| `/api/upload_external_influence` | Queue a call recording for external influence analysis |
+| `/api/external-influence/analyze` | Re-run the external influence status with context flags |
 
 ### GET
 
@@ -227,6 +237,44 @@ curl http://localhost/api/health
 curl -F "file=@sample.jpg" http://localhost/api/upload_realtime
 curl http://localhost/api/progress/<task_id>
 ```
+
+---
+
+## Frontend
+
+React 18 + Vite 5 SPA in `frontend/`. The compiled app is served by the binary itself: any path that
+is not `/api/...` returns `index.html`, so client-side routes work without server configuration.
+
+Pages (`src/components/App.jsx`): `home` (landing), `features`, `detector` (demo workspace),
+`privacy`, `contact`. Routing is a small in-house context (`src/context/NavigationContext.jsx`)
+built on `history.pushState` — `react-router-dom` is a leftover dependency and is not imported
+anywhere in `src/`.
+
+The landing page is composed of anchored sections that the header and footer menus scroll to:
+
+| Anchor | Section |
+|---|---|
+| `technology` | hero — headline, demo and pilot buttons |
+| `solutions` | what RAZUMA analyses (three cards) |
+| `industries` | where it is already used (four cards) |
+| `cases` | what your business gets (four cards + decision banner) |
+| `demo` | bottom CTA band — RAZUMA / Skolkovo lockup, demo and contact blocks |
+| `contact` | contact column inside the CTA band |
+| `about` | the footer element |
+
+Every "Обсудить пилот" button and the header CTA open the contact page; the frontend never sends
+email and the contact page only displays `mailto:` / `tel:` links.
+
+Localisation lives in `src/utils/translations.js` (RU and EN in one file; a missing key renders as
+the raw key in the UI). Static images live in `frontend/public/static/` and are referenced as
+`/static/...`; photos ship as `.webp`.
+
+```bash
+make build_frontend         # npm install + vite build -> frontend/dist
+cd frontend && npm run dev  # dev server on :3000, proxies /api to API_URL (default http://localhost:5000)
+```
+
+Details in [frontend/README.md](frontend/README.md).
 
 ---
 
@@ -300,8 +348,12 @@ make test   # configures with -DBUILD_TESTS=ON, builds and runs build/tests/emot
 Frontend:
 
 ```bash
-cd frontend && npm test && npm run lint
+cd frontend
+npm run build    # vite build -> frontend/dist (same as make build_frontend)
 ```
+
+> `npm test` (jest) and `npm run lint` (eslint) are declared in `package.json` but not configured —
+> no jest config, no eslint config and no test files exist, so both commands fail.
 
 ---
 
