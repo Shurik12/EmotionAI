@@ -42,7 +42,7 @@ up-build: ## Start containers, rebuilding images
 down: ## Stop containers
 	docker compose down
 
-restart: down up ## Restart containers
+re-up: down up ## Restart containers
 
 clean: ## Remove build output, venv, node_modules, caches
 	rm -rf build frontend/dist frontend/node_modules venv

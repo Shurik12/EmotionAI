@@ -36,9 +36,21 @@ export const NavigationProvider = ({ children }) => {
     document.title = titles[cleanPath] || 'Razuma';
   };
 
+  const navigateToSection = (sectionId) => {
+    if (currentPage !== 'home') {
+      navigateTo('home');
+    }
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  };
+
   const value = {
     currentPage,
     navigateTo,
+    navigateToSection,
   };
 
   return (

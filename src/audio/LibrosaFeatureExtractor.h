@@ -41,6 +41,14 @@ public:
         const std::vector<float>& audio,
         const Config& config
     );
+
+    // Whole-recording quality in 0..1: silence ratio, average level and
+    // clipping, computed over short frames (25 ms / 10 ms hop).
+    // config.sample_rate must be the actual rate of `audio`.
+    static double estimateAudioQuality(
+        const std::vector<float>& audio,
+        const Config& config
+    );
     
     static std::vector<std::vector<float>> extractMFCC(
         const std::vector<float>& audio,

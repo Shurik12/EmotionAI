@@ -135,9 +135,14 @@ private:
     void handleBurnoutBaseline(const std::shared_ptr<ClientContext> &context, const std::string &body);
     void handleBurnoutBaselineGet(const std::shared_ptr<ClientContext> &context);
 
+    // External influence Route Handlers
+    void handleUploadExternalInfluence(const std::shared_ptr<ClientContext> &context, const std::string &body);
+    void handleExternalInfluenceAnalyze(const std::shared_ptr<ClientContext> &context, const std::string &body);
+
     // Common handlers
     std::string handleUploadCommon(const std::string &file_content, const std::string &filename, bool realtime = false);
     std::string handleUploadBurnoutCommon(const std::string &file_content, const std::string &filename);
+    std::string handleUploadExternalInfluenceCommon(const std::string &file_content, const std::string &filename);
     std::string handleSubmitApplicationCommon(const std::string &body);
     void validateJsonDocument(const nlohmann::json &json);
 

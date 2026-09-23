@@ -176,6 +176,61 @@ bool Config::loadFromFile(const std::string &config_path)
                 new_data.gigachat.prompt_template = gigachat["prompt_template"].as<std::string>();
         }
 
+        if (root["external_influence"])
+        {
+            const auto &ei = root["external_influence"];
+            auto &cfg = new_data.external_influence;
+
+            cfg.fragment_seconds = ei["fragment_seconds"].as<double>(cfg.fragment_seconds);
+            cfg.max_fragments = ei["max_fragments"].as<int>(cfg.max_fragments);
+            cfg.min_tail_ratio = ei["min_tail_ratio"].as<double>(cfg.min_tail_ratio);
+
+            cfg.min_valid_fragments = ei["min_valid_fragments"].as<int>(cfg.min_valid_fragments);
+            cfg.confidence_min = ei["confidence_min"].as<double>(cfg.confidence_min);
+            cfg.audio_quality_min = ei["audio_quality_min"].as<double>(cfg.audio_quality_min);
+
+            cfg.weight_negative_activation = ei["weight_negative_activation"].as<double>(cfg.weight_negative_activation);
+            cfg.weight_pause_tempo_deviation = ei["weight_pause_tempo_deviation"].as<double>(cfg.weight_pause_tempo_deviation);
+            cfg.weight_prosodic_deviation = ei["weight_prosodic_deviation"].as<double>(cfg.weight_prosodic_deviation);
+            cfg.weight_positive_affect_loss = ei["weight_positive_affect_loss"].as<double>(cfg.weight_positive_affect_loss);
+
+            cfg.pause_tempo_deadzone = ei["pause_tempo_deadzone"].as<double>(cfg.pause_tempo_deadzone);
+            cfg.pause_tempo_saturation = ei["pause_tempo_saturation"].as<double>(cfg.pause_tempo_saturation);
+            cfg.prosodic_deadzone = ei["prosodic_deadzone"].as<double>(cfg.prosodic_deadzone);
+            cfg.prosodic_saturation = ei["prosodic_saturation"].as<double>(cfg.prosodic_saturation);
+
+            cfg.attr_pause_ratio = ei["attr_pause_ratio"].as<double>(cfg.attr_pause_ratio);
+            cfg.attr_pause_mean_duration = ei["attr_pause_mean_duration"].as<double>(cfg.attr_pause_mean_duration);
+            cfg.attr_pause_max_duration = ei["attr_pause_max_duration"].as<double>(cfg.attr_pause_max_duration);
+            cfg.attr_speech_rate = ei["attr_speech_rate"].as<double>(cfg.attr_speech_rate);
+            cfg.attr_pitch_variation = ei["attr_pitch_variation"].as<double>(cfg.attr_pitch_variation);
+            cfg.attr_pitch_range = ei["attr_pitch_range"].as<double>(cfg.attr_pitch_range);
+            cfg.attr_intensity_variation = ei["attr_intensity_variation"].as<double>(cfg.attr_intensity_variation);
+
+            cfg.window_size = ei["window_size"].as<int>(cfg.window_size);
+            cfg.persistence_required = ei["persistence_required"].as<int>(cfg.persistence_required);
+            cfg.component_high_threshold = ei["component_high_threshold"].as<double>(cfg.component_high_threshold);
+
+            cfg.score_low_max = ei["score_low_max"].as<double>(cfg.score_low_max);
+            cfg.score_elevated_max = ei["score_elevated_max"].as<double>(cfg.score_elevated_max);
+            cfg.score_possible_max = ei["score_possible_max"].as<double>(cfg.score_possible_max);
+            cfg.score_probable_max = ei["score_probable_max"].as<double>(cfg.score_probable_max);
+
+            cfg.strong_context_required = ei["strong_context_required"].as<int>(cfg.strong_context_required);
+            cfg.moderate_context_required = ei["moderate_context_required"].as<int>(cfg.moderate_context_required);
+            if (ei["strong_flags"])
+                cfg.strong_flags = ei["strong_flags"].as<std::vector<std::string>>(cfg.strong_flags);
+            if (ei["moderate_flags"])
+                cfg.moderate_flags = ei["moderate_flags"].as<std::vector<std::string>>(cfg.moderate_flags);
+
+            cfg.confidence_weight_audio_quality = ei["confidence_weight_audio_quality"].as<double>(cfg.confidence_weight_audio_quality);
+            cfg.confidence_weight_baseline_reliability = ei["confidence_weight_baseline_reliability"].as<double>(cfg.confidence_weight_baseline_reliability);
+            cfg.confidence_weight_model_probability = ei["confidence_weight_model_probability"].as<double>(cfg.confidence_weight_model_probability);
+            cfg.confidence_weight_speech_coverage = ei["confidence_weight_speech_coverage"].as<double>(cfg.confidence_weight_speech_coverage);
+            cfg.default_baseline_reliability = ei["default_baseline_reliability"].as<double>(cfg.default_baseline_reliability);
+            cfg.stored_baseline_reliability = ei["stored_baseline_reliability"].as<double>(cfg.stored_baseline_reliability);
+        }
+
         data_ = std::move(new_data);
         loaded_.store(true);
 

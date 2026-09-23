@@ -54,6 +54,11 @@ public:
     // Get MIME bundle representation
     nlohmann::json mime_bundle_repr() const;
 
+    // WavLM output label order (indexes into main_prediction); needed by
+    // callers that run their own batched inference (external-influence
+    // pipeline) and must map class indexes exactly like process_audio.
+    static const std::vector<std::string>& emotion_labels() { return EMOTION_LABELS; }
+
 private:
     // Core data
     std::vector<float> audio_data_;
