@@ -9,10 +9,12 @@
 @import url('./components/header.css');
 @import url('./components/footer.css');
 @import url('./components/hero.css');
+@import url('./components/landing.css');
 @import url('./components/features.css');
 @import url('./components/pricing.css');
 @import url('./components/detector.css');
 @import url('./components/burnout.css');
+@import url('./components/externalInfluence.css');
 @import url('./components/modal.css');
 @import url('./components/cookie.css');
 @import url('./components/contact.css');

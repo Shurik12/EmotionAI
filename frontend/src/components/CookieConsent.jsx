@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
+import { useNavigation } from '../hooks/useNavigation';
 
 export const CookieConsent = () => {
   const { t } = useLanguage();
+  const { navigateTo } = useNavigation();
   const [showConsent, setShowConsent] = useState(false);
 
   useEffect(() => {
@@ -24,7 +26,7 @@ export const CookieConsent = () => {
       <div className="cookie-content">
         <p>
           {t('cookies.text')}
-          <a href="#privacy">{t('cookies.more')}</a>
+          <a href="#privacy" onClick={(e) => { e.preventDefault(); navigateTo('privacy'); }}>{t('cookies.more')}</a>
         </p>
         <button 
           className="btn btn-primary" 

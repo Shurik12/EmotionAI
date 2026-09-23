@@ -26,7 +26,10 @@ export const useProgress = () => {
             message = data.message;
           } else if (data.message === 'Burnout analysis complete') {
             message = 'detector.burnoutComplete';
-          } else if (data.message === 'Processing audio...' || data.message === 'Processing audio for burnout analysis') {
+          } else if (data.message === 'External influence analysis complete') {
+            message = 'detector.externalInfluenceComplete';
+          } else if (data.message === 'Processing audio...' || data.message === 'Processing audio for burnout analysis'
+              || data.message === 'Processing audio for external influence analysis') {
             message = 'detector.processingAudio';
           } else if (data.message === 'Video processing...') {
             message = 'detector.processingVideo';

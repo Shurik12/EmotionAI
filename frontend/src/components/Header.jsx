@@ -1,25 +1,39 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
+import { useNavigation } from '../hooks/useNavigation';
 
-export const Header = ({ navigateTo, language, setLanguage }) => {
-  const { t } = useLanguage();  // Make sure this is called correctly
+export const Header = ({ language, setLanguage }) => {
+  const { t } = useLanguage();
+  const { currentPage, navigateTo, navigateToSection } = useNavigation();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
-  const handleNavClick = (path) => {
-    navigateTo(path);
+  const navItems = [
+    { section: 'solutions', label: t('nav.solutions') },
+    { section: 'industries', label: t('nav.industries') },
+    { section: 'technology', label: t('nav.technology') },
+    { section: 'cases', label: t('nav.cases') },
+    { section: 'about', label: t('nav.about') },
+  ];
+
+  const handleSectionClick = (section) => (e) => {
+    e.preventDefault();
     setShowMobileMenu(false);
+    navigateToSection(section);
+  };
+
+  const handleLogoClick = (e) => {
+    e.preventDefault();
+    setShowMobileMenu(false);
+    if (currentPage === 'home') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      navigateTo('home');
+    }
   };
 
   const handleLanguageChange = (e) => {
     setLanguage(e.target.value);
   };
-
-  const navItems = [
-    { path: 'features', label: t('nav.features') },
-    { path: 'detector', label: t('nav.demo') },
-    { path: 'privacy', label: t('nav.privacy') },
-    { path: 'contact', label: t('nav.contacts') },
-  ];
 
   return (
     <header className="header">
@@ -33,30 +47,30 @@ export const Header = ({ navigateTo, language, setLanguage }) => {
 
       <a 
         href="/" 
-        className="logo" 
-        onClick={(e) => {
-          e.preventDefault();
-          handleNavClick('home');
-        }}
+        className="brand-lockup" 
+        onClick={handleLogoClick}
+        aria-label="RAZUMA — участник Сколково"
       >
         <img 
-          src="/static/Razuma_Black.svg" 
-          alt="Razuma Logo" 
-          className="logo-icon"
+          src="/static/razuma.svg" 
+          alt="" 
+          className="brand-mark"
         />
-        <span>Razuma</span>
+        <span className="brand-divider" aria-hidden="true" />
+        <img 
+          src="/static/skolkovo.webp" 
+          alt="Участник Сколково" 
+          className="brand-skolkovo"
+        />
       </a>
 
       <nav className={`main-nav ${showMobileMenu ? 'show' : ''}`}>
-        {navItems.map(({ path, label }) => (
+        {navItems.map(({ section, label }) => (
           <a
-            key={path}
-            href={`#${path}`}
+            key={section}
+            href={`#${section}`}
             className="nav-link"
-            onClick={(e) => {
-              e.preventDefault();
-              handleNavClick(path);
-            }}
+            onClick={handleSectionClick(section)}
           >
             {label}
           </a>
@@ -74,10 +88,13 @@ export const Header = ({ navigateTo, language, setLanguage }) => {
         </select>
 
         <button 
-          className="btn btn-primary" 
-          onClick={() => handleNavClick('detector')}
+          className="header-cta" 
+          onClick={() => {
+            setShowMobileMenu(false);
+            navigateTo('contact');
+          }}
         >
-          {t('nav.tryDemo')}
+          {t('nav.contactUs')}
         </button>
       </div>
     </header>

@@ -77,6 +77,38 @@ loop in `src/server/Server.cpp`. Don't add handlers to httplib expecting them to
 
 Missing step 2 or 3 fails silently as a 404 or a CORS error in the browser.
 
+## Frontend (SPA)
+
+- **The same binary serves the built SPA.** `make build_frontend` runs `npm install && npm run build`
+  (Vite, `outDir: dist`, `assetsDir: static`); the server returns `frontend/dist/index.html` for any
+  non-`/api` path, so client-side routes need no server config. `frontend/dist` is gitignored —
+  source edits reach the running site only after a rebuild.
+- **Routing is hand-rolled; `react-router-dom` is dead weight.** `src/context/NavigationContext.jsx`
+  keeps `currentPage` and pushes history entries; `App.jsx` switches on it (`home`, `features`,
+  `detector`, `privacy`, `contact`; unknown paths render `home`). react-router sits in
+  `package.json` and the forced `react-vendor` chunk but is never imported in `src/`.
+- **Two navigation helpers with different targets.** `navigateTo(page)` switches the top-level page
+  (demo buttons → `detector`, every "Обсудить пилот" / header CTA → the `contact` page).
+  `navigateToSection(id)` scrolls to an element of the landing page (double rAF + `scrollIntoView`);
+  targets need both the `id` and CSS `scroll-margin-top: 92px` for the sticky header.
+- **Landing anchor ids are the menu contract** (a rename fails silently — the menu just stops
+  scrolling). In `Home.jsx`: `technology` (hero), `solutions` (analysis cards), `industries`,
+  `cases` (benefit cards + decision banner), `demo` (CTA band), `contact` (CTA contact column);
+  `about` is on the `<footer>` element in `Footer.jsx`.
+- **Nothing sends email.** All "Обсудить пилот" buttons call `navigateTo('contact')`; `mailto:` /
+  `tel:` links exist only as information on the contact page. A real email flow would need a new
+  backend route — the binary has no SMTP code.
+- **Assets:** `frontend/public/static/` referenced as `/static/<file>` (Vite copies `public/` into
+  `dist/`). Branding is `razuma.svg` + `skolkovo.webp`; photos are `.webp`. The landing hero
+  background lives in `landing.css` (`url('/static/hero.webp')`), not in JSX — swap the file there
+  too when changing the image.
+- **Translations:** `src/utils/translations.js` holds RU and EN; `t('a.b.c')` returns the key on a
+  miss (a missing translation shows a raw key in the UI). Landing card lists are per-language arrays
+  of objects paired with the `ANALYSIS_ICONS` / `BENEFIT_ICONS` arrays **by index** — reorder one,
+  reorder the other.
+- **Dead tooling:** `npm test` (jest) and `npm run lint` (eslint) both fail — no jest config, no
+  eslint config, no test files. Only `npm run build` / `make build_frontend` work.
+
 ## Code conventions
 
 The codebase is **inconsistent** — match the file you are editing rather than imposing one style.
@@ -93,6 +125,10 @@ The codebase is **inconsistent** — match the file you are editing rather than 
 - **Tests:** GoogleTest + gmock. `tests/mocks/MockEmotiEffLib.h` allows tests to run without model
   weights. Test configs live in `tests/configs/` on ports 8081–8083 and Redis DBs 1–3 so they never
   collide with a dev server.
+- **Frontend:** components are named exports in `src/components/`, one stylesheet per area in
+  `src/styles/components/` (`landing.css` for the home page), tokens in `src/styles/global.css`
+  (`--layout-padding-x`, `--color-*`). UI text goes through `t()` — add keys to both RU and EN
+  halves of `translations.js`.
 
 ## Layout map
 
@@ -106,7 +142,7 @@ The codebase is **inconsistent** — match the file you are editing rather than 
 | `src/cluster/` | `ClusterManager`, `DistributedTaskManager` |
 | `src/storage/` | `FileStorage` interface + Local / NFS / S3 (MinIO) |
 | `src/metrics/` | Prometheus collector and middleware |
-| `frontend/src/` | React 18 + Vite 5 SPA; `api/`, `components/`, `hooks/`, `context/`, `utils/` |
+| `frontend/src/` | React 18 + Vite 5 SPA; landing = `components/Home.jsx` + `styles/components/landing.css`; i18n = `utils/translations.js` |
 | `config/` | YAML profiles, `nginx` vhost template, `service` systemd unit |
 | `docker/` | five compose variants, one per deployment topology |
 | `training/` | PyTorch training and dataset prep |
