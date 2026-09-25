@@ -192,7 +192,26 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    fs::create_directories(args.out_dir);
+    // --out is a DIRECTORY. Validate it before loading the (large) model so a
+    // bad path fails fast with a clear message instead of an uncaught
+    // filesystem_error and a core dump.
+    std::error_code out_ec;
+    if (fs::exists(args.out_dir) && !fs::is_directory(args.out_dir)) {
+        std::cerr << "error: --out expects a directory, but '" << args.out_dir
+                  << "' is an existing file\n"
+                  << "       Results go to <dir>/report.txt and <dir>/summary.tsv\n";
+        return 2;
+    }
+    fs::create_directories(args.out_dir, out_ec);
+    if (!out_ec) {
+        fs::create_directories(args.out_dir + "/logs", out_ec);
+    }
+    if (out_ec) {
+        std::cerr << "error: cannot write to output directory '" << args.out_dir
+                  << "': " << out_ec.message() << "\n"
+                  << "       Pick a directory you own, e.g. /tmp/burnout_out or ~/burnout_out\n";
+        return 2;
+    }
     Logger::instance().initialize(args.out_dir + "/logs", "BurnoutBenchmark",
                                   spdlog::level::warn);
 
@@ -219,6 +238,10 @@ int main(int argc, char** argv) {
 
     const std::string tsv_path = args.out_dir + "/summary.tsv";
     std::ofstream tsv(tsv_path);
+    if (!tsv) {
+        std::cerr << "error: cannot open " << tsv_path << " for writing\n";
+        return 2;
+    }
     tsv << "set\tfile\tvariant\tlevel\tstate\trisk\tconfidence\t"
            "voice_activity\tmax_prob\texhaustion\tprosodic_flattening\tpause_tempo\t"
            "negative_activation\tpositive_affect_loss\ttop_factor\terror\n";
