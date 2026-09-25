@@ -403,10 +403,15 @@ bool Audio::decode_audio_file(const std::string &filename)
         return false;
     }
     
-    // Get audio info using new API
+    // Get audio info using the channel-layout API where available;
+    // AVCodecContext::channels is deprecated since FFmpeg 5.1.
     int input_sample_rate = codec_ctx_->sample_rate;
-    int input_channels = codec_ctx_->channels;
     AVSampleFormat input_sample_fmt = codec_ctx_->sample_fmt;
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(59, 24, 0)
+    int input_channels = codec_ctx_->ch_layout.nb_channels;
+#else
+    int input_channels = codec_ctx_->channels;
+#endif
     
     // Get channel layout using new API
     AVChannelLayout input_ch_layout;
