@@ -45,7 +45,10 @@ bool Config::loadFromFile(const std::string &config_path)
         if (root["paths"])
         {
             const auto &paths = root["paths"];
-            new_data.paths.uploads = paths["uploads"].as<std::string>(new_data.paths.uploads);
+            // Configs (template, test, docker) use `paths.upload`; older
+            // files used `paths.uploads`. Accept both, prefer `upload`.
+            new_data.paths.uploads = paths["upload"].as<std::string>(
+                paths["uploads"].as<std::string>(new_data.paths.uploads));
             new_data.paths.results = paths["results"].as<std::string>(new_data.paths.results);
             new_data.paths.logs = paths["logs"].as<std::string>(new_data.paths.logs);
             new_data.paths.frontend = paths["frontend"].as<std::string>(new_data.paths.frontend);
@@ -235,6 +238,12 @@ bool Config::loadFromFile(const std::string &config_path)
         {
             const auto &bo = root["burnout"];
             auto &cfg = new_data.burnout;
+
+            cfg.window_seconds = bo["window_seconds"].as<double>(cfg.window_seconds);
+            cfg.max_windows = bo["max_windows"].as<int>(cfg.max_windows);
+            cfg.min_valid_windows = bo["min_valid_windows"].as<int>(cfg.min_valid_windows);
+            if (bo["aggregation"])
+                cfg.aggregation = bo["aggregation"].as<std::string>(cfg.aggregation);
 
             cfg.min_voice_activity_ratio = bo["min_voice_activity_ratio"].as<double>(cfg.min_voice_activity_ratio);
 
