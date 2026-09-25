@@ -130,6 +130,38 @@ Level stringToLevel(const std::string& str) {
     return Level::LOW;
 }
 
+nlohmann::json BurnoutConfig::defaultBaselineJson() const {
+    return {
+        {"acoustic_features", {
+            {"pitch_variation", base_pitch_variation},
+            {"pitch_range", base_pitch_range},
+            {"intensity_variation", base_intensity_variation},
+            {"pause_ratio", base_pause_ratio},
+            {"pause_mean_duration", base_pause_mean_duration},
+            {"pause_max_duration", base_pause_max_duration},
+            {"speech_rate", base_speech_rate}
+        }},
+        {"additional_probs", {
+            {"neutral", base_neutral},
+            {"happy", base_happy},
+            {"sad", base_sad},
+            {"angry", base_angry},
+            {"fear", base_fear},
+            {"disgust", base_disgust}
+        }},
+        {"detailed_analysis", {
+            {"wavlm_emotion_probabilities", {
+                {"neutral", base_neutral},
+                {"happy", base_happy},
+                {"sad", base_sad},
+                {"angry", base_angry},
+                {"fear", base_fear},
+                {"disgust", base_disgust}
+            }}
+        }}
+    };
+}
+
 nlohmann::json getDefaultBaseline() {
     return {
         {"acoustic_features", {

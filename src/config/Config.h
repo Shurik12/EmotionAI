@@ -8,6 +8,7 @@
 #include <atomic>
 #include <mutex>
 #include <spdlog/spdlog.h>
+#include <audio/BurnoutModels.h>
 #include <audio/ExternalInfluenceModels.h>
 
 class Config
@@ -47,6 +48,7 @@ public:
 	const auto &storage() const { return data_.storage; }
 	const auto &gigachat() const { return data_.gigachat; }
 	const auto &externalInfluence() const { return data_.external_influence; }
+	const auto &burnout() const { return data_.burnout; }
 
 	// Check if config is loaded
 	bool isLoaded() const { return loaded_.load(); }
@@ -198,6 +200,7 @@ private:
 		StorageConfig storage;
 		GigaChatConfig gigachat;
 		audio::ExternalInfluenceConfig external_influence;
+		audio::BurnoutConfig burnout;
 	};
 
 	ConfigData data_;
