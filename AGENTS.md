@@ -20,7 +20,9 @@ make install          # apt deps + submodules + libtorch/onnxruntime into contri
 make python_env       # venv + requirements.txt
 make models           # export C++ model headers from contrib/emotiefflib/models
 make build            # configure (CMake+Ninja) + build_backend + build_frontend
-make build_harness    # build tools/burnout_harness (offline burnout measurement)
+make test             # build + run the unit suite (needs libgtest-dev/libgmock-dev)
+make test_integration # also build/run integration+e2e (needs DragonflyDB + models)
+make benchmark        # build the offline burnout benchmark (tests/benchmark)
 make up               # docker compose: dragonfly + server
 ./build/emotionai     # run binary directly (from repo root only)
 ```
@@ -30,8 +32,7 @@ make up               # docker compose: dragonfly + server
 | Command | Why it fails |
 |---|---|
 | `make run` | **No such target.** Use `make up` or run `./build/emotionai` from the repo root. |
-| `make test` | Correctly targets the single real binary `build/tests/emotionai_tests` and passes `-DBUILD_TESTS=ON`, but `add_subdirectory(tests)` is **commented out** in `CMakeLists.txt:211-213`, so the target is never generated. Uncomment that block plus `enable_testing()` on line 209. Note `tests/CMakeLists.txt` builds **one** binary, `emotionai_tests` — there is no unit/integration split despite what older docs claimed. |
-| `install_deps.sh` | Does **not** install `libfftw3-dev` or FFmpeg dev packages. FFTW3 is mandatory — a clean install fails at build. It also omits `libgtest-dev`, needed for `make test`. Its "Verifying installations" output claims to check PostgreSQL client, httplib and redis-plus-plus, none of which it installs. |
+| `install_deps.sh` | Does **not** install `libfftw3-dev` or FFmpeg dev packages. FFTW3 is mandatory — a clean install fails at build. It also omits `libgtest-dev`/`libbenchmark-dev`, needed for `make test`. Its "Verifying installations" output claims to check PostgreSQL client, httplib and redis-plus-plus, none of which it installs. |
 
 Install the missing deps manually:
 
@@ -78,15 +79,25 @@ changes the response schema.
 `burnout.level.high` which the frontend resolves via `frontend/src/utils/translations.js` (RU/EN).
 Never emit human-readable strings from the C++ side.
 
-**Audio burnout baseline is empirically calibrated, not hand-written.** `Audio::add_burnout_analysis`
-uses `audio::BurnoutConfig` (defaults in `BurnoutModels.h`, overridable via the optional `burnout:`
-YAML section). The old fabricated baseline (`happy=0.30`, `pause_ratio=0.10`, ...) never matched real
-WavLM output, so `positive_affect_loss` and `pause_tempo` saturated on every recording and the score
-was near-constant (~0.5). Defaults are medians measured on `benchmark/control`; a
-`min_voice_activity_ratio` gate rejects near-silent windows as `INSUFFICIENT_DATA`. This applies to
-the burnout path only — `audio::getDefaultBaseline()` (used by external influence) is unchanged.
-Measure changes with `make build_harness` and `tools/burnout_harness.cpp`; there are no labelled
-burnout positives, so only false-positive rate on the control sets is measurable.
+**Audio burnout is multi-window and empirically calibrated, not a single fabricated snapshot.**
+`Audio::process_audio_with_burnout` splits a recording into up to `max_windows` windows of
+`window_seconds`, **evenly spaced across the whole file** (the old path scored only the first 10 s),
+runs WavLM + features per window, rejects windows below `min_voice_activity_ratio`, and aggregates
+per-field with `aggregation` (median/mean) before scoring. `Audio::add_burnout_analysis` then scores
+against `audio::BurnoutConfig` (defaults in `BurnoutModels.h`, overridable via the optional
+`burnout:` YAML section). The old fabricated baseline (`happy=0.30`, `pause_ratio=0.10`, ...) never
+matched real WavLM output, so `positive_affect_loss` and `pause_tempo` saturated on every recording
+and the score was near-constant (~0.5). Defaults are medians measured on `benchmark/control`. This
+applies to the burnout path only — `audio::getDefaultBaseline()` (used by external influence) is
+unchanged. Measure changes with `make benchmark` and `tests/benchmark/BurnoutBenchmark.cpp`; there
+are no labelled burnout positives, so only false-positive rate on the control sets is measurable.
+
+**C++ test tiers.** `tests/CMakeLists.txt` builds one binary, `emotionai_tests`. Unit tests
+(`tests/unit/*`) build by default and need no services. Integration/e2e tests start a real `Server`
+and need DragonflyDB + model weights, so they are behind `-DEMOTIONAI_BUILD_INTEGRATION_TESTS=ON`
+(`make test_integration`). GTest is optional: if it is missing, the tests directory warns and is
+skipped instead of failing the configure. The `ServerFactory`/`IServer` architecture older test docs
+refer to no longer exists — tests construct `Server` directly.
 
 **`src/common/httplib.h` is vendored but is not the request path.** Routing happens in the epoll
 loop in `src/server/Server.cpp`. Don't add handlers to httplib expecting them to be reachable.
