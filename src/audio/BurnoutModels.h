@@ -34,10 +34,19 @@ enum class Level {
 // recording and the score became near-constant (~0.5).
 //=============================================================================
 struct BurnoutConfig {
-    // A window whose voiced fraction is below this is rejected as
-    // INSUFFICIENT_DATA instead of being scored. The WavLM model emits
-    // near-uniform probabilities on non-speech, which the component math
-    // would otherwise turn into a confident-looking risk.
+    // Multi-window analysis: a recording is split into up to max_windows
+    // windows of window_seconds, evenly spaced across the WHOLE file (not
+    // just the start). Per-window emotion probabilities and acoustic features
+    // are aggregated with `aggregation` ("median" or "mean") before scoring.
+    double window_seconds = 10.0;   // WavLM input ceiling
+    int max_windows = 5;
+    int min_valid_windows = 1;      // fewer usable windows -> INSUFFICIENT_DATA
+    std::string aggregation = "median";
+
+    // A window whose voiced fraction is below this is rejected instead of
+    // being scored. The WavLM model emits near-uniform probabilities on
+    // non-speech, which the component math would otherwise turn into a
+    // confident-looking risk.
     double min_voice_activity_ratio = 0.15;
 
     // Default baseline (medians over benchmark/control). Used only when the

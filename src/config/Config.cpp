@@ -236,6 +236,12 @@ bool Config::loadFromFile(const std::string &config_path)
             const auto &bo = root["burnout"];
             auto &cfg = new_data.burnout;
 
+            cfg.window_seconds = bo["window_seconds"].as<double>(cfg.window_seconds);
+            cfg.max_windows = bo["max_windows"].as<int>(cfg.max_windows);
+            cfg.min_valid_windows = bo["min_valid_windows"].as<int>(cfg.min_valid_windows);
+            if (bo["aggregation"])
+                cfg.aggregation = bo["aggregation"].as<std::string>(cfg.aggregation);
+
             cfg.min_voice_activity_ratio = bo["min_voice_activity_ratio"].as<double>(cfg.min_voice_activity_ratio);
 
             cfg.base_pitch_variation = bo["base_pitch_variation"].as<double>(cfg.base_pitch_variation);
