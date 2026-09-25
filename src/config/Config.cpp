@@ -231,6 +231,29 @@ bool Config::loadFromFile(const std::string &config_path)
             cfg.stored_baseline_reliability = ei["stored_baseline_reliability"].as<double>(cfg.stored_baseline_reliability);
         }
 
+        if (root["burnout"])
+        {
+            const auto &bo = root["burnout"];
+            auto &cfg = new_data.burnout;
+
+            cfg.min_voice_activity_ratio = bo["min_voice_activity_ratio"].as<double>(cfg.min_voice_activity_ratio);
+
+            cfg.base_pitch_variation = bo["base_pitch_variation"].as<double>(cfg.base_pitch_variation);
+            cfg.base_pitch_range = bo["base_pitch_range"].as<double>(cfg.base_pitch_range);
+            cfg.base_intensity_variation = bo["base_intensity_variation"].as<double>(cfg.base_intensity_variation);
+            cfg.base_pause_ratio = bo["base_pause_ratio"].as<double>(cfg.base_pause_ratio);
+            cfg.base_pause_mean_duration = bo["base_pause_mean_duration"].as<double>(cfg.base_pause_mean_duration);
+            cfg.base_pause_max_duration = bo["base_pause_max_duration"].as<double>(cfg.base_pause_max_duration);
+            cfg.base_speech_rate = bo["base_speech_rate"].as<double>(cfg.base_speech_rate);
+
+            cfg.base_neutral = bo["base_neutral"].as<double>(cfg.base_neutral);
+            cfg.base_happy = bo["base_happy"].as<double>(cfg.base_happy);
+            cfg.base_sad = bo["base_sad"].as<double>(cfg.base_sad);
+            cfg.base_angry = bo["base_angry"].as<double>(cfg.base_angry);
+            cfg.base_fear = bo["base_fear"].as<double>(cfg.base_fear);
+            cfg.base_disgust = bo["base_disgust"].as<double>(cfg.base_disgust);
+        }
+
         data_ = std::move(new_data);
         loaded_.store(true);
 
