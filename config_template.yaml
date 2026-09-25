@@ -83,11 +83,20 @@ gigachat:
 # matched, so positive_affect_loss and pause_tempo fired for every file and
 # the score sat at ~0.5 regardless of content.
 #
+# window_seconds/max_windows: a recording is split into up to max_windows
+#   windows of window_seconds, evenly spaced across the whole file. Per-window
+#   outputs are aggregated with `aggregation` ("median" or "mean").
+# min_valid_windows: fewer usable (speech-bearing) windows than this yields
+#   INSUFFICIENT_DATA.
 # min_voice_activity_ratio: windows with less voiced audio than this return
 #   INSUFFICIENT_DATA instead of a score (WavLM is near-uniform on non-speech).
 # base_*: population-median fallback used only when no per-user baseline was
 #   stored. Prefer a real per-user baseline when available.
 burnout:
+  window_seconds: 10.0
+  max_windows: 5
+  min_valid_windows: 1
+  aggregation: "median"
   min_voice_activity_ratio: 0.15
   base_pitch_variation: 0.1189
   base_pitch_range: 128.3287

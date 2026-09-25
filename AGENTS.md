@@ -78,15 +78,18 @@ changes the response schema.
 `burnout.level.high` which the frontend resolves via `frontend/src/utils/translations.js` (RU/EN).
 Never emit human-readable strings from the C++ side.
 
-**Audio burnout baseline is empirically calibrated, not hand-written.** `Audio::add_burnout_analysis`
-uses `audio::BurnoutConfig` (defaults in `BurnoutModels.h`, overridable via the optional `burnout:`
-YAML section). The old fabricated baseline (`happy=0.30`, `pause_ratio=0.10`, ...) never matched real
-WavLM output, so `positive_affect_loss` and `pause_tempo` saturated on every recording and the score
-was near-constant (~0.5). Defaults are medians measured on `benchmark/control`; a
-`min_voice_activity_ratio` gate rejects near-silent windows as `INSUFFICIENT_DATA`. This applies to
-the burnout path only — `audio::getDefaultBaseline()` (used by external influence) is unchanged.
-Measure changes with `make build_harness` and `tools/burnout_harness.cpp`; there are no labelled
-burnout positives, so only false-positive rate on the control sets is measurable.
+**Audio burnout is multi-window and empirically calibrated, not a single fabricated snapshot.**
+`Audio::process_audio_with_burnout` splits a recording into up to `max_windows` windows of
+`window_seconds`, **evenly spaced across the whole file** (the old path scored only the first 10 s),
+runs WavLM + features per window, rejects windows below `min_voice_activity_ratio`, and aggregates
+per-field with `aggregation` (median/mean) before scoring. `Audio::add_burnout_analysis` then scores
+against `audio::BurnoutConfig` (defaults in `BurnoutModels.h`, overridable via the optional
+`burnout:` YAML section). The old fabricated baseline (`happy=0.30`, `pause_ratio=0.10`, ...) never
+matched real WavLM output, so `positive_affect_loss` and `pause_tempo` saturated on every recording
+and the score was near-constant (~0.5). Defaults are medians measured on `benchmark/control`. This
+applies to the burnout path only — `audio::getDefaultBaseline()` (used by external influence) is
+unchanged. Measure changes with `make build_harness` and `tools/burnout_harness.cpp`; there are no
+labelled burnout positives, so only false-positive rate on the control sets is measurable.
 
 **`src/common/httplib.h` is vendored but is not the request path.** Routing happens in the epoll
 loop in `src/server/Server.cpp`. Don't add handlers to httplib expecting them to be reachable.
