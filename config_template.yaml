@@ -75,3 +75,30 @@ gigachat:
   auth_url: "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
   verify_ssl: false  # For development only
   min_confidence: 0.3  # Minimum emotion confidence to trigger GigaChat
+
+# Audio burnout analysis. Every key is optional; values below are the
+# built-in defaults, calibrated on benchmark/control with
+# tools/burnout_harness.cpp. The default baseline was previously a fabricated
+# profile (happy=0.30, pause_ratio=0.10, ...) that real recordings never
+# matched, so positive_affect_loss and pause_tempo fired for every file and
+# the score sat at ~0.5 regardless of content.
+#
+# min_voice_activity_ratio: windows with less voiced audio than this return
+#   INSUFFICIENT_DATA instead of a score (WavLM is near-uniform on non-speech).
+# base_*: population-median fallback used only when no per-user baseline was
+#   stored. Prefer a real per-user baseline when available.
+burnout:
+  min_voice_activity_ratio: 0.15
+  base_pitch_variation: 0.1189
+  base_pitch_range: 128.3287
+  base_intensity_variation: 1.7564
+  base_pause_ratio: 0.544
+  base_pause_mean_duration: 0.3619
+  base_pause_max_duration: 2.935
+  base_speech_rate: 6.1047
+  base_neutral: 0.1665
+  base_happy: 0.1209
+  base_sad: 0.1124
+  base_angry: 0.1274
+  base_fear: 0.1574
+  base_disgust: 0.1716

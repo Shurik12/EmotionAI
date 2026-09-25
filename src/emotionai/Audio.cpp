@@ -681,32 +681,32 @@ nlohmann::json Audio::add_burnout_analysis(
     nlohmann::json result = emotion_result;
     
     try {
-        // Create default baseline if not provided
-        nlohmann::json default_baseline = {
-            {"acoustic_features", {
-                {"pitch_variation", 0.19},
-                {"pitch_range", 60.0},
-                {"intensity_variation", 0.3},
-                {"pause_ratio", 0.15},
-                {"pause_mean_duration", 0.05},
-                {"pause_max_duration", 0.10},
-                {"speech_rate", 3.5}
-            }},
-            {"additional_probs", {
-                {"neutral", 0.2},
-                {"happy", 0.3},
-                {"sad", 0.1},
-                {"angry", 0.05},
-                {"fear", 0.05},
-                {"disgust", 0.03},
-                {"surprise", 0.05}
-            }}
-        };
-        
+        const audio::BurnoutConfig cfg = Config::instance().burnout();
+
         // Add acoustic features if provided
         if (acoustic_features) {
             result["acoustic_features"] = acoustic_features->toJson();
+
+            // Speech-activity gate: no usable voice means no score. WavLM
+            // returns near-uniform probabilities on silence/noise, and
+            // scoring that against any baseline yields a confident-looking
+            // number that reflects the baseline, not the speaker.
+            if (acoustic_features->voice_activity_ratio < cfg.min_voice_activity_ratio) {
+                audio::Result insufficient;
+                insufficient.state = audio::State::INSUFFICIENT_DATA;
+                insufficient.error = "insufficient_speech";
+                insufficient.recommendations = {"analysis_failed_retry"};
+                result["burnout_analysis"] = insufficient.toJson();
+                LOG_WARN("Burnout skipped: voice_activity_ratio {:.3f} < {:.3f}",
+                         acoustic_features->voice_activity_ratio,
+                         cfg.min_voice_activity_ratio);
+                return result;
+            }
         }
+
+        // Default baseline is the empirically calibrated population median,
+        // used only when the caller did not supply a stored per-user baseline.
+        const nlohmann::json default_baseline = cfg.defaultBaselineJson();
         
         // Run burnout analysis
         audio::BurnoutAnalyzer analyzer;

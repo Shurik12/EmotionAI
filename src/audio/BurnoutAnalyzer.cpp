@@ -212,9 +212,12 @@ State BurnoutAnalyzer::determineState(
     const std::unordered_map<std::string, double>& components,
     const std::vector<nlohmann::json>& history)
 {
-    // Check for insufficient data
+    // A genuine lack of input is rejected upstream: analyze() refuses when
+    // emotions are missing, and Audio::add_burnout_analysis gates on speech
+    // activity. With the empirically calibrated baseline a perfectly normal
+    // recording can score exactly 0, which is NORMAL, not "insufficient".
     if (risk < 0.01) {
-        return State::INSUFFICIENT_DATA;
+        return State::NORMAL;
     }
     
     // Check for LOW_AFFECT_UNSPECIFIC - specific pattern

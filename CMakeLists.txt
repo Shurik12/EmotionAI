@@ -206,6 +206,14 @@ endif()
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE emotionai_lib)
 
+# Offline measurement harness for the burnout pipeline (see tools/).
+# Off by default so normal builds are unaffected; enable with -DBUILD_HARNESS=ON.
+option(BUILD_HARNESS "Build the offline burnout measurement harness" OFF)
+if(BUILD_HARNESS)
+    add_executable(burnout_harness tools/burnout_harness.cpp)
+    target_link_libraries(burnout_harness PRIVATE emotionai_lib)
+endif()
+
 # enable_testing()
 
 # if(BUILD_TESTS)

@@ -20,6 +20,7 @@ make install          # apt deps + submodules + libtorch/onnxruntime into contri
 make python_env       # venv + requirements.txt
 make models           # export C++ model headers from contrib/emotiefflib/models
 make build            # configure (CMake+Ninja) + build_backend + build_frontend
+make build_harness    # build tools/burnout_harness (offline burnout measurement)
 make up               # docker compose: dragonfly + server
 ./build/emotionai     # run binary directly (from repo root only)
 ```
@@ -38,6 +39,18 @@ Install the missing deps manually:
 sudo apt-get install -y libfftw3-dev libgtest-dev libgmock-dev \
   ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
 ```
+
+### Shell permissions (agent command hygiene)
+
+Bash `allow` rules are prefix-anchored and checked against **every top-level segment** of a
+command (split on `&&`, `;`, `|`); a chain is auto-approved only if each segment matches a rule.
+One unmatched segment — typically `cd` or an `echo` separator — forces a permission prompt even
+when the rest is allow-listed, and one denied segment blocks the whole chain.
+
+- Run one command per call; pass the working directory via the tool parameter, not `cd`.
+- Don't use `echo`/`printf` as separators (deliberate: `Bash(echo:*)` would also allow
+  `echo x > file`, bypassing file-edit rules).
+- `Bash(cd:*)` is allow-listed as a fallback for the occasional chain that does contain `cd`.
 
 ## Non-obvious facts
 
@@ -64,6 +77,16 @@ changes the response schema.
 **Burnout results are translation keys, not text.** `BurnoutAnalyzer` returns keys like
 `burnout.level.high` which the frontend resolves via `frontend/src/utils/translations.js` (RU/EN).
 Never emit human-readable strings from the C++ side.
+
+**Audio burnout baseline is empirically calibrated, not hand-written.** `Audio::add_burnout_analysis`
+uses `audio::BurnoutConfig` (defaults in `BurnoutModels.h`, overridable via the optional `burnout:`
+YAML section). The old fabricated baseline (`happy=0.30`, `pause_ratio=0.10`, ...) never matched real
+WavLM output, so `positive_affect_loss` and `pause_tempo` saturated on every recording and the score
+was near-constant (~0.5). Defaults are medians measured on `benchmark/control`; a
+`min_voice_activity_ratio` gate rejects near-silent windows as `INSUFFICIENT_DATA`. This applies to
+the burnout path only — `audio::getDefaultBaseline()` (used by external influence) is unchanged.
+Measure changes with `make build_harness` and `tools/burnout_harness.cpp`; there are no labelled
+burnout positives, so only false-positive rate on the control sets is measurable.
 
 **`src/common/httplib.h` is vendored but is not the request path.** Routing happens in the epoll
 loop in `src/server/Server.cpp`. Don't add handlers to httplib expecting them to be reachable.
