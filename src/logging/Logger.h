@@ -71,16 +71,10 @@ private:
 #define LOG_ERROR(...) Logger::instance().error(__VA_ARGS__)
 #define LOG_CRITICAL(...) Logger::instance().critical(__VA_ARGS__)
 
-// Conditional logging macros
-#define LOG_IF(condition, ...)                    \
-	do                                            \
-	{                                             \
-		if (condition)                            \
-		{                                         \
-			Logger::instance().info(__VA_ARGS__); \
-		}                                         \
-	} while (0)
-
+// Conditional logging macros.
+// Note: deliberately no LOG_IF. libtorch's c10 headers define
+// LOG_IF(n, condition) with different semantics, and redefining it warns in
+// every translation unit that includes both. Use an explicit `if` instead.
 #define LOG_ERROR_IF(condition, ...)               \
 	do                                             \
 	{                                              \
