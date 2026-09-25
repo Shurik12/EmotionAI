@@ -45,7 +45,10 @@ bool Config::loadFromFile(const std::string &config_path)
         if (root["paths"])
         {
             const auto &paths = root["paths"];
-            new_data.paths.uploads = paths["uploads"].as<std::string>(new_data.paths.uploads);
+            // Configs (template, test, docker) use `paths.upload`; older
+            // files used `paths.uploads`. Accept both, prefer `upload`.
+            new_data.paths.uploads = paths["upload"].as<std::string>(
+                paths["uploads"].as<std::string>(new_data.paths.uploads));
             new_data.paths.results = paths["results"].as<std::string>(new_data.paths.results);
             new_data.paths.logs = paths["logs"].as<std::string>(new_data.paths.logs);
             new_data.paths.frontend = paths["frontend"].as<std::string>(new_data.paths.frontend);
