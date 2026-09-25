@@ -109,6 +109,11 @@ endif()
 set(WITH_TORCH "${CMAKE_CURRENT_SOURCE_DIR}/contrib/libtorch" CACHE PATH "Path to LibTorch")
 set(WITH_ONNX "${CMAKE_CURRENT_SOURCE_DIR}/contrib/onnxruntime" CACHE PATH "Path to onnxruntime")
 
+# contrib/emotiefflib calls FetchContent without setting CMP0135, which emits
+# a developer warning on every configure. Default the policy to NEW here (we
+# cannot edit the submodule) so extracted deps get current timestamps.
+set(CMAKE_POLICY_DEFAULT_CMP0135 NEW)
+
 add_subdirectory(contrib)
 
 if(EXISTS ${WITH_TORCH})
