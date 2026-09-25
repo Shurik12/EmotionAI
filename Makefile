@@ -1,7 +1,7 @@
 MODELS_DIR := contrib/emotiefflib/models
 
-.PHONY: help install python_env models configure build_backend build_frontend build build_harness test \
-        up up-build down restart clean
+.PHONY: help install python_env models configure build_backend build_frontend build benchmark test \
+        test_integration up up-build down restart clean
 
 help: ## List targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F'## ' \
@@ -28,12 +28,17 @@ build_frontend: ## Build the React app into frontend/dist
 
 build: build_backend build_frontend ## Configure and build everything
 
-build_harness: ## Build the offline burnout measurement harness (tools/)
-	cmake -S . -B build -G Ninja -DBUILD_HARNESS=ON
-	cmake --build build --target burnout_harness
+benchmark: ## Build the offline burnout benchmark (tests/benchmark)
+	cmake -S . -B build -G Ninja -DBUILD_BENCHMARKS=ON
+	cmake --build build --target emotionai_burnout_benchmark
 
-test: ## Build and run tests; needs CMakeLists.txt:211-213 uncommented
-	cmake -S . -B build -G Ninja -DBUILD_TESTS=ON
+test: ## Build and run the unit test suite
+	cmake -S . -B build -G Ninja -DBUILD_TESTS=ON -DEMOTIONAI_BUILD_INTEGRATION_TESTS=OFF
+	cmake --build build --target emotionai_tests
+	./build/tests/emotionai_tests
+
+test_integration: ## Build/run tests incl. integration+e2e (needs DragonflyDB + models)
+	cmake -S . -B build -G Ninja -DBUILD_TESTS=ON -DEMOTIONAI_BUILD_INTEGRATION_TESTS=ON
 	cmake --build build --target emotionai_tests
 	./build/tests/emotionai_tests
 

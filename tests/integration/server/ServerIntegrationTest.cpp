@@ -3,7 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <server/ServerFactory.h>
+#include <server/Server.h>
 #include <logging/Logger.h>
 #include <config/Config.h>
 #include <client/Client.h>
@@ -36,9 +36,18 @@ protected:
 		index_file << "<html><body>Test Server</body></html>";
 		index_file.close();
 
-		// Start server in background thread
-		server_ = ServerFactory::createServer(config.server().type);
-		server_->initialize();
+		// Start server in background thread. Needs DragonflyDB (and, for
+		// uploads, model weights); skip the suite when those are absent.
+		try
+		{
+			server_ = std::make_unique<Server>();
+			server_->initialize();
+		}
+		catch (const std::exception &e)
+		{
+			server_.reset();
+			GTEST_SKIP() << "Server unavailable (need DragonflyDB/models): " << e.what();
+		}
 		server_thread_ = std::thread([this]()
 									 { server_->start(); });
 
@@ -88,7 +97,7 @@ protected:
 			   std::filesystem::is_regular_file(filepath);
 	}
 
-	std::unique_ptr<IServer> server_;
+	std::unique_ptr<Server> server_;
 	std::thread server_thread_;
 	std::unique_ptr<HttpClient> client_;
 };
