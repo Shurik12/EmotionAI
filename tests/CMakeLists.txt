@@ -1,19 +1,35 @@
 cmake_minimum_required(VERSION 3.16)
 project(EmotionAI_Tests)
 
-find_package(GTest REQUIRED)
+# GoogleTest is required to build any of the C++ tests. Fail soft so that
+# `make build` still works on machines without libgtest-dev.
+find_package(GTest QUIET)
 find_package(Threads REQUIRED)
 
-# Collect test source files the same way as main CMakeLists.txt
+if(NOT GTest_FOUND)
+    message(WARNING "GoogleTest not found - skipping emotionai_tests. "
+                    "Install with: sudo apt-get install -y libgtest-dev libgmock-dev")
+    return()
+endif()
+
+# Integration and end-to-end suites start a real Server (DragonflyDB + models),
+# so they are opt-in. Unit tests always build.
+option(EMOTIONAI_BUILD_INTEGRATION_TESTS
+       "Build integration/e2e tests (need DragonflyDB and model weights)" OFF)
+
 set(TEST_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/config
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/logging
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/db
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/server
-    ${CMAKE_CURRENT_SOURCE_DIR}/integration/server
-    ${CMAKE_CURRENT_SOURCE_DIR}/integration/end_to_end
-    ${CMAKE_CURRENT_SOURCE_DIR}/utils
 )
+
+if(EMOTIONAI_BUILD_INTEGRATION_TESTS)
+    list(APPEND TEST_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}/integration/server
+        ${CMAKE_CURRENT_SOURCE_DIR}/integration/end_to_end
+    )
+endif()
 
 set(test_sources)
 set(test_headers)
