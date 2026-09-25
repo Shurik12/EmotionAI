@@ -1,15 +1,15 @@
-// tools/burnout_harness.cpp
+// tests/benchmark/BurnoutBenchmark.cpp
 //
-// Offline measurement harness for the audio burnout pipeline.
+// Offline benchmark for the audio burnout pipeline.
 //
-// It reuses the production code paths (Audio::process_audio,
-// Audio::extract_acoustic_features, Audio::add_burnout_analysis) but writes a
-// per-file machine-readable record and an aggregate report instead of serving
-// an HTTP response. This lets us measure the SAME scoring logic before/after a
-// change on a fixed set of recordings without restarting the server.
+// It reuses the production code path (Audio::process_audio_with_burnout) but
+// writes a per-file machine-readable record and an aggregate report instead of
+// serving an HTTP response. This lets us measure the SAME scoring logic
+// before/after a change on a fixed set of recordings without restarting the
+// server.
 //
 // Usage:
-//   burnout_harness --model models/audio_model.pt --out /tmp/opencode/run \
+//   emotionai_burnout_benchmark --model models/audio_model.pt --out /tmp/run \
 //                   [--baseline baseline.json] \
 //                   name1=dir1 [name2=dir2 ...]
 //
@@ -82,8 +82,8 @@ Args parseArgs(int argc, char** argv) {
     }
     if (a.model.empty() || a.out_dir.empty() || a.sets.empty()) {
         throw std::runtime_error(
-            "usage: burnout_harness --model M --out DIR [--baseline B.json] "
-            "name=dir [name2=dir2 ...]");
+            "usage: emotionai_burnout_benchmark --model M --out DIR "
+            "[--baseline B.json] name=dir [name2=dir2 ...]");
     }
     return a;
 }
@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
     }
 
     fs::create_directories(args.out_dir);
-    Logger::instance().initialize(args.out_dir + "/logs", "BurnoutHarness",
+    Logger::instance().initialize(args.out_dir + "/logs", "BurnoutBenchmark",
                                   spdlog::level::warn);
 
     std::cout << "Loading audio model: " << args.model << "\n";
@@ -246,39 +246,35 @@ int main(int argc, char** argv) {
                 continue;
             }
 
-            json emotion = audio.process_audio(model.get());
-            audio::AcousticFeatures features = audio.extract_acoustic_features();
-
-            double va = 0.0;
-            {
-                json fj = features.toJson();
-                va = numOr(fj, "voice_activity_ratio", 0.0);
-            }
-            double max_prob = 0.0;
-            if (emotion.contains("additional_probs") &&
-                emotion["additional_probs"].is_object()) {
-                for (const auto& [k, v] : emotion["additional_probs"].items()) {
-                    try {
-                        max_prob = std::max(max_prob, std::stod(v.get<std::string>()));
-                    } catch (...) {
-                    }
-                }
-            }
-
             json record = {
                 {"set", set_name},
                 {"file", base},
                 {"duration_seconds", audio.get_duration()},
-                {"voice_activity_ratio", va},
-                {"max_emotion_prob", max_prob},
-                {"emotion", emotion},
-                {"acoustic_features", features.toJson()},
                 {"results", json::object()},
             };
 
             for (const auto& [vname, baseline] : baselines) {
-                json scored = Audio::add_burnout_analysis(emotion, baseline, &features);
+                // Real server path: multi-window fragmentation + aggregation.
+                // Each baseline variant re-runs the pipeline.
+                json scored = audio.process_audio_with_burnout(model.get(), baseline);
                 const json& b = scored.value("burnout_analysis", json::object());
+                const json& feats = scored.value("acoustic_features", json::object());
+                const double va = numOr(feats, "voice_activity_ratio", 0.0);
+
+                double max_prob = 0.0;
+                if (scored.contains("additional_probs") &&
+                    scored["additional_probs"].is_object()) {
+                    for (const auto& [k, v] : scored["additional_probs"].items()) {
+                        if (v.is_number()) {
+                            max_prob = std::max(max_prob, v.get<double>());
+                        } else if (v.is_string()) {
+                            try {
+                                max_prob = std::max(max_prob, std::stod(v.get<std::string>()));
+                            } catch (...) {
+                            }
+                        }
+                    }
+                }
 
                 Row row;
                 row.set = set_name;
@@ -300,6 +296,10 @@ int main(int argc, char** argv) {
                     row.error = b["error"].get<std::string>();
                 }
 
+                record["voice_activity_ratio"] = va;
+                record["max_emotion_prob"] = max_prob;
+                record["emotion"] = scored;
+                record["acoustic_features"] = feats;
                 record["results"][vname] = b;
                 dumpRow(tsv, row);
 

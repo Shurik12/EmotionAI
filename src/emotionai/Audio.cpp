@@ -6,6 +6,7 @@
 #include <cmath>
 #include <algorithm>
 #include <numeric>
+#include <set>
 #include <cstring>
 
 #include <torch/script.h>
@@ -29,6 +30,64 @@ extern "C" {
 #endif
 
 namespace fs = std::filesystem;
+
+//=============================================================================
+// Burnout helpers (window aggregation / insufficient results)
+//=============================================================================
+namespace {
+
+// Result used whenever the burnout path has no usable speech to score.
+nlohmann::json makeBurnoutInsufficient(const std::string& reason) {
+    audio::Result insufficient;
+    insufficient.state = audio::State::INSUFFICIENT_DATA;
+    insufficient.error = reason;
+    insufficient.recommendations = {"analysis_failed_retry"};
+    return insufficient.toJson();
+}
+
+// Per-key robust aggregate of several JSON objects (one per audio window).
+// Numeric fields and numeric strings are both accepted; non-numeric fields are
+// skipped. mode is "mean" (anything else -> median).
+nlohmann::json aggregateJsonObjects(
+    const std::vector<nlohmann::json>& objects, const std::string& mode) {
+    nlohmann::json out = nlohmann::json::object();
+    if (objects.empty()) return out;
+
+    std::set<std::string> keys;
+    for (const auto& obj : objects) {
+        if (obj.is_object()) {
+            for (const auto& [key, _] : obj.items()) keys.insert(key);
+        }
+    }
+
+    for (const auto& key : keys) {
+        std::vector<double> values;
+        for (const auto& obj : objects) {
+            if (!obj.contains(key)) continue;
+            const auto& v = obj[key];
+            if (v.is_number()) {
+                values.push_back(v.get<double>());
+            } else if (v.is_string()) {
+                try { values.push_back(std::stod(v.get<std::string>())); }
+                catch (...) { /* skip non-numeric string */ }
+            }
+        }
+        if (values.empty()) continue;
+
+        std::sort(values.begin(), values.end());
+        double agg;
+        if (mode == "mean") {
+            agg = std::accumulate(values.begin(), values.end(), 0.0) / values.size();
+        } else {
+            const size_t m = values.size() / 2;
+            agg = (values.size() % 2) ? values[m] : 0.5 * (values[m - 1] + values[m]);
+        }
+        out[key] = agg;
+    }
+    return out;
+}
+
+}  // namespace
 
 //=============================================================================
 // WAV Header
@@ -692,11 +751,7 @@ nlohmann::json Audio::add_burnout_analysis(
             // scoring that against any baseline yields a confident-looking
             // number that reflects the baseline, not the speaker.
             if (acoustic_features->voice_activity_ratio < cfg.min_voice_activity_ratio) {
-                audio::Result insufficient;
-                insufficient.state = audio::State::INSUFFICIENT_DATA;
-                insufficient.error = "insufficient_speech";
-                insufficient.recommendations = {"analysis_failed_retry"};
-                result["burnout_analysis"] = insufficient.toJson();
+                result["burnout_analysis"] = makeBurnoutInsufficient("insufficient_speech");
                 LOG_WARN("Burnout skipped: voice_activity_ratio {:.3f} < {:.3f}",
                          acoustic_features->voice_activity_ratio,
                          cfg.min_voice_activity_ratio);
@@ -741,23 +796,142 @@ nlohmann::json Audio::process_audio_with_burnout(
     torch::jit::Module* audio_model,
     const nlohmann::json& baseline)
 {
-    // Step 1: Get emotion recognition result
-    nlohmann::json emotion_result = process_audio(audio_model);
-    
-    // Step 2: Check if emotion processing had errors
-    if (emotion_result.contains("error")) {
-        LOG_ERROR("Emotion processing failed: {}", emotion_result["error"]);
-        return emotion_result;
+    if (!audio_model) {
+        return {{"error", "Audio model not provided"}, {"error_type", "config"}};
     }
-    
-    // Step 3: Extract acoustic features
-    audio::AcousticFeatures features = extract_acoustic_features();
-    
-    // Step 4: Add burnout analysis
-    nlohmann::json result = add_burnout_analysis(emotion_result, baseline, &features);
-    
-    LOG_INFO("Audio processing with burnout complete");
-    
+    if (!loaded_ || audio_data_.empty()) {
+        return {{"error", error_.empty() ? "Audio not loaded" : error_},
+                {"error_type", "audio_load"}};
+    }
+
+    const audio::BurnoutConfig cfg = Config::instance().burnout();
+
+    // Model-domain PCM (16 kHz), resampled and normalized once so windows are
+    // directly comparable. Audio::prepare_audio() is not used here because it
+    // truncates to the first MAX_DURATION seconds.
+    std::vector<float> pcm = resample_audio(TARGET_SR);
+    if (pcm.empty()) {
+        return {{"error", "Audio decoded to empty data"}, {"error_type", "audio_load"}};
+    }
+    float peak = 0.0f;
+    for (float sample : pcm) peak = std::max(peak, std::abs(sample));
+    if (peak > 1.0f) {
+        for (float& sample : pcm) sample /= peak;
+    }
+
+    const double window_seconds = (cfg.window_seconds > 0.0)
+        ? cfg.window_seconds : static_cast<double>(MAX_DURATION);
+    const size_t window_samples =
+        static_cast<size_t>(std::llround(window_seconds * TARGET_SR));
+    double duration = static_cast<double>(pcm.size()) / TARGET_SR;
+    if (duration < MIN_DURATION) {
+        pcm.resize(static_cast<size_t>(TARGET_SR * MIN_DURATION), 0.0f);
+        duration = MIN_DURATION;
+    }
+
+    // Evenly spaced windows across the WHOLE recording. The previous path
+    // scored only the first 10 s, which is often an atypical slice (silence,
+    // greeting) of a multi-minute call.
+    int window_count = 1;
+    if (cfg.max_windows > 1 && duration > window_seconds) {
+        window_count = static_cast<int>(std::ceil(duration / window_seconds));
+        window_count = std::min(window_count, cfg.max_windows);
+    }
+
+    audio::LibrosaFeatureExtractor::Config feature_config;
+    feature_config.sample_rate = TARGET_SR;
+
+    std::vector<nlohmann::json> window_probs;
+    std::vector<nlohmann::json> window_features;
+    int skipped = 0;
+
+    for (int i = 0; i < window_count; ++i) {
+        const double frac = (window_count == 1)
+            ? 0.0 : static_cast<double>(i) / (window_count - 1);
+        const double start_s = frac * std::max(0.0, duration - window_seconds);
+        const size_t start = static_cast<size_t>(std::llround(start_s * TARGET_SR));
+        if (start >= pcm.size()) continue;
+        const size_t take = std::min(window_samples, pcm.size() - start);
+
+        std::vector<float> window(pcm.begin() + static_cast<long>(start),
+                                  pcm.begin() + static_cast<long>(start + take));
+
+        audio::AcousticFeatures features =
+            audio::LibrosaFeatureExtractor::extractAcousticFeaturesOnly(window, feature_config);
+
+        if (features.voice_activity_ratio < cfg.min_voice_activity_ratio) {
+            ++skipped;
+            continue;
+        }
+
+        Audio window_audio(window, TARGET_SR);
+        nlohmann::json emotion = window_audio.process_audio(audio_model);
+        if (emotion.contains("error") ||
+            !emotion.contains("additional_probs")) {
+            LOG_WARN("Burnout window {} produced no usable emotion output", i);
+            ++skipped;
+            continue;
+        }
+
+        window_probs.push_back(emotion["additional_probs"]);
+        window_features.push_back(features.toJson());
+    }
+
+    LOG_INFO("Burnout: {} window(s) scored, {} skipped (of {}), duration {:.1f}s",
+             window_probs.size(), skipped, window_count, duration);
+
+    const int min_valid = std::max(1, cfg.min_valid_windows);
+    if (static_cast<int>(window_probs.size()) < min_valid) {
+        nlohmann::json result = {
+            {"model", "wavlm-emotion-russian-resd"},
+            {"duration_seconds", duration},
+            {"sample_rate", TARGET_SR},
+            {"windows_total", window_count},
+            {"windows_scored", static_cast<int>(window_probs.size())}
+        };
+        result["burnout_analysis"] = makeBurnoutInsufficient("insufficient_speech");
+        LOG_WARN("Burnout insufficient: {} valid window(s) < {} required",
+                 window_probs.size(), min_valid);
+        return result;
+    }
+
+    const nlohmann::json agg_probs_num =
+        aggregateJsonObjects(window_probs, cfg.aggregation);
+    nlohmann::json agg_probs = nlohmann::json::object();
+    std::string top_label = "neutral";
+    double top_prob = -1.0;
+    for (const auto& [key, value] : agg_probs_num.items()) {
+        const double p = value.get<double>();
+        agg_probs[key] = fmt::format("{:.4f}", p);
+        if (p > top_prob) {
+            top_prob = p;
+            top_label = key;
+        }
+    }
+
+    audio::AcousticFeatures agg_features = audio::AcousticFeatures::fromJson(
+        aggregateJsonObjects(window_features, cfg.aggregation));
+
+    nlohmann::json emotion_result = {
+        {"main_prediction", {
+            {"label", top_label},
+            {"probability", top_prob < 0.0 ? 0.0 : top_prob}
+        }},
+        {"additional_probs", std::move(agg_probs)},
+        {"model", "wavlm-emotion-russian-resd"},
+        {"duration_seconds", window_seconds},
+        {"sample_rate", TARGET_SR},
+        {"windows_total", window_count},
+        {"windows_scored", static_cast<int>(window_probs.size())}
+    };
+
+    nlohmann::json result = add_burnout_analysis(emotion_result, baseline, &agg_features);
+    result["burnout_windows_total"] = window_count;
+    result["burnout_windows_scored"] = static_cast<int>(window_probs.size());
+
+    LOG_INFO("Audio processing with burnout complete: {} window(s)",
+             window_probs.size());
+
     return result;
 }
 
