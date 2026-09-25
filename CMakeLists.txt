@@ -206,25 +206,17 @@ endif()
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE emotionai_lib)
 
-# Offline measurement harness for the burnout pipeline (see tools/).
-# Off by default so normal builds are unaffected; enable with -DBUILD_HARNESS=ON.
-option(BUILD_HARNESS "Build the offline burnout measurement harness" OFF)
-if(BUILD_HARNESS)
-    add_executable(burnout_harness tools/burnout_harness.cpp)
-    target_link_libraries(burnout_harness PRIVATE emotionai_lib)
+enable_testing()
+
+# Tests need GoogleTest (unit tests, and integration/e2e behind an option).
+# tests/CMakeLists.txt degrades to a warning when GTest is missing.
+if(BUILD_TESTS)
+    add_subdirectory(tests)
 endif()
 
-# enable_testing()
-
-# if(BUILD_TESTS)
-#     add_subdirectory(tests)
-# endif()
-
-# if(BUILD_BENCHMARKS)
-#     find_package(benchmark)
-#     if(benchmark_FOUND)
-#         add_subdirectory(tests/benchmark)
-#     else()
-#         message(WARNING "Google Benchmark not found, benchmarks will not be built")
-#     endif()
-# endif()
+# The offline burnout benchmark has no external benchmark dependency; the
+# Google Benchmark micro-benchmarks are only added when the package is found.
+if(BUILD_BENCHMARKS)
+    find_package(benchmark QUIET)
+    add_subdirectory(tests/benchmark)
+endif()
