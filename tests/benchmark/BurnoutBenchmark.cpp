@@ -178,6 +178,7 @@ void dumpRow(std::ostream& os, const Row& r) {
        << fmt::format("{:.4f}", numOr(json(r.components), "pause_tempo", 0.0)) << '\t'
        << fmt::format("{:.4f}", numOr(json(r.components), "negative_activation", 0.0)) << '\t'
        << fmt::format("{:.4f}", numOr(json(r.components), "positive_affect_loss", 0.0)) << '\t'
+       << fmt::format("{:.4f}", numOr(json(r.components), "voice_activity_drop", 0.0)) << '\t'
        << r.top_factor << '\t' << r.error << '\n';
 }
 
@@ -244,7 +245,8 @@ int main(int argc, char** argv) {
     }
     tsv << "set\tfile\tvariant\tlevel\tstate\trisk\tconfidence\t"
            "voice_activity\tmax_prob\texhaustion\tprosodic_flattening\tpause_tempo\t"
-           "negative_activation\tpositive_affect_loss\ttop_factor\terror\n";
+           "negative_activation\tpositive_affect_loss\tvoice_activity_drop\t"
+           "top_factor\terror\n";
 
     std::map<std::pair<std::string, std::string>, Group> groups;
 
