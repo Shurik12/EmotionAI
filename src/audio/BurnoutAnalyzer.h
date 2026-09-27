@@ -54,16 +54,29 @@ public:
         const nlohmann::json& baseline
     );
     
+    double calculateVoiceActivityDrop(
+        const nlohmann::json& current,
+        const nlohmann::json& baseline
+    );
+    
 private:
     //=========================================================================
-    // Component Weights (from Python implementation)
+    // Component Weights
+    //
+    // Calibrated from longitudinal effect sizes on the labelled call-center
+    // set (benchmark/burnout/train). WavLM emotion probabilities are near-
+    // uniform on 8 kHz recordings (range ~0.11-0.17 for all emotions), so
+    // emotion-based components get reduced weight. The strongest discriminants
+    // are pause structure, speech rate, and prosodic departure (symmetric —
+    // some operators flatten, others become more expressive).
     //=========================================================================
     struct Weights {
-        double exhaustion = 0.25;
-        double prosodic_flattening = 0.25;
-        double pause_tempo = 0.20;
-        double negative_activation = 0.15;
-        double positive_affect_loss = 0.15;
+        double prosodic_flattening = 0.20;  // reduced — saturates at ~0.8 for everyone
+        double pause_tempo = 0.35;           // best discriminator (delta +0.14)
+        double voice_activity_drop = 0.25;   // good discriminator (delta +0.11)
+        double exhaustion = 0.10;            // weak emotion signal
+        double negative_activation = 0.05;   // weak emotion signal
+        double positive_affect_loss = 0.05;  // weakest emotion signal
     } weights_;
     
     //=========================================================================
@@ -86,10 +99,15 @@ private:
     // Normalization Functions (from Python implementation)
     //=========================================================================
     
-    // Normalize emotion increase: growth <0.05 → 0; 0.05–0.20 → linear; ≥0.20 → 1
+    // Normalize emotion increase using RELATIVE change (ratio).
+    // WavLM outputs on 8 kHz call recordings occupy a narrow range
+    // (~0.11-0.17) where absolute deltas rarely reach 0.05, so we use
+    // (current - baseline) / baseline instead. Deadzone: < 5 % relative
+    // increase → 0; 5-25 % → linear; ≥ 25 % → 1.
     double normalizeEmotionDelta(double current, double baseline);
     
-    // Normalize emotion drop: drop <0.05 → 0; 0.05–0.20 → linear; ≥0.20 → 1
+    // Normalize emotion drop using RELATIVE change.
+    // Drop < 5 % relative → 0; 5-25 % → linear; ≥ 25 % → 1.
     double normalizeEmotionDrop(double baseline, double current);
     
     // Normalize acoustic drop: drop <10% → 0; 10–35% → linear; ≥35% → 1
