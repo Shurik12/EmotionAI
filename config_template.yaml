@@ -77,11 +77,12 @@ gigachat:
   min_confidence: 0.3  # Minimum emotion confidence to trigger GigaChat
 
 # Audio burnout analysis. Every key is optional; values below are the
-# built-in defaults, calibrated on benchmark/control with
-# tools/burnout_harness.cpp. The default baseline was previously a fabricated
-# profile (happy=0.30, pause_ratio=0.10, ...) that real recordings never
-# matched, so positive_affect_loss and pause_tempo fired for every file and
-# the score sat at ~0.5 regardless of content.
+# built-in defaults, calibrated on the current benchmark/control set with
+# tests/benchmark/BurnoutBenchmark.cpp. The default baseline was previously a
+# fabricated profile (happy=0.30, pause_ratio=0.10, ...) that real recordings
+# never matched, and the acoustic values were later found to sit 1.3-2.2x
+# above the control medians, so prosodic_flattening/pause_tempo saturated on
+# normal speech.
 #
 # window_seconds/max_windows: a recording is split into up to max_windows
 #   windows of window_seconds, evenly spaced across the whole file. Per-window
@@ -98,13 +99,13 @@ burnout:
   min_valid_windows: 1
   aggregation: "median"
   min_voice_activity_ratio: 0.15
-  base_pitch_variation: 0.1189
-  base_pitch_range: 128.3287
-  base_intensity_variation: 1.7564
-  base_pause_ratio: 0.544
-  base_pause_mean_duration: 0.3619
-  base_pause_max_duration: 2.935
-  base_speech_rate: 6.1047
+  base_pitch_variation: 0.1025
+  base_pitch_range: 77.05
+  base_intensity_variation: 1.4243
+  base_pause_ratio: 0.3855
+  base_pause_mean_duration: 0.1672
+  base_pause_max_duration: 1.15
+  base_speech_rate: 4.304
   base_neutral: 0.1665
   base_happy: 0.1209
   base_sad: 0.1124

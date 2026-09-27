@@ -18,6 +18,7 @@ option(EMOTIONAI_BUILD_INTEGRATION_TESTS
        "Build integration/e2e tests (need DragonflyDB and model weights)" OFF)
 
 set(TEST_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/unit/audio
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/config
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/logging
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/db

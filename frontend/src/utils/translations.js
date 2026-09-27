@@ -345,7 +345,7 @@ export const translations = {
 
       components: {
         exhaustion: 'Эмоциональное истощение',
-        prosodicFlattening: 'Снижение интонационной выразительности',
+        prosodicFlattening: 'Изменение интонационной выразительности',
         pauseTempo: 'Изменение темпа речи и паузы',
         negativeActivation: 'Эмоциональное напряжение',
         positiveAffectLoss: 'Снижение положительной эмоциональной окраски',
@@ -416,7 +416,7 @@ export const translations = {
         negative_activation:
           'Повышенный уровень напряжения. В речи выявлена усиленная напряжённая или негативная эмоциональная окраска. Система фиксирует изменение, но не определяет его причину.',
         prosodic_flattening:
-          'Снижение интонационной выразительности. Речь стала менее интонационно разнообразной. Это может быть связано с усталостью, напряжением, индивидуальной манерой речи или условиями записи.',
+          'Изменение интонационной выразительности. Интонационное разнообразие речи заметно отличается от обычного для сотрудника — как в сторону снижения, так и в сторону усиления. Это может быть связано с усталостью, напряжением, содержанием разговора, индивидуальной манерой речи или условиями записи.',
         'pause/tempo_changes':
           'Изменение темпа речи и пауз. Темп или продолжительность пауз отличаются от ожидаемого паттерна. Возможные причины включают усталость, высокую умственную нагрузку, сложность обсуждаемой темы или технические особенности записи.',
         emotional_exhaustion:
@@ -447,7 +447,7 @@ export const translations = {
         emotional_exhaustion_detected:
           'Признаки снижения энергии. Рекомендуется обратить внимание на режим работы и восстановления.',
         voice_monotony_detected:
-          'Выявлено снижение интонационной выразительности речи. Этот показатель следует оценивать только вместе с другими сигналами и динамикой предыдущих записей.',
+          'Выявлено изменение интонационной выразительности речи относительно обычного для сотрудника. Этот показатель следует оценивать только вместе с другими сигналами и динамикой предыдущих записей.',
         speech_pattern_changes:
           'Выявлены изменения темпа речи или пауз. Уточните контекст записи и повторите оценку в сопоставимых условиях.',
         high_negative_activation:
@@ -939,7 +939,7 @@ export const translations = {
       
       components: {
         exhaustion: 'Emotional Exhaustion',
-        prosodicFlattening: 'Prosodic Flattening',
+        prosodicFlattening: 'Prosodic Deviation',
         pauseTempo: 'Pause/Tempo Changes',
         negativeActivation: 'Negative Activation',
         positiveAffectLoss: 'Positive Affect Loss',
@@ -993,7 +993,7 @@ export const translations = {
       factorExplanations: {
         'positive_affect_loss': 'Reduced positive emotional tone. Speech shows fewer signs of positive emotional engagement. This does not automatically indicate loss of motivation, reduced loyalty, or decreased work quality.',
         'negative_activation': 'Elevated tension level. Speech shows intensified tense or negative emotional tone. The system detects the change but does not determine its cause.',
-        'prosodic_flattening': 'Reduced prosodic expressiveness. Speech has become less prosodically varied. This may be related to fatigue, tension, individual speech patterns, or recording conditions.',
+        'prosodic_flattening': 'Changed prosodic expressiveness. Intonation variety clearly differs from the employee\'s usual pattern — either reduced or increased. This may be related to fatigue, tension, the subject matter, individual speech patterns, or recording conditions.',
         'pause/tempo_changes': 'Changes in speech rate and pauses. Tempo or pause duration differs from the expected pattern. Possible causes include fatigue, high cognitive load, complexity of the subject matter, or technical recording conditions.',
         'emotional_exhaustion': 'Signs of reduced energy. Speech shows a combination of characteristics that may be observed in fatigue and insufficient recovery. This finding should be correlated with workload and dynamics of previous recordings.'
       },
@@ -1025,7 +1025,7 @@ export const translations = {
         
         // Factor-specific recommendations
         'emotional_exhaustion_detected': 'Signs of reduced energy detected. Consider reviewing work and recovery patterns.',
-        'voice_monotony_detected': 'Reduced speech expressiveness detected. This indicator should be evaluated alongside other signals and historical data.',
+        'voice_monotony_detected': 'Changed speech expressiveness detected relative to the employee\'s usual pattern. This indicator should be evaluated alongside other signals and historical data.',
         'speech_pattern_changes': 'Changes in speech rate or pauses detected. Verify recording context and reassess under comparable conditions.',
         'high_negative_activation': 'Elevated tension level detected. Consider discussing potential sources of stress.',
         'reduced_positive_affect': 'Reduced positive emotional expression detected. This is a non-specific signal and should not be interpreted as loss of motivation or loyalty.',
