@@ -117,7 +117,7 @@ const VideoFrame = ({ frame, index }) => {
         <img src={frame.image_url} alt={`Frame ${index + 1}`} className="frame-image" />
       )}
       <div className="frame-emotions">
-        {Object.entries(emotions).slice(0, 3).map(([key, value]) => (
+        {Object.entries(emotions).map(([key, value]) => (
           <EmotionBar key={key} emotion={key} probability={parseFloat(value)} />
         ))}
       </div>
