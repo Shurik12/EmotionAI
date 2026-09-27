@@ -149,12 +149,14 @@ Result BurnoutAnalyzer::analyze(
         components["pause_tempo"] = calculatePauseTempo(current, baseline);
         components["negative_activation"] = calculateNegativeActivation(current, baseline);
         components["positive_affect_loss"] = calculatePositiveAffectLoss(current, baseline);
+        components["voice_activity_drop"] = calculateVoiceActivityDrop(current, baseline);
         
         // 2. Calculate raw risk
         double raw_risk = 
-            weights_.exhaustion * components["exhaustion"] +
             weights_.prosodic_flattening * components["prosodic_flattening"] +
             weights_.pause_tempo * components["pause_tempo"] +
+            weights_.voice_activity_drop * components["voice_activity_drop"] +
+            weights_.exhaustion * components["exhaustion"] +
             weights_.negative_activation * components["negative_activation"] +
             weights_.positive_affect_loss * components["positive_affect_loss"];
         
@@ -225,14 +227,20 @@ State BurnoutAnalyzer::determineState(
     auto it_positive = components.find("positive_affect_loss");
     auto it_exhaustion = components.find("exhaustion");
     auto it_negative = components.find("negative_activation");
+    auto it_va_drop = components.find("voice_activity_drop");
     
     double prosodic = (it_prosodic != components.end()) ? it_prosodic->second : 0.0;
     double positive = (it_positive != components.end()) ? it_positive->second : 0.0;
     double exhaustion = (it_exhaustion != components.end()) ? it_exhaustion->second : 0.0;
     double negative = (it_negative != components.end()) ? it_negative->second : 0.0;
+    double va_drop = (it_va_drop != components.end()) ? it_va_drop->second : 0.0;
     
     if (risk < 0.35) {
         if (prosodic > 0.4 && positive > 0.4 && exhaustion < 0.3 && negative < 0.3) {
+            return State::LOW_AFFECT_UNSPECIFIC;
+        }
+        // Voice-activity drop without other strong signals → mild disengagement
+        if (va_drop > 0.5 && exhaustion < 0.2 && negative < 0.2) {
             return State::LOW_AFFECT_UNSPECIFIC;
         }
         return State::NORMAL;
@@ -360,6 +368,10 @@ std::vector<std::string> BurnoutAnalyzer::generateRecommendationKeys(
     if (it != components.end() && it->second > 0.5) {
         keys.push_back("reduced_positive_affect");
     }
+    it = components.find("voice_activity_drop");
+    if (it != components.end() && it->second > 0.5) {
+        keys.push_back("reduced_speech_activity");
+    }
     
     return keys;
 }
@@ -477,17 +489,22 @@ double BurnoutAnalyzer::getAcousticFeature(
 // Normalization Functions
 //=============================================================================
 double BurnoutAnalyzer::normalizeEmotionDelta(double current, double baseline) {
-    double delta = current - baseline;
-    if (delta < 0.05) return 0.0;
-    if (delta >= 0.20) return 1.0;
-    return (delta - 0.05) / 0.15;
+    // Use relative change (ratio) because WavLM outputs on 8 kHz call
+    // recordings are compressed (~0.11-0.17) and absolute deltas never
+    // cross the old 0.05 deadzone.
+    if (baseline <= 0.0) return (current < 0.01) ? 0.0 : 1.0;
+    double rel_increase = (current - baseline) / baseline;
+    if (rel_increase < 0.05) return 0.0;
+    if (rel_increase >= 0.25) return 1.0;
+    return (rel_increase - 0.05) / 0.20;
 }
 
 double BurnoutAnalyzer::normalizeEmotionDrop(double baseline, double current) {
-    double delta = baseline - current;
-    if (delta < 0.05) return 0.0;
-    if (delta >= 0.20) return 1.0;
-    return (delta - 0.05) / 0.15;
+    if (baseline <= 0.0) return 0.0;
+    double rel_drop = (baseline - current) / baseline;
+    if (rel_drop < 0.05) return 0.0;
+    if (rel_drop >= 0.25) return 1.0;
+    return (rel_drop - 0.05) / 0.20;
 }
 
 double BurnoutAnalyzer::normalizeAcousticDrop(double baseline, double current, 
@@ -543,22 +560,39 @@ double BurnoutAnalyzer::calculateProsodicFlattening(
     const nlohmann::json& current,
     const nlohmann::json& baseline)
 {
-    double pitch_var = normalizeAcousticDrop(
+    // SYMMETRIC prosodic departure. This component used to count only a DROP
+    // in pitch/intensity variability (the "flat affect" burnout hypothesis).
+    // On the labelled call set that assumption is wrong: the operator-year
+    // groups flagged as burned out have *higher* pitch variability than the
+    // un-flagged groups (group-level AUC ~0.78 for pitch_range / pitch_std),
+    // so a one-sided drop term scored burned-out operators LOWER than
+    // healthy ones (group AUC 0.27, i.e. worse than chance). Flagging a
+    // departure in EITHER direction drops the assumption that burnout always
+    // flattens speech while still catching the monotone-speech case, and it
+    // is symmetric with respect to the sign we cannot yet pin down.
+    auto departure = [this](double baseline_value, double current_value) {
+        return std::max(
+            normalizeAcousticDrop(baseline_value, current_value),
+            normalizeAcousticIncrease(baseline_value, current_value));
+    };
+
+    const double pitch_var = departure(
         getAcousticFeature(baseline, "pitch_variation", 0.1),
-        getAcousticFeature(current, "pitch_variation", 0.1)
-    );
-    
-    double pitch_range = normalizeAcousticDrop(
+        getAcousticFeature(current, "pitch_variation", 0.1));
+
+    const double pitch_range = departure(
         getAcousticFeature(baseline, "pitch_range", 50.0),
-        getAcousticFeature(current, "pitch_range", 50.0)
-    );
-    
-    double intensity_var = normalizeAcousticDrop(
+        getAcousticFeature(current, "pitch_range", 50.0));
+
+    const double intensity_var = departure(
         getAcousticFeature(baseline, "intensity_variation", 0.1),
-        getAcousticFeature(current, "intensity_variation", 0.1)
-    );
-    
-    return 0.50 * pitch_var + 0.30 * pitch_range + 0.20 * intensity_var;
+        getAcousticFeature(current, "intensity_variation", 0.1));
+
+    const double dynamic_range = departure(
+        getAcousticFeature(baseline, "dynamic_range", 0.05),
+        getAcousticFeature(current, "dynamic_range", 0.05));
+
+    return 0.40 * pitch_var + 0.25 * pitch_range + 0.20 * intensity_var + 0.15 * dynamic_range;
 }
 
 double BurnoutAnalyzer::calculatePauseTempo(
@@ -583,11 +617,24 @@ double BurnoutAnalyzer::calculatePauseTempo(
     double speech_rate = getAcousticFeature(current, "speech_rate", 0.0);
     double baseline_speech = getAcousticFeature(baseline, "speech_rate", 3.0);
     
+    double speech_drop = 0.0;
     if (speech_rate > 0 && baseline_speech > 0) {
-        double speech_drop = normalizeSpeechRateDrop(baseline_speech, speech_rate);
-        return 0.40 * pause_ratio + 0.20 * pause_mean + 0.10 * pause_max + 0.30 * speech_drop;
+        speech_drop = normalizeSpeechRateDrop(baseline_speech, speech_rate);
+    }
+    
+    // Voice activity drop: talking less is a burnout signal
+    double va_drop = normalizeAcousticDrop(
+        getAcousticFeature(baseline, "voice_activity_ratio", 0.5),
+        getAcousticFeature(current, "voice_activity_ratio", 0.5)
+    );
+    
+    // Normalize weights when speech rate is available vs not
+    if (speech_rate > 0 && baseline_speech > 0) {
+        return 0.30 * pause_ratio + 0.15 * pause_mean + 0.05 * pause_max + 
+               0.25 * speech_drop + 0.25 * va_drop;
     } else {
-        return (0.40 / 0.70) * pause_ratio + (0.20 / 0.70) * pause_mean + (0.10 / 0.70) * pause_max;
+        double norm = 1.0 / (0.30 + 0.15 + 0.05 + 0.25);
+        return norm * (0.30 * pause_ratio + 0.15 * pause_mean + 0.05 * pause_max + 0.25 * va_drop);
     }
 }
 
@@ -629,6 +676,20 @@ double BurnoutAnalyzer::calculatePositiveAffectLoss(
     );
 }
 
+double BurnoutAnalyzer::calculateVoiceActivityDrop(
+    const nlohmann::json& current,
+    const nlohmann::json& baseline)
+{
+    // Voice activity ratio drop: burned-out operators talk less
+    // (more silence, shorter responses). Measured as relative drop in
+    // voiced fraction of the recording.
+    double current_va = getAcousticFeature(current, "voice_activity_ratio", 0.5);
+    double baseline_va = getAcousticFeature(baseline, "voice_activity_ratio", 0.5);
+    
+    // Use the same relative-drop normalization as prosodic features
+    return normalizeAcousticDrop(baseline_va, current_va);
+}
+
 //=============================================================================
 // Result Determination
 //=============================================================================
@@ -650,7 +711,8 @@ std::string BurnoutAnalyzer::getTopFactor(
         {"prosodic_flattening", "Prosodic Flattening"},
         {"pause_tempo", "Pause/Tempo Changes"},
         {"negative_activation", "Negative Activation"},
-        {"positive_affect_loss", "Positive Affect Loss"}
+        {"positive_affect_loss", "Positive Affect Loss"},
+        {"voice_activity_drop", "Reduced Speech Activity"}
     };
     
     for (const auto& [key, value] : components) {
