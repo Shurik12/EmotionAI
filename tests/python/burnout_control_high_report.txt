@@ -1,0 +1,36 @@
+============================================================
+  Burnout Model — Prediction Distributions
+============================================================
+  Note: No ground truth labels exist. Precision/recall
+  cannot be computed. Only distributions and control-set
+  false-positive rate are reported.
+============================================================
+
+  Control set (20 files — assumed healthy)
+
+    low         15  ███████████████
+    moderate     1  █
+    high         3  ███
+    severe       1  █
+
+    Flagged as high+severe: 4/20  (20.0%)
+    Flagged as moderate+:   5/20  (25.0%)
+
+  Burnout/test set (60 files — unknown labels)
+
+    low         43  ███████████████████████████████████████████
+    moderate     9  █████████
+    high         5  █████
+    severe       3  ███
+
+    Flagged as high+severe: 8/60  (13.3%)
+    Flagged as moderate+:  17/60  (28.3%)
+
+  Comparison
+
+    Control flagged high+severe:  20.0%
+    Burnout flagged high+severe:  13.3%
+
+    ➡ The model flags a LARGER share of control files as
+      high/severe than burnout files — opposite of what
+      we'd expect if the burnout set were truly positive.

@@ -1,0 +1,34 @@
+============================================================
+  Burnout Model — Prediction Distributions
+  (moderate+ as flag threshold)
+============================================================
+  Note: No ground truth labels exist. Precision/recall
+  cannot be computed. Only distributions and control-set
+  false-positive rate are reported.
+============================================================
+
+  Control set (20 files — assumed healthy)
+
+    low         15
+    moderate     1
+    high         3
+    severe       1
+
+    Flagged as moderate+: 5/20  (25.0%)
+
+  Burnout/test set (60 files — unknown labels)
+
+    low         43
+    moderate     9
+    high         5
+    severe       3
+
+    Flagged as moderate+: 17/60  (28.3%)
+
+  Comparison
+
+    Control flagged moderate+:  25.0%
+    Burnout flagged moderate+:  28.3%
+
+  ➡ The difference between datasets is negligible (25% vs 28%),
+    suggesting the model does not distinguish them meaningfully.
