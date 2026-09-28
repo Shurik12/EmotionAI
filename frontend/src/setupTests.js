@@ -1,3 +1,3 @@
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 
-jest.mock('./hooks/useLanguage');
+vi.mock('./hooks/useLanguage');
