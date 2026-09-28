@@ -854,7 +854,13 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
 
     LOG_INFO("Processing video: {}, Frames={}, FPS={:.2f}", filename, total_frames, fps);
 
-    int frame_interval = std::max(1, total_frames / 5);
+    // Target 10-20 frames evenly spaced across the whole video
+    int num_frames = std::clamp(total_frames, MIN_VIDEO_FRAMES, MAX_BATCH_VIDEO_FRAMES);
+    if (total_frames < MIN_VIDEO_FRAMES) {
+        num_frames = total_frames; // short video: use every frame
+    }
+    int frame_interval = std::max(1, total_frames / num_frames);
+    
     int processed_count = 0;
     nlohmann::json results = nlohmann::json::array();
 
@@ -875,6 +881,9 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
         } catch (const std::exception& e) {
             LOG_WARN("Frame {} failed: {}", frame_num, e.what());
         }
+
+        // Stop once we have enough frames
+        if (processed_count >= MAX_BATCH_VIDEO_FRAMES) break;
     }
 
     cap.release();
@@ -883,10 +892,29 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
         throw std::runtime_error("No frames processed");
     }
 
+    // Compute average emotions across all processed frames
+    nlohmann::json avg_emotions = calculate_average_emotions(results);
+    
+    // Find the emotion with the highest average probability -> average main emotion
+    std::string avg_main_label = "neutral";
+    double avg_main_prob = 0.0;
+    for (auto& [key, val] : avg_emotions.items()) {
+        double prob = val.get<double>();
+        if (prob > avg_main_prob) {
+            avg_main_prob = prob;
+            avg_main_label = key;
+        }
+    }
+
     return {
         {"type", "video"},
         {"frames_processed", processed_count},
         {"results", results},
+        {"average_emotions", avg_emotions},
+        {"average_main_emotion", {
+            {"label", avg_main_label},
+            {"probability", avg_main_prob}
+        }},
         {"total_frames", total_frames},
         {"fps", fps},
         {"duration", total_frames / fps}
