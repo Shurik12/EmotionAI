@@ -312,6 +312,52 @@ a.landing-btn:hover {
   color: var(--lp-muted);
 }
 
+/* Security section */
+.landing-section-security {
+  padding: 58px 0;
+  background: var(--lp-bg);
+  scroll-margin-top: 92px;
+}
+
+.landing-security-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  margin-top: 10px;
+}
+
+.landing-security-card {
+  padding: 28px 26px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid var(--lp-line);
+  transition: 0.25s;
+}
+
+.landing-security-card:hover {
+  box-shadow: var(--lp-shadow);
+  transform: translateY(-2px);
+}
+
+.landing-security-card__icon {
+  font-size: 30px;
+  margin-bottom: 14px;
+  line-height: 1;
+}
+
+.landing-security-card h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  color: var(--lp-ink);
+}
+
+.landing-security-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--lp-muted);
+}
+
 /* Decision banner */
 .landing-decision-banner {
   margin-top: 30px;
@@ -341,10 +387,39 @@ a.landing-btn:hover {
   align-items: center;
 }
 
+.landing-cta-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  align-self: stretch;
+  justify-content: center;
+}
+
 .landing-cta-logos {
   display: flex;
   align-items: center;
   gap: 18px;
+}
+
+.landing-cta-contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--lp-ink);
+}
+
+.landing-cta-contacts a {
+  width: max-content;
+  border-bottom: 1px solid transparent;
+  transition: 0.2s;
+}
+
+.landing-cta-contacts a:hover {
+  color: var(--lp-blue);
+  border-bottom-color: currentColor;
 }
 
 .landing-cta-r {
@@ -418,6 +493,10 @@ a.landing-btn:hover {
   .landing-cta-logos {
     grid-column: 1 / -1;
   }
+
+  .landing-security-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 760px) {
@@ -489,10 +568,21 @@ a.landing-btn:hover {
 
   .landing-cta {
     margin-top: 38px;
+    padding: 36px 0 38px;
   }
 
   .landing-cta-logos {
     grid-column: auto;
+  }
+
+  .landing-cta-identity {
+    gap: 16px;
+    padding-bottom: 4px;
+  }
+
+  .landing-cta-contacts {
+    gap: 9px;
+    font-size: 16px;
   }
 
   .landing-cta-r {
@@ -502,6 +592,22 @@ a.landing-btn:hover {
 
   .landing-cta-sk {
     width: 140px;
+  }
+
+  .landing-security-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-security-card {
+    padding: 22px 20px;
+  }
+
+  .landing-security-card__icon {
+    font-size: 26px;
+  }
+
+  .landing-security-card h3 {
+    font-size: 17px;
   }
 
   .landing-info-card {

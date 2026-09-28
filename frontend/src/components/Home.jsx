@@ -64,11 +64,6 @@ export const Home = () => {
     navigateToSection(section);
   };
 
-  const handleContactClick = (e) => {
-    e.preventDefault();
-    navigateTo('contact');
-  };
-
   return (
     <div className="landing-page">
       <section className="landing-hero" id="technology">
@@ -86,13 +81,12 @@ export const Home = () => {
               >
                 {t('landing.tryDemo')} <span aria-hidden="true">→</span>
               </button>
-              <button
-                type="button"
+              <a
+                href={`mailto:${t('contact.email')}`}
                 className="landing-btn landing-btn-light"
-                onClick={() => navigateTo('contact')}
               >
                 {t('landing.discussPilot')}
-              </button>
+              </a>
             </div>
 
             <div className="landing-hero-links" aria-label={t('landing.industriesLabel')}>
@@ -137,7 +131,7 @@ export const Home = () => {
         <div className="landing-container">
           <div className="landing-section-head">
             <h2>{t('landing.industries.title')}</h2>
-            <a className="landing-text-link" href="#contact" onClick={handleContactClick}>
+            <a className="landing-text-link" href={`mailto:${t('contact.email')}`}>
               {t('landing.industries.link')} →
             </a>
           </div>
@@ -154,6 +148,24 @@ export const Home = () => {
                     <li key={bullet}>{bullet}</li>
                   ))}
                 </ul>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-section landing-section-security" id="security">
+        <div className="landing-container">
+          <div className="landing-section-head">
+            <h2>{t('landing.security.title')}</h2>
+          </div>
+
+          <div className="landing-security-grid">
+            {t('landing.security.cards').map((card) => (
+              <article className="landing-security-card" key={card.title}>
+                <div className="landing-security-card__icon" aria-hidden="true">{card.icon}</div>
+                <h3>{card.title}</h3>
+                <p>{card.text}</p>
               </article>
             ))}
           </div>
@@ -178,10 +190,16 @@ export const Home = () => {
 
       <section className="landing-cta" id="demo">
         <div className="landing-container landing-cta-grid">
-          <div className="landing-cta-logos" aria-label="RAZUMA — участник Сколково">
-            <img className="landing-cta-r" src="/static/razuma.svg" alt="RAZUMA" />
-            <span className="landing-logo-divider" aria-hidden="true" />
-            <img className="landing-cta-sk" src="/static/skolkovo.webp" alt="Участник Сколково" />
+          <div className="landing-cta-identity">
+            <div className="landing-cta-logos" aria-label="RAZUMA — участник Сколково">
+              <img className="landing-cta-r" src="/static/razuma.svg" alt="RAZUMA" />
+              <span className="landing-logo-divider" aria-hidden="true" />
+              <img className="landing-cta-sk" src="/static/skolkovo.webp" alt="Участник Сколково" />
+            </div>
+            <div className="landing-cta-contacts" aria-label={t('landing.contactsLabel')}>
+              <a href={`mailto:${t('contact.email')}`}>{t('contact.email')}</a>
+              <a href={`tel:${t('contact.phone').replace(/\s/g, '')}`}>{t('contact.phone')}</a>
+            </div>
           </div>
 
           <div>
@@ -201,13 +219,12 @@ export const Home = () => {
           <div id="contact">
             <h3>{t('landing.cta.contactTitle')}</h3>
             <p>{t('landing.cta.contactText')}</p>
-            <button
-              type="button"
+            <a
+              href={`mailto:${t('contact.email')}`}
               className="landing-btn landing-btn-light"
-              onClick={() => navigateTo('contact')}
             >
               {t('landing.cta.contactBtn')}
-            </button>
+            </a>
           </div>
         </div>
       </section>

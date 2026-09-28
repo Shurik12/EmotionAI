@@ -1,0 +1,8 @@
+metric,value
+flag_threshold,moderate
+control_total,20
+control_flagged_moderate_plus,5
+control_fpr_moderate_plus,0.25
+burnout_total,60
+burnout_flagged_moderate_plus,17
+burnout_flag_rate_moderate_plus,0.2833

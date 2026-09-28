@@ -10,9 +10,7 @@ export const Header = ({ language, setLanguage }) => {
   const navItems = [
     { section: 'solutions', label: t('nav.solutions') },
     { section: 'industries', label: t('nav.industries') },
-    { section: 'technology', label: t('nav.technology') },
-    { section: 'cases', label: t('nav.cases') },
-    { section: 'about', label: t('nav.about') },
+    { section: 'security', label: t('nav.security') },
   ];
 
   const handleSectionClick = (section) => (e) => {
@@ -91,7 +89,7 @@ export const Header = ({ language, setLanguage }) => {
           className="header-cta" 
           onClick={() => {
             setShowMobileMenu(false);
-            navigateTo('contact');
+            navigateToSection('contact');
           }}
         >
           {t('nav.contactUs')}
