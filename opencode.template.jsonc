@@ -65,6 +65,10 @@
       "description": "Code-review the current diff for correctness, security, and missing tests",
       "template": "Review the current diff for correctness, security (especially credential leakage into config), and missing tests. Flag anything that contradicts AGENTS.md conventions."
     },
+    "balance": {
+      "description": "Check Multitool API key balance and spend",
+      "template": "Run `curl -s -H \"Authorization: Bearer $MULTITOOL_API_KEY\" https://shared1.multitool.works:4000/user/info` and format the result as a table showing: key alias, spend, max_budget, usage percentage, blocked status, and last active date. Sort by spend descending."
+    },
     "build-check": {
       "description": "Build backend and run unit tests in one step",
       "template": "Run `make build_backend` then `make test` and report any failures."
@@ -100,18 +104,8 @@
     }
   },
 
-  // MCP servers for external integrations.
-  // Copy this file to opencode.jsonc and fill in your API keys.
-  "mcpServers": {
-    "yougile": {
-      "command": "npx",
-      "args": ["-y", "yougile-mcp-server"],
-      "env": {
-        "YOUGILE_API_KEY": "<your-yougile-api-key>"
-      }
-    }
-  },
-
+  // MCP servers are configured in .mcp.json (supports env-file loading).
+  // See .env.example for required environment variables.
   // Specialised agents for different areas of the codebase.
   "agents": {
     "backend": {
