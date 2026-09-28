@@ -100,6 +100,18 @@
     }
   },
 
+  // MCP servers for external integrations.
+  // Copy this file to opencode.jsonc and fill in your API keys.
+  "mcpServers": {
+    "yougile": {
+      "command": "npx",
+      "args": ["-y", "yougile-mcp-server"],
+      "env": {
+        "YOUGILE_API_KEY": "<your-yougile-api-key>"
+      }
+    }
+  },
+
   // Specialised agents for different areas of the codebase.
   "agents": {
     "backend": {
