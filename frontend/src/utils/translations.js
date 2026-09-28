@@ -20,6 +20,7 @@ export const translations = {
       tryDemo: 'Попробовать демо',
       solutions: 'Решения',
       industries: 'Отрасли',
+      security: 'Безопасность',
       technology: 'Технология',
       cases: 'Кейсы',
       about: 'О компании',
@@ -43,7 +44,7 @@ export const translations = {
       heroTitle: 'Технология,\nкоторая помогает\nвидеть больше',
       heroLead: 'ИИ-платформа анализа состояния и реакций человека по видео и голосу.',
       tryDemo: 'Попробуйте демо',
-      discussPilot: 'Обсудить пилот',
+      discussPilot: 'Обсудить пилот: info@razuma.tech, +7 (961) 063-67-71',
       industriesLabel: 'Отрасли',
       analysis: {
         title: 'RAZUMA анализирует не только то, что человек говорит',
@@ -150,13 +151,49 @@ export const translations = {
         ],
       },
       decision: 'RAZUMA помогает принимать решения,\nа не принимает их вместо заказчика.',
+      contactsLabel: 'Контакты RAZUMA',
+      security: {
+        title: 'Безопасность данных',
+        cards: [
+          {
+            icon: '🔒',
+            title: 'Шифрование данных',
+            text: 'Все данные передаются и хранятся в зашифрованном виде. Используются современные протоколы шифрования, соответствующие стандартам индустрии.',
+          },
+          {
+            icon: '🏢',
+            title: 'Локальная обработка',
+            text: 'Возможность развернуть платформу в контуре заказчика. Видео- и аудиоданные не покидают вашу инфраструктуру.',
+          },
+          {
+            icon: '🛡',
+            title: 'Обезличивание',
+            text: 'RAZUMA анализирует паттерны поведения, а не идентифицирует личность. Биометрические данные не сохраняются и не передаются третьим лицам.',
+          },
+          {
+            icon: '📋',
+            title: 'Соответствие 152-ФЗ',
+            text: 'Обработка данных соответствует требованиям Федерального закона № 152-ФЗ «О персональных данных» и рекомендациям регуляторов.',
+          },
+          {
+            icon: '✓',
+            title: 'Контроль доступа',
+            text: 'Гибкая система ролей и разграничения доступа. Каждый пользователь видит только те данные, которые разрешены его ролью.',
+          },
+          {
+            icon: '⏱',
+            title: 'Политика хранения',
+            text: 'Настраиваемые сроки хранения данных. Автоматическое удаление записей по истечении заданного периода в соответствии с политикой компании.',
+          },
+        ],
+      },
       cta: {
         demoTitle: 'Попробуйте технологию\nв действии',
         demoText: 'Загрузите пример видео или аудио и получите пример анализа.',
         demoBtn: 'Попробуйте демо',
         contactTitle: 'Обсудим, как RAZUMA\nможет работать в вашей компании',
         contactText: 'Расскажите о вашей задаче — и мы предложим оптимальный сценарий внедрения.',
-        contactBtn: 'Обсудить пилот',
+        contactBtn: 'Обсудить пилот: info@razuma.tech, +7 (961) 063-67-71',
       },
     },
     features: {
@@ -623,6 +660,7 @@ export const translations = {
       tryDemo: 'Try Demo',
       solutions: 'Solutions',
       industries: 'Industries',
+      security: 'Security',
       technology: 'Technology',
       cases: 'Cases',
       about: 'About us',
@@ -753,6 +791,42 @@ export const translations = {
         ],
       },
       decision: 'RAZUMA helps make decisions,\nrather than making them instead of the customer.',
+      contactsLabel: 'RAZUMA Contacts',
+      security: {
+        title: 'Data Security',
+        cards: [
+          {
+            icon: '🔒',
+            title: 'Data Encryption',
+            text: 'All data is transmitted and stored in encrypted form. Modern encryption protocols compliant with industry standards are used.',
+          },
+          {
+            icon: '🏢',
+            title: 'On-Premise Processing',
+            text: 'Ability to deploy the platform within the customer’s infrastructure. Video and audio data never leaves your infrastructure.',
+          },
+          {
+            icon: '🛡',
+            title: 'Anonymization',
+            text: 'RAZUMA analyzes behavior patterns, not identities. Biometric data is not stored or shared with third parties.',
+          },
+          {
+            icon: '📋',
+            title: 'GDPR / 152-FZ Compliance',
+            text: 'Data processing complies with Russian Federal Law No. 152-FZ on Personal Data and regulatory recommendations.',
+          },
+          {
+            icon: '✓',
+            title: 'Access Control',
+            text: 'Flexible role-based access control system. Each user sees only the data permitted by their role.',
+          },
+          {
+            icon: '⏱',
+            title: 'Data Retention Policy',
+            text: 'Configurable data retention periods. Automatic deletion of recordings after a specified period in accordance with company policy.',
+          },
+        ],
+      },
       cta: {
         demoTitle: 'Try the technology\nin action',
         demoText: 'Upload a sample video or audio and get a sample analysis.',
