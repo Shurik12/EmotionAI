@@ -1,0 +1,129 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Default model for this project — capable enough for C++23 and React work.
+  "model": "multitool/deepseek-v4-flash",
+
+  // Project instructions live in AGENTS.md, which OpenCode loads automatically.
+  // The rules below are additive safety rails; the last matching rule wins.
+  "permissions": [
+    // config.yaml holds live credentials (dragonfly.password, gigachat.auth_key)
+    // and is gitignored, so confirm before reading or rewriting it.
+    { "action": "read", "resource": "config.yaml", "effect": "ask" },
+    { "action": "edit", "resource": "config.yaml", "effect": "ask" },
+
+    // contrib/emotiefflib is expected to be dirty after make install; its edits
+    // are reproduced from emotiefflib.patch. Confirm before touching it.
+    { "action": "edit", "resource": "contrib/emotiefflib/**", "effect": "ask" },
+
+    // Read-only git inspection is always safe.
+    { "action": "shell", "resource": "git status *", "effect": "allow" },
+    { "action": "shell", "resource": "git diff *", "effect": "allow" },
+    { "action": "shell", "resource": "git log *", "effect": "allow" },
+    { "action": "shell", "resource": "git show *", "effect": "allow" },
+
+    // Project build/run targets from the Makefile.
+    { "action": "shell", "resource": "make help *", "effect": "allow" },
+    { "action": "shell", "resource": "make build *", "effect": "allow" },
+    { "action": "shell", "resource": "make build_backend *", "effect": "allow" },
+    { "action": "shell", "resource": "make build_frontend *", "effect": "allow" },
+    { "action": "shell", "resource": "make models *", "effect": "allow" },
+    { "action": "shell", "resource": "make install *", "effect": "allow" },
+    { "action": "shell", "resource": "make python_env *", "effect": "allow" },
+    { "action": "shell", "resource": "make test *", "effect": "allow" },
+    { "action": "shell", "resource": "make test_integration *", "effect": "allow" },
+    { "action": "shell", "resource": "make benchmark *", "effect": "allow" },
+    { "action": "shell", "resource": "make up *", "effect": "allow" },
+    { "action": "shell", "resource": "make down *", "effect": "allow" },
+
+    // Publishing history is a deliberate act; confirm before pushing.
+    { "action": "shell", "resource": "git push *", "effect": "ask" }
+  ],
+
+  // Generated / vendored trees are large and change constantly. Ignoring them
+  // keeps the filesystem watcher from re-scanning the repo on every build.
+  "watcher": {
+    "ignore": [
+      "build/**",
+      "contrib/**",
+      "models/**",
+      "venv/**",
+      "data/**",
+      "storage/**",
+      "uploads/**",
+      "results/**",
+      "logs/**",
+      "frontend/dist/**",
+      "frontend/node_modules/**",
+      "**/*.log"
+    ]
+  },
+
+  // Slash commands for common project workflows.
+  "commands": {
+    "review": {
+      "description": "Code-review the current diff for correctness, security, and missing tests",
+      "template": "Review the current diff for correctness, security (especially credential leakage into config), and missing tests. Flag anything that contradicts AGENTS.md conventions."
+    },
+    "build-check": {
+      "description": "Build backend and run unit tests in one step",
+      "template": "Run `make build_backend` then `make test` and report any failures."
+    },
+    "frontend-build": {
+      "description": "Build the frontend SPA",
+      "template": "Run `make build_frontend` and report any build errors."
+    },
+    "add-route": {
+      "description": "Checklist for adding a new API route (needs 3 edits per AGENTS.md)",
+      "template": "I need to add a new API route. Follow the checklist from AGENTS.md: register in post_routes_ or get_routes_, add to options_routes_ for CORS preflight, and add prefix matching in the GET dispatcher if the route is parameterized."
+    },
+    "burnout-bench": {
+      "description": "Build and run the burnout benchmark",
+      "template": "Run `make benchmark` and explain the results — compare false-positive rates against the control sets."
+    }
+  },
+
+  // Override the provider's default context limit — the model supports 1M tokens
+  // but OpenCode caps it at ~200K without an explicit limit.
+  "providers": {
+    "multitool": {
+      "models": {
+        "deepseek-v4-flash": {
+          "modelID": "deepseek-v4-flash",
+          "name": "DeepSeek V4.1 Flash",
+          "limit": {
+            "context": 260000,
+            "output": 8192
+          }
+        }
+      }
+    }
+  },
+
+  // Specialised agents for different areas of the codebase.
+  "agents": {
+    "backend": {
+      "description": "Specialist for the C++23 backend — epoll server, audio/image inference, Redis, config",
+      "mode": "subagent",
+      "system": "You are a senior C++23 backend engineer working on EmotionAI. Follow AGENTS.md conventions closely:\n- Member naming: trailing underscore in server/ config/ db/; m_ prefix in gigachat/ emotionai/ client/\n- Use LOG_INFO/LOG_ERROR/LOG_WARN/LOG_DEBUG macros for logging\n- Use nlohmann/json for JSON and yaml-cpp for config\n- When adding routes, remember the 3-place checklist (routes map, CORS preflight, prefix dispatch)\n- Keep burnout results as translation keys, not human-readable strings\n- Do not edit contrib/emotiefflib/ directly\n- Never commit config.yaml or model weights",
+      "permissions": [
+        { "action": "shell", "resource": "make build_backend *", "effect": "allow" },
+        { "action": "shell", "resource": "make test *", "effect": "allow" }
+      ]
+    },
+    "frontend": {
+      "description": "Specialist for the React SPA frontend — components, translations, styles",
+      "mode": "subagent",
+      "system": "You are a React 18 + Vite 5 frontend engineer working on EmotionAI. Key conventions:\n- Components are named exports in src/components/\n- Stylesheets per area in src/styles/components/ (landing.css for the home page)\n- Tokens in src/styles/global.css (--layout-padding-x, --color-*)\n- All UI text goes through t('a.b.c') from src/utils/translations.js — add keys to both RU and EN halves\n- Navigation uses navigateTo(page) for page switches and navigateToSection(id) for landing scroll\n- Landing anchor ids are: technology, solutions, industries, cases, demo, contact\n- react-router-dom is present in package.json but never imported — use NavigationContext instead\n- Build with `make build_frontend` (npm install && npm run build)",
+      "permissions": [
+        { "action": "shell", "resource": "make build_frontend *", "effect": "allow" },
+        { "action": "shell", "resource": "npm run build *", "effect": "allow" }
+      ]
+    },
+    "reviewer": {
+      "description": "Review changes without editing files",
+      "mode": "subagent",
+      "system": "Focus on correctness, security (especially credentials and gitignored files), alignment with AGENTS.md conventions, and missing test coverage. Do not edit any files."
+    }
+  }
+}
