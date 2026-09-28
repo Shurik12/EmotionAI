@@ -125,11 +125,29 @@ const ImageResults = ({ results, resultData }) => {
 
 const VideoResults = ({ results, resultData }) => {
   const { t } = useLanguage();
+  const { emotions } = getEmotionEntries(results.average_emotions);
+  const avgMain = results.average_main_emotion;
 
   return (
     <div className="result-card">
       <h3>🎬 {t('detector.videoAnalysisComplete')}</h3>
       <p>{t('detector.framesProcessed', { count: results.frames_processed })}</p>
+
+      {avgMain && (
+        <div className="main-emotion">
+          <strong>{t('detector.mainEmotion') || 'Main Emotion'}:</strong>{' '}
+          {t(`emotions.${avgMain.label}`) || avgMain.label} ({(avgMain.probability * 100).toFixed(1)}%)
+        </div>
+      )}
+
+      {Object.keys(emotions).length > 0 && (
+        <div className="emotion-results">
+          <h4>{t('detector.averageEmotions') || 'Average Emotions'}</h4>
+          {Object.entries(emotions).map(([key, value]) => (
+            <EmotionBar key={key} emotion={key} probability={parseFloat(value)} />
+          ))}
+        </div>
+      )}
       
       <div className="video-frames">
         {results.results?.map((frame, index) => (
