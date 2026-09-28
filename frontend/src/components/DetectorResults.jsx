@@ -142,6 +142,17 @@ const RealtimeResults = ({ results, resultData }) => {
           ))}
         </div>
       )}
+
+      {results.frame_results?.length > 0 && (
+        <>
+          <h4>{t('detector.frames') || 'Frames'}</h4>
+          <div className="video-frames">
+            {results.frame_results.map((frame, index) => (
+              <VideoFrame key={index} frame={frame} index={index} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 };
