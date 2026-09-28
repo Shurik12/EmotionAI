@@ -42,11 +42,11 @@ test_integration: ## Build/run tests incl. integration+e2e (needs DragonflyDB + 
 	cmake --build build --target emotionai_tests
 	./build/tests/emotionai_tests
 
-test_frontend: ## Run frontend unit tests (Jest + React Testing Library)
-	cd frontend && npm install --silent && npx jest
+test_frontend: ## Run frontend unit tests (Vitest)
+	cd frontend && npm install --silent && npx vitest run
 
 test_frontend_watch: ## Run frontend tests in watch mode
-	cd frontend && npm install --silent && npx jest --watch
+	cd frontend && npm install --silent && npx vitest
 
 up: ## Start containers
 	docker compose up -d
