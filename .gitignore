@@ -23,3 +23,6 @@ training/pretrained_model.pt
 training/model_v0.0.1.pt
 training/images/
 training/processed_images/
+
+# Local OpenCode config with API keys — use opencode.template.jsonc
+opencode.jsonc
