@@ -1,7 +1,7 @@
 MODELS_DIR := contrib/emotiefflib/models
 
 .PHONY: help install python_env models configure build_backend build_frontend build benchmark test \
-        test_integration test_frontend test_frontend_watch up up-build down restart clean
+        test_integration test_frontend test_frontend_watch up up-build down restart clean clean-data
 
 help: ## List targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F'## ' \
@@ -62,3 +62,7 @@ re-up: down up ## Restart containers
 clean: ## Remove build output, venv, node_modules, caches
 	rm -rf build frontend/dist frontend/node_modules venv
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
+
+clean-data: ## Remove runtime server data (uploads, storage, results, logs)
+	sudo rm -rf uploads/* storage/* results/* logs/*
+	@echo "Server runtime data cleaned."
