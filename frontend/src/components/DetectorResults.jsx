@@ -127,6 +127,9 @@ const VideoResults = ({ results, resultData }) => {
   const { t } = useLanguage();
   const { emotions } = getEmotionEntries(results.average_emotions);
   const avgMain = results.average_main_emotion;
+  const frames = results.results;
+  const firstFrame = frames?.[0];
+  const lastFrame = frames?.length > 1 ? frames[frames.length - 1] : null;
 
   return (
     <div className="result-card">
@@ -150,9 +153,8 @@ const VideoResults = ({ results, resultData }) => {
       )}
       
       <div className="video-frames">
-        {results.results?.map((frame, index) => (
-          <VideoFrame key={index} frame={frame} index={index} />
-        ))}
+        {firstFrame && <VideoFrame frame={firstFrame} index={0} />}
+        {lastFrame && <VideoFrame frame={lastFrame} index={frames.length - 1} />}
       </div>
     </div>
   );
