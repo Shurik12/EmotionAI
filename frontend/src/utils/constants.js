@@ -13,6 +13,15 @@ export const getEmotionColor = (emotion) => {
   return EMOTION_COLORS[emotion] || '#3f4857';
 };
 
+export const FEATURE_COLORS = {
+  valence: '#E91E63',
+  arousal: '#FF6F00',
+};
+
+export const getFeatureColor = (feature) => {
+  return FEATURE_COLORS[feature] || '#3f4857';
+};
+
 export const BURNOUT_COLORS = {
   low: '#28a745',
   moderate: '#ffc107',
