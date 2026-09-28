@@ -1048,7 +1048,7 @@ nlohmann::json FileProcessor::calculate_statistics(const std::vector<double>& va
 
 nlohmann::json FileProcessor::calculate_average_emotions(const std::vector<nlohmann::json>& frame_results)
 {
-    std::vector<std::string> emotion_keys = {"anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"};
+    std::vector<std::string> emotion_keys = {"anger", "contempt", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"};
     nlohmann::json avg_emotions;
     std::unordered_map<std::string, double> sums;
     std::unordered_map<std::string, int> counts;

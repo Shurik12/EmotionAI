@@ -1,7 +1,7 @@
 MODELS_DIR := contrib/emotiefflib/models
 
 .PHONY: help install python_env models configure build_backend build_frontend build benchmark test \
-        test_integration up up-build down restart clean
+        test_integration test_frontend test_frontend_watch up up-build down restart clean
 
 help: ## List targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F'## ' \
@@ -41,6 +41,12 @@ test_integration: ## Build/run tests incl. integration+e2e (needs DragonflyDB + 
 	cmake -S . -B build -G Ninja -DBUILD_TESTS=ON -DEMOTIONAI_BUILD_INTEGRATION_TESTS=ON
 	cmake --build build --target emotionai_tests
 	./build/tests/emotionai_tests
+
+test_frontend: ## Run frontend unit tests (Jest + React Testing Library)
+	cd frontend && npm install --silent && npx jest
+
+test_frontend_watch: ## Run frontend tests in watch mode
+	cd frontend && npm install --silent && npx jest --watch
 
 up: ## Start containers
 	docker compose up -d

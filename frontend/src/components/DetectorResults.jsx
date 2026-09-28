@@ -1,9 +1,11 @@
 import React from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 import { EmotionBar } from './EmotionBar';
+import { EmotionLineChart } from './DetectorCharts';
 import { BurnoutAnalysis } from './BurnoutAnalysis';
 import { ExternalInfluenceResults } from './ExternalInfluenceResults';
 import { getEmotionEntries, getBurnoutAnalysis } from '../utils/helpers';
+import { getFeatureColor } from '../utils/constants';
 
 export const DetectorResults = ({ results }) => {
   const { t } = useLanguage();
@@ -55,9 +57,39 @@ export const DetectorResults = ({ results }) => {
   );
 };
 
+export const ValenceArousal = ({ features }) => {
+  const { t } = useLanguage();
+  if (!features || Object.keys(features).length === 0) return null;
+  return (
+    <div className="emotion-results">
+      <h4>{t('detector.features.title') || 'Valence / Arousal'}</h4>
+      {Object.entries(features).map(([key, value]) => {
+        const pct = (value * 100).toFixed(1);
+        return (
+          <div key={key} className="emotion-item">
+            <div className="emotion-label">
+              <span>{t(`detector.features.${key}`) || key}</span>
+              <span>{pct}%</span>
+            </div>
+            <div className="emotion-bar">
+              <div
+                className="emotion-fill"
+                style={{
+                  width: `${pct}%`,
+                  backgroundColor: getFeatureColor(key),
+                }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const ImageResults = ({ results, resultData }) => {
   const { t } = useLanguage();
-  const { emotions } = getEmotionEntries(resultData?.additional_probs);
+  const { emotions, features } = getEmotionEntries(resultData?.additional_probs);
   const burnout = getBurnoutAnalysis(resultData);
 
   return (
@@ -84,6 +116,8 @@ const ImageResults = ({ results, resultData }) => {
         </div>
       )}
       
+      <ValenceArousal features={features} />
+      
       {burnout && <BurnoutAnalysis data={burnout} />}
     </div>
   );
@@ -108,19 +142,24 @@ const VideoResults = ({ results, resultData }) => {
 
 const VideoFrame = ({ frame, index }) => {
   const { t } = useLanguage();
-  const { emotions } = getEmotionEntries(frame.result?.additional_probs);
+  const { emotions, features } = getEmotionEntries(frame.result?.additional_probs);
+  const [imgError, setImgError] = React.useState(false);
 
   return (
     <div className="video-frame">
       <h4>{t('detector.frame')} {index + 1}</h4>
-      {frame.image_url && (
-        <img src={frame.image_url} alt={`Frame ${index + 1}`} className="frame-image" />
+      {frame.image_url && !imgError && (
+        <img src={frame.image_url} alt={`Frame ${index + 1}`} className="frame-image" onError={() => setImgError(true)} />
+      )}
+      {(!frame.image_url || imgError) && (
+        <div className="frame-image-placeholder">{t('detector.noImage') || 'No image'}</div>
       )}
       <div className="frame-emotions">
         {Object.entries(emotions).map(([key, value]) => (
           <EmotionBar key={key} emotion={key} probability={parseFloat(value)} />
         ))}
       </div>
+      <ValenceArousal features={features} />
     </div>
   );
 };
@@ -128,11 +167,17 @@ const VideoFrame = ({ frame, index }) => {
 const RealtimeResults = ({ results, resultData }) => {
   const { t } = useLanguage();
   const { emotions } = getEmotionEntries(results.average_emotions);
+  const stats = results.statistics;
 
   return (
     <div className="result-card">
       <h3>📊 {t('detector.realtimeAnalysis') || 'Real-time Video Analysis'}</h3>
       <p>{t('detector.framesProcessed', { count: results.frames_processed })} over {results.duration?.toFixed(1)}s</p>
+
+      {/* Emotion timeline chart */}
+      {results.frame_results?.length > 1 && (
+        <EmotionLineChart frameResults={results.frame_results} />
+      )}
       
       {Object.keys(emotions).length > 0 && (
         <div className="emotion-results">
@@ -142,13 +187,51 @@ const RealtimeResults = ({ results, resultData }) => {
           ))}
         </div>
       )}
+
+      {stats && (stats.valence || stats.arousal) && (
+        <div className="emotion-results">
+          <h4>{t('detector.features.title') || 'Valence / Arousal'} (avg)</h4>
+          {['valence', 'arousal'].map(key => {
+            if (!stats[key]) return null;
+            const pct = (stats[key].avg * 100).toFixed(1);
+            return (
+              <div key={key} className="emotion-item">
+                <div className="emotion-label">
+                  <span>{t(`detector.features.${key}`) || key}</span>
+                  <span>{pct}%</span>
+                </div>
+                <div className="emotion-bar">
+                  <div
+                    className="emotion-fill"
+                    style={{
+                      width: `${pct}%`,
+                      backgroundColor: getFeatureColor(key),
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {results.frame_results?.length > 0 && (
+        <>
+          <h4>{t('detector.frames') || 'Frames'}</h4>
+          <div className="video-frames">
+            {results.frame_results.map((frame, index) => (
+              <VideoFrame key={index} frame={frame} index={index} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 };
 
 const AudioResults = ({ results, resultData }) => {
   const { t } = useLanguage();
-  const { emotions } = getEmotionEntries(resultData?.additional_probs);
+  const { emotions, features } = getEmotionEntries(resultData?.additional_probs);
   const burnout = getBurnoutAnalysis(resultData);
 
   return (
@@ -174,6 +257,8 @@ const AudioResults = ({ results, resultData }) => {
         </div>
       )}
       
+      <ValenceArousal features={features} />
+      
       {burnout && <BurnoutAnalysis data={burnout} />}
     </div>
   );
@@ -181,7 +266,7 @@ const AudioResults = ({ results, resultData }) => {
 
 const AudioBurnoutResults = ({ results, resultData, burnout }) => {
   const { t } = useLanguage();
-  const { emotions } = getEmotionEntries(resultData?.additional_probs);
+  const { emotions, features } = getEmotionEntries(resultData?.additional_probs);
 
   console.log('AudioBurnoutResults:', { results, resultData, burnout, emotions });
 
@@ -208,6 +293,8 @@ const AudioBurnoutResults = ({ results, resultData, burnout }) => {
             ))}
           </div>
         )}
+        
+        <ValenceArousal features={features} />
         
         {burnout ? (
           <BurnoutAnalysis data={burnout} />
