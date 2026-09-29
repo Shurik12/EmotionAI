@@ -26,7 +26,6 @@ export const apiClient = {
     const endpoints = {
       standard: '/upload',
       burnout: '/upload_burnout',
-      realtime: '/upload_realtime',
       external_influence: '/upload_external_influence',
     };
 
