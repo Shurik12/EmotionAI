@@ -163,12 +163,8 @@ void DistributedTaskManager::returnTaskToQueue(const std::string &task_id, const
 										 std::chrono::system_clock::now().time_since_epoch())
 										 .count();
 
-		// Determine which queue to use based on task type
+		// Always use the batch queue for retries
 		std::string queue_name = config.queue().batch_queue_name;
-		if (task.contains("type") && task["type"] == "realtime_video")
-		{
-			queue_name = config.queue().realtime_queue_name;
-		}
 
 		// Resubmit the task
 		submitTask(queue_name, updated_task);
@@ -210,8 +206,7 @@ void DistributedTaskManager::cleanupOrphanedTasks()
 
 		// Check processing queues for orphaned tasks
 		std::vector<std::string> queues = {
-			config.queue().batch_queue_name + ":processing",
-			config.queue().realtime_queue_name + ":processing"};
+			config.queue().batch_queue_name + ":processing"};
 
 		for (const auto &queue : queues)
 		{

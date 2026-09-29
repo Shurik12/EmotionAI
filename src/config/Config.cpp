@@ -136,7 +136,6 @@ bool Config::loadFromFile(const std::string &config_path)
         {
             const auto &queue = root["queue"];
             new_data.queue.batch_queue_name = queue["batch_queue_name"].as<std::string>(new_data.queue.batch_queue_name);
-            new_data.queue.realtime_queue_name = queue["realtime_queue_name"].as<std::string>(new_data.queue.realtime_queue_name);
             new_data.queue.visibility_timeout = queue["visibility_timeout"].as<int>(new_data.queue.visibility_timeout);
             new_data.queue.max_retries = queue["max_retries"].as<int>(new_data.queue.max_retries);
             new_data.queue.batch_size = queue["batch_size"].as<int>(new_data.queue.batch_size);
@@ -314,7 +313,6 @@ bool Config::loadFromFile(const std::string &config_path)
 
         spdlog::info("Queue configuration:");
         spdlog::info("  Batch Queue: {}", data_.queue.batch_queue_name);
-        spdlog::info("  Realtime Queue: {}", data_.queue.realtime_queue_name);
         spdlog::info("  Visibility Timeout: {}s", data_.queue.visibility_timeout);
         spdlog::info("  Max Retries: {}", data_.queue.max_retries);
         spdlog::info("  Batch Size: {}", data_.queue.batch_size);

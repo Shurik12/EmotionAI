@@ -92,7 +92,6 @@ export const PROCESSING_MODES = [
   { value: 'external_influence', labelKey: 'detector.modes.externalInfluence' },
   { value: 'burnout', labelKey: 'detector.modes.burnout' },
   { value: 'standard', labelKey: 'detector.modes.standard' },
-  { value: 'realtime', labelKey: 'detector.modes.realtime' },
 ];
 
 export const getProcessingModeLabel = (value, t) => {

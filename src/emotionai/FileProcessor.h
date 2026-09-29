@@ -20,8 +20,6 @@
 class FileProcessor
 {
 public:
-    using ProgressCallback = std::function<void(int progress, const std::string &message)>;
-
     explicit FileProcessor(std::shared_ptr<DragonflyManager> dragonfly_manager,
                            std::shared_ptr<FileStorage> file_storage);
     ~FileProcessor() = default;
@@ -35,8 +33,6 @@ public:
     // Public API
     bool allowed_file(const std::string& filename);
     void process_file(const std::string& task_id, const std::string& filepath, const std::string& filename);
-    void process_video_realtime(const std::string& task_id, const std::string& filepath, 
-                                const std::string& filename, ProgressCallback callback = nullptr);
 
     // ============ NEW: Burnout API ============
     // Process audio with burnout analysis
@@ -101,7 +97,6 @@ private:
     static constexpr int NUM_VIDEO_FRAMES = 15;       // target frames for batch video (10-20 range)
     static constexpr int MIN_VIDEO_FRAMES = 10;
     static constexpr int MAX_BATCH_VIDEO_FRAMES = 20;
-    static constexpr int REALTIME_FPS_TARGET = 5;
 
     // Dependencies
     std::shared_ptr<DragonflyManager> dragonfly_manager_;
@@ -145,7 +140,6 @@ private:
 
     // Video processing helpers
     nlohmann::json extract_video_metadata(cv::VideoCapture& cap);
-    void update_realtime_progress(int progress, const std::string& message, ProgressCallback callback);
     std::string save_frame_to_storage(const cv::Mat& frame, const std::string& task_id, int frame_index);
     void save_json_to_storage(const nlohmann::json& data, const std::string& task_id, const std::string& prefix);
     std::vector<uint8_t> mat_to_vector(const cv::Mat& mat);

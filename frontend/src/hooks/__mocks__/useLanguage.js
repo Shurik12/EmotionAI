@@ -14,7 +14,6 @@ const mockTranslations = {
   'detector.detectedEmotions': 'Detected Emotions',
   'detector.imageAnalysis': 'Image Analysis',
   'detector.audioAnalysis': 'Audio Analysis',
-  'detector.realtimeAnalysis': 'Real-time Video Analysis',
   'detector.mainEmotion': 'Main Emotion',
   'detector.framesProcessed': 'Processed frames: {count}',
   'detector.features.title': 'Valence / Arousal',

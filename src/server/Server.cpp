@@ -316,8 +316,6 @@ void Server::setupRoutes()
     post_routes_ = {
         {"/api/upload", [this](auto &&ctx, auto &&body)
          { handleUpload(ctx, body); }},
-        {"/api/upload_realtime", [this](auto &&ctx, auto &&body)
-         { handleUploadRealtime(ctx, body); }},
         {"/api/upload_burnout", [this](auto &&ctx, auto &&body)
          { handleUploadBurnout(ctx, body); }},
         {"/api/submit_application", [this](auto &&ctx, auto &&body)
@@ -353,7 +351,7 @@ void Server::setupRoutes()
     };
 
     // OPTIONS routes
-    for (const auto &route : {"/api/upload", "/api/upload_realtime", "/api/upload_burnout",
+    for (const auto &route : {"/api/upload", "/api/upload_burnout",
                               "/api/submit_application", "/api/progress", "/api/results", 
                               "/api/health", "/api/burnout/analyze", "/api/burnout/baseline", "/static",
                               "/api/upload_external_influence", "/api/external-influence/analyze"})
@@ -899,7 +897,7 @@ void Server::handleUpload(const std::shared_ptr<ClientContext> &context, const s
             return;
         }
 
-        std::string task_id = handleUploadCommon(file_it->second, filename, false);
+        std::string task_id = handleUploadCommon(file_it->second, filename);
         LOG_INFO("Upload accepted from client {}, task_id: {}", context->fd, task_id);
 
         sendHttpResponse(context->fd, 202, "application/json",
@@ -908,60 +906,6 @@ void Server::handleUpload(const std::shared_ptr<ClientContext> &context, const s
     catch (const std::exception &e)
     {
         LOG_ERROR("Exception in handleUpload from client {}: {}", context->fd, e.what());
-        sendErrorResponse(context->fd, 500, "Internal server error");
-    }
-}
-
-void Server::handleUploadRealtime(const std::shared_ptr<ClientContext> &context, const std::string &body)
-{
-    try
-    {
-        LOG_DEBUG("Handling real-time upload request");
-
-        auto content_type_it = context->headers.find("content-type");
-        if (content_type_it == context->headers.end() ||
-            content_type_it->second.find("multipart/form-data") == std::string::npos)
-        {
-            sendErrorResponse(context->fd, 400, "Expected multipart form data");
-            return;
-        }
-
-        std::string boundary = extractBoundary(content_type_it->second);
-        if (boundary.empty())
-        {
-            sendErrorResponse(context->fd, 400, "Invalid multipart data");
-            return;
-        }
-
-        auto form_data = parseMultipartFormData(body, boundary);
-        auto file_it = form_data.find("file");
-        if (file_it == form_data.end() || file_it->second.empty())
-        {
-            sendErrorResponse(context->fd, 400, "No file provided");
-            return;
-        }
-
-        std::string filename = form_data.contains("filename") ? form_data["filename"] : "uploaded_file";
-        if (filename.empty())
-        {
-            filename = "uploaded_file";
-        }
-
-        if (!file_processor_ || !file_processor_->allowed_file(filename))
-        {
-            sendErrorResponse(context->fd, 400, "Invalid file type");
-            return;
-        }
-
-        std::string task_id = handleUploadCommon(file_it->second, filename, true);
-        LOG_INFO("Real-time upload accepted from client {}, task_id: {}", context->fd, task_id);
-
-        sendHttpResponse(context->fd, 202, "application/json",
-                         fmt::format(R"({{"task_id": "{}", "mode": "realtime"}})", task_id));
-    }
-    catch (const std::exception &e)
-    {
-        LOG_ERROR("Exception in real-time upload from client {}: {}", context->fd, e.what());
         sendErrorResponse(context->fd, 500, "Internal server error");
     }
 }
@@ -1465,8 +1409,7 @@ void Server::handleBurnoutBaselineGet(
 
 // Common handlers
 std::string Server::handleUploadCommon(const std::string &file_content, 
-                                          const std::string &filename, 
-                                          bool realtime)
+                                          const std::string &filename)
 {
     auto &config = Config::instance();
     std::string task_id = DragonflyManager::generate_uuid();
@@ -1521,32 +1464,28 @@ std::string Server::handleUploadCommon(const std::string &file_content,
     if (config.cluster().enabled && distributed_task_manager_)
     {
         // Use distributed task queue
-        std::string task_type = realtime ? "realtime_video" : "batch_processing";
-
         nlohmann::json task = {
             {"task_id", task_id},
-            {"type", task_type},
+            {"type", "batch_processing"},
             {"filename", filename},
-            {"file_path", local_path.string()},  // Use local path for processing
-            {"storage_path", storage_path},      // Store storage path for reference
+            {"file_path", local_path.string()},
+            {"storage_path", storage_path},
             {"instance_id", instance_id_},
             {"created_at", std::chrono::system_clock::now().time_since_epoch().count()},
             {"status", "pending"},
             {"retry_count", 0}};
 
-        std::string queue_name = realtime ? config.queue().realtime_queue_name : config.queue().batch_queue_name;
-
-        if (distributed_task_manager_->submitTask(queue_name, task))
+        if (distributed_task_manager_->submitTask(config.queue().batch_queue_name, task))
         {
-            LOG_INFO("Task {} submitted to distributed queue: {}", task_id, queue_name);
+            LOG_INFO("Task {} submitted to distributed queue: {}", task_id, config.queue().batch_queue_name);
             
             auto &task_manager = TaskManager::instance();
             task_manager.set_task_status(task_id, {{"task_id", task_id},
                                                    {"progress", 0},
-                                                   {"message", realtime ? "Queued for real-time processing" : "Queued for batch processing"},
+                                                   {"message", "Queued for batch processing"},
                                                    {"error", nullptr},
                                                    {"complete", false},
-                                                   {"mode", realtime ? "realtime" : "batch"},
+                                                   {"mode", "batch"},
                                                    {"instance_id", instance_id_},
                                                    {"queued", true},
                                                    {"storage_path", storage_path},
@@ -1562,35 +1501,28 @@ std::string Server::handleUploadCommon(const std::string &file_content,
     // Fallback to local processing
     auto *file_processor = file_processor_.get();
 
-    thread_pool_->enqueue([this, file_processor, task_id, local_path, safe_filename, realtime, storage_path]()
+    thread_pool_->enqueue([this, file_processor, task_id, local_path, safe_filename, storage_path]()
                           {
         try
         {
-            LOG_INFO("Starting {} processing for task: {}", realtime ? "real-time" : "background", task_id);
+            LOG_INFO("Starting background processing for task: {}", task_id);
             
             auto& task_manager = TaskManager::instance();
             
             task_manager.set_task_status(task_id, {
                 {"task_id", task_id},
                 {"progress", 0},
-                {"message", realtime ? "Starting real-time video processing" : "Starting file processing"},
+                {"message", "Starting file processing"},
                 {"error", nullptr},
                 {"complete", false},
-                {"mode", realtime ? "realtime" : "batch"},
+                {"mode", "batch"},
                 {"instance_id", instance_id_},
                 {"storage_path", storage_path},
                 {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::system_clock::now().time_since_epoch()).count()}
             });
             
-            if (realtime)
-            {
-                file_processor->process_video_realtime(task_id, local_path.string(), safe_filename);
-            }
-            else
-            {
-                file_processor->process_file(task_id, local_path.string(), safe_filename);
-            }
+            file_processor->process_file(task_id, local_path.string(), safe_filename);
             
             LOG_INFO("Processing completed for task: {}", task_id);
         }
@@ -1606,7 +1538,7 @@ std::string Server::handleUploadCommon(const std::string &file_content,
                     {"message", "Processing failed"},
                     {"error", e.what()},
                     {"complete", true},
-                    {"mode", realtime ? "realtime" : "batch"},
+                    {"mode", "batch"},
                     {"instance_id", instance_id_},
                     {"storage_path", storage_path},
                     {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -2219,21 +2151,14 @@ void Server::processDistributedTask(const nlohmann::json &task)
                                                {"message", "Processing started in distributed worker"},
                                                {"error", nullptr},
                                                {"complete", false},
-                                               {"mode", task_type == "realtime_video" ? "realtime" : "batch"},
+                                               {"mode", "batch"},
                                                {"instance_id", instance_id_},
                                                {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
                                                                  std::chrono::system_clock::now().time_since_epoch())
                                                                  .count()}});
 
-        // Process the file based on task type
-        if (task_type == "realtime_video")
-        {
-            file_processor_->process_video_realtime(task_id, file_path, filename);
-        }
-        else
-        {
-            file_processor_->process_file(task_id, file_path, filename);
-        }
+        // Process the file
+        file_processor_->process_file(task_id, file_path, filename);
 
         // Mark task as complete
         if (distributed_task_manager_)
@@ -2256,7 +2181,7 @@ void Server::processDistributedTask(const nlohmann::json &task)
                                                    {"message", "Processing failed in distributed worker"},
                                                    {"error", e.what()},
                                                    {"complete", true},
-                                                   {"mode", task_type == "realtime_video" ? "realtime" : "batch"},
+                                                   {"mode", "batch"},
                                                    {"instance_id", instance_id_},
                                                    {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
                                                                      std::chrono::system_clock::now().time_since_epoch())

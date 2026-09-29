@@ -116,7 +116,6 @@ private:
 
     // Route handlers
     void handleUpload(const std::shared_ptr<ClientContext> &context, const std::string &body);
-    void handleUploadRealtime(const std::shared_ptr<ClientContext> &context, const std::string &body);
     void handleUploadBurnout(const std::shared_ptr<ClientContext> &context, const std::string &body);
     void handleMetrics(const std::shared_ptr<ClientContext> &context);
     void handleProgress(const std::shared_ptr<ClientContext> &context);
@@ -140,7 +139,7 @@ private:
     void handleExternalInfluenceAnalyze(const std::shared_ptr<ClientContext> &context, const std::string &body);
 
     // Common handlers
-    std::string handleUploadCommon(const std::string &file_content, const std::string &filename, bool realtime = false);
+    std::string handleUploadCommon(const std::string &file_content, const std::string &filename);
     std::string handleUploadBurnoutCommon(const std::string &file_content, const std::string &filename);
     std::string handleUploadExternalInfluenceCommon(const std::string &file_content, const std::string &filename);
     std::string handleSubmitApplicationCommon(const std::string &body);
