@@ -1,0 +1,444 @@
+Loaded 330 ground truth labels (120 positive, 210 negative)
+
+  Processing train (330 files from tests/data/burnout/train)
+    [1/330 20230201144625_Оператор9.wav] uploading... low
+    [2/330 20230202095528_Оператор9.wav] uploading... low
+    [3/330 20230215161342_Оператор9.wav] uploading... low
+    [4/330 20230215165323_Оператор9.wav] uploading... high
+    [5/330 20230301141910_Оператор9.wav] uploading... low
+    [6/330 20230301144130_Оператор9.wav] uploading... low
+    [7/330 20230307153213_Оператор11.wav] uploading... low
+    [8/330 20230309091049_Оператор11.wav] uploading... low
+    [9/330 20230309103442_Оператор11.wav] uploading... high
+    [10/330 20230309123102_Оператор11.wav] uploading... low
+    [11/330 20230320160737_Оператор9.wav] uploading... low
+    [12/330 20230321144359_Оператор9.wav] uploading... low
+    [13/330 20230327093531_Оператор11.wav] uploading... low
+    [14/330 20230327122036_Оператор11.wav] uploading... severe
+    [15/330 20230328084756_Оператор8.wav] uploading... low
+    [16/330 20230328090707_Оператор8.wav] uploading... low
+    [17/330 20230410152822_Оператор8.wav] uploading... low
+    [18/330 20230411101648_Оператор8.wav] uploading... low
+    [19/330 20230411145827_Оператор8.wav] uploading... low
+    [20/330 20230412074554_Оператор8.wav] uploading... low
+    [21/330 20230414104356_Оператор9.wav] uploading... low
+    [22/330 20230414123653_Оператор9.wav] uploading... low
+    [23/330 20230428151217_Оператор9.wav] uploading... low
+    [24/330 20230502134239_Оператор9.wav] uploading... low
+    [25/330 20230511105553_Оператор11.wav] uploading... low
+    [26/330 20230518095148_Оператор9.wav] uploading... low
+    [27/330 20230519104525_Оператор11.wav] uploading... low
+    [28/330 20230523123204_Оператор8.wav] uploading... low
+    [29/330 20230523133004_Оператор8.wav] uploading... low
+    [30/330 20230523154456_Оператор9.wav] uploading... low
+    [31/330 20230523163136_Оператор9.wav] uploading... low
+    [32/330 20230531153501_Оператор11.wav] uploading... low
+    [33/330 20230531154621_Оператор11.wav] uploading... moderate
+    [34/330 20230609163746_Оператор11.wav] uploading... low
+    [35/330 20230619091332_Оператор11.wav] uploading... low
+    [36/330 20230619091840_Оператор11.wav] uploading... low
+    [37/330 20230620154900_Оператор11.wav] uploading... severe
+    [38/330 20230622133523_Оператор8.wav] uploading... low
+    [39/330 20230622144920_Оператор8.wav] uploading... low
+    [40/330 20230626093436_Оператор11.wav] uploading... low
+    [41/330 20230801131226_Оператор8.wav] uploading... low
+    [42/330 20230801141704_Оператор8.wav] uploading... low
+    [43/330 20230802074053_Оператор8.wav] uploading... low
+    [44/330 20230802095152_Оператор8.wav] uploading... low
+    [45/330 20230802125403_Оператор8.wav] uploading... low
+    [46/330 20231001130332_Оператор4.wav] uploading... low
+    [47/330 20231003211127_Оператор5.wav] uploading... moderate
+    [48/330 20231004083211_Оператор4.wav] uploading... low
+    [49/330 20231008091828_Оператор4.wav] uploading... low
+    [50/330 20231009182009_Оператор2.wav] uploading... low
+    [51/330 20231010062001_Оператор5.wav] uploading... low
+    [52/330 20231012091853_Оператор4.wav] uploading... low
+    [53/330 20231016104900_Оператор4.wav] uploading... low
+    [54/330 20231016134712_Оператор4.wav] uploading... low
+    [55/330 20231016183641_Оператор5.wav] uploading... low
+    [56/330 20231017052939_Оператор2.wav] uploading... moderate
+    [57/330 20231020071127_Оператор5.wav] uploading... low
+    [58/330 20231020080205_Оператор4.wav] uploading... low
+    [59/330 20231024165618_Оператор4.wav] uploading... low
+    [60/330 20231025183858_Оператор4.wav] uploading... low
+    [61/330 20231028101233_Оператор2.wav] uploading... low
+    [62/330 20231029131138_Оператор4.wav] uploading... low
+    [63/330 20231030065834_Оператор1.wav] uploading... high
+    [64/330 20231030070706_Оператор1.wav] uploading... low
+    [65/330 20231031070715_Оператор1.wav] uploading... moderate
+    [66/330 20231031194837_Оператор5.wav] uploading... moderate
+    [67/330 20231101232739_Оператор2.wav] uploading... low
+    [68/330 20231102202213_Оператор2.wav] uploading... low
+    [69/330 20231109204912_Оператор2.wav] uploading... low
+    [70/330 20231109221643_Оператор5.wav] uploading... high
+    [71/330 20231110171507_Оператор1.wav] uploading... low
+    [72/330 20231110210829_Оператор5.wav] uploading... low
+    [73/330 20231113174744_Оператор2.wav] uploading... low
+    [74/330 20231113211339_Оператор5.wav] uploading... low
+    [75/330 20231114074002_Оператор5.wav] uploading... low
+    [76/330 20231115051323_Оператор1.wav] uploading... low
+    [77/330 20231117151022_Оператор1.wav] uploading... low
+    [78/330 20231122042417_Оператор2.wav] uploading... low
+    [79/330 20231127073143_Оператор5.wav] uploading... severe
+    [80/330 20231203090502_Оператор2.wav] uploading... low
+    [81/330 20231204111913_Оператор2.wav] uploading... low
+    [82/330 20231204172938_Оператор1.wav] uploading... severe
+    [83/330 20231205164411_Оператор1.wav] uploading... severe
+    [84/330 20231205184424_Оператор1.wav] uploading... severe
+    [85/330 20231213183752_Оператор1.wav] uploading... high
+    [86/330 20240226175038_Оператор9.wav] uploading... low
+    [87/330 20240227115625_Оператор9.wav] uploading... low
+    [88/330 20240305105109_Оператор7.wav] uploading... low
+    [89/330 20240305130612_Оператор7.wav] uploading... low
+    [90/330 20240311154210_Оператор7.wav] uploading... moderate
+    [91/330 20240315112501_Оператор7.wav] uploading... low
+    [92/330 20240315122209_Оператор8.wav] uploading... low
+    [93/330 20240315134032_Оператор8.wav] uploading... low
+    [94/330 20240318090703_Оператор9.wav] uploading... low
+    [95/330 20240318101624_Оператор9.wav] uploading... high
+    [96/330 20240320161159_Оператор8.wav] uploading... low
+    [97/330 20240320171256_Оператор8.wav] uploading... low
+    [98/330 20240322104819_Оператор7.wav] uploading... low
+    [99/330 20240322132132_Оператор7.wav] uploading... moderate
+    [100/330 20240325105214_Оператор8.wav] uploading... moderate
+    [101/330 20240325113104_Оператор8.wav] uploading... low
+    [102/330 20240326153028_Оператор8.wav] uploading... low
+    [103/330 20240326154134_Оператор8.wav] uploading... low
+    [104/330 20240401093552_Оператор9.wav] uploading... low
+    [105/330 20240403132756_Оператор9.wav] uploading... low
+    [106/330 20240426091048_Оператор7.wav] uploading... high
+    [107/330 20240426124621_Оператор7.wav] uploading... low
+    [108/330 20240427112310_Оператор9.wav] uploading... low
+    [109/330 20240427132445_Оператор7.wav] uploading... low
+    [110/330 20240427153156_Оператор7.wav] uploading... low
+    [111/330 20240513075753_Оператор8.wav] uploading... low
+    [112/330 20240513092527_Оператор8.wav] uploading... low
+    [113/330 20240514130240_Оператор9.wav] uploading... low
+    [114/330 20240516103817_Оператор9.wav] uploading... low
+    [115/330 20240524162930_Оператор9.wav] uploading... low
+    [116/330 20240605093951_Оператор9.wav] uploading... low
+    [117/330 20240605134237_Оператор9.wav] uploading... low
+    [118/330 20240611141211_Оператор8.wav] uploading... low
+    [119/330 20240614095604_Оператор9.wav] uploading... low
+    [120/330 20240614105232_Оператор9.wav] uploading... low
+    [121/330 20240624111849_Оператор7.wav] uploading... low
+    [122/330 20240626171628_Оператор9.wav] uploading... low
+    [123/330 20240701083104_Оператор8.wav] uploading... low
+    [124/330 20240724161718_Оператор7.wav] uploading... low
+    [125/330 20240725092019_Оператор8.wav] uploading... low
+    [126/330 20240725100047_Оператор8.wav] uploading... moderate
+    [127/330 20240826092032_Оператор8.wav] uploading... low
+    [128/330 20240901161512_Оператор2.wav] uploading... high
+    [129/330 20240902055052_Оператор5.wav] uploading... low
+    [130/330 20240902081850_Оператор4.wav] uploading... low
+    [131/330 20240902092226_Оператор6.wav] uploading... low
+    [132/330 20240902100904_Оператор6.wav] uploading... severe
+    [133/330 20240902122156_Оператор7.wav] uploading... moderate
+    [134/330 20240902155516_Оператор10.wav] uploading... moderate
+    [135/330 20240902161939_Оператор10.wav] uploading... low
+    [136/330 20240903091100_Оператор3.wav] uploading... low
+    [137/330 20240903093223_Оператор10.wav] uploading... low
+    [138/330 20240903110453_Оператор6.wav] uploading... low
+    [139/330 20240903130448_Оператор6.wav] uploading... low
+    [140/330 20240903161216_Оператор10.wav] uploading... low
+    [141/330 20240903164722_Оператор10.wav] uploading... moderate
+    [142/330 20240905121605_Оператор5.wav] uploading... low
+    [143/330 20240905181452_Оператор5.wav] uploading... low
+    [144/330 20240906050500_Оператор2.wav] uploading... low
+    [145/330 20240911072814_Оператор1.wav] uploading... low
+    [146/330 20240912045508_Оператор1.wav] uploading... severe
+    [147/330 20240914102347_Оператор1.wav] uploading... severe
+    [148/330 20240915122540_Оператор4.wav] uploading... low
+    [149/330 20240917082346_Оператор5.wav] uploading... moderate
+    [150/330 20240918170233_Оператор3.wav] uploading... low
+    [151/330 20240920143115_Оператор6.wav] uploading... low
+    [152/330 20240920143827_Оператор6.wav] uploading... moderate
+    [153/330 20240923055551_Оператор2.wav] uploading... moderate
+    [154/330 20240923124725_Оператор3.wav] uploading... severe
+    [155/330 20240930143543_Оператор6.wav] uploading... low
+    [156/330 20240930144845_Оператор10.wav] uploading... low
+    [157/330 20240930182224_Оператор6.wav] uploading... low
+    [158/330 20241001064204_Оператор4.wav] uploading... low
+    [159/330 20241001121911_Оператор10.wav] uploading... low
+    [160/330 20241001140743_Оператор10.wav] uploading... low
+    [161/330 20241001170558_Оператор10.wav] uploading... low
+    [162/330 20241002081821_Оператор10.wav] uploading... high
+    [163/330 20241002153134_Оператор6.wav] uploading... low
+    [164/330 20241003164013_Оператор5.wav] uploading... low
+    [165/330 20241003164057_Оператор3.wav] uploading... severe
+    [166/330 20241004084613_Оператор5.wav] uploading... low
+    [167/330 20241004084902_Оператор3.wav] uploading... high
+    [168/330 20241004175624_Оператор4.wav] uploading... low
+    [169/330 20241005102809_Оператор4.wav] uploading... moderate
+    [170/330 20241007084746_Оператор5.wav] uploading... low
+    [171/330 20241007085423_Оператор5.wav] uploading... low
+    [172/330 20241007151345_Оператор7.wav] uploading... low
+    [173/330 20241008121550_Оператор4.wav] uploading... low
+    [174/330 20241010115327_Оператор10.wav] uploading... low
+    [175/330 20241010123800_Оператор10.wav] uploading... low
+    [176/330 20241011105916_Оператор10.wav] uploading... low
+    [177/330 20241011155521_Оператор10.wav] uploading... low
+    [178/330 20241013140914_Оператор2.wav] uploading... moderate
+    [179/330 20241014101213_Оператор10.wav] uploading... low
+    [180/330 20241014162858_Оператор3.wav] uploading... low
+    [181/330 20241016131630_Оператор3.wav] uploading... moderate
+    [182/330 20241017115811_Оператор3.wav] uploading... low
+    [183/330 20241018065637_Оператор2.wav] uploading... low
+    [184/330 20241022140010_Оператор3.wav] uploading... moderate
+    [185/330 20241026045621_Оператор2.wav] uploading... moderate
+    [186/330 20241030093935_Оператор3.wav] uploading... low
+    [187/330 20241031104752_Оператор1.wav] uploading... moderate
+    [188/330 20241031142042_Оператор1.wav] uploading... severe
+    [189/330 20241101163712_Оператор3.wav] uploading... low
+    [190/330 20241102095935_Оператор6.wav] uploading... low
+    [191/330 20241102113715_Оператор6.wav] uploading... low
+    [192/330 20241105111715_Оператор6.wav] uploading... low
+    [193/330 20241105122803_Оператор1.wav] uploading... high
+    [194/330 20241105170745_Оператор6.wav] uploading... low
+    [195/330 20241105171653_Оператор1.wav] uploading... low
+    [196/330 20241106080611_Оператор4.wav] uploading... low
+    [197/330 20241106122250_Оператор2.wav] uploading... low
+    [198/330 20241106154952_Оператор4.wav] uploading... low
+    [199/330 20241107082219_Оператор4.wav] uploading... low
+    [200/330 20241107085048_Оператор2.wav] uploading... low
+    [201/330 20241107105312_Оператор2.wav] uploading... low
+    [202/330 20241108121735_Оператор1.wav] uploading... low
+    [203/330 20241111152654_Оператор6.wav] uploading... moderate
+    [204/330 20241112041456_Оператор2.wav] uploading... low
+    [205/330 20241112133758_Оператор3.wav] uploading... low
+    [206/330 20241112161619_Оператор6.wav] uploading... severe
+    [207/330 20241118091620_Оператор3.wav] uploading... high
+    [208/330 20241121080041_Оператор5.wav] uploading... low
+    [209/330 20241121143022_Оператор3.wav] uploading... low
+    [210/330 20241121170050_Оператор5.wav] uploading... low
+    [211/330 20241125110129_Оператор1.wav] uploading... low
+    [212/330 20241125180003_Оператор1.wav] uploading... moderate
+    [213/330 20241126180612_Оператор4.wav] uploading... low
+    [214/330 20241127111229_Оператор3.wav] uploading... low
+    [215/330 20241203113219_Оператор7.wav] uploading... low
+    [216/330 20250109165102_Оператор7.wav] uploading... moderate
+    [217/330 20250109165703_Оператор7.wav] uploading... moderate
+    [218/330 20250110101754_Оператор7.wav] uploading... low
+    [219/330 20250123123018_Оператор7.wav] uploading... low
+    [220/330 20250210131317_Оператор10.wav] uploading... low
+    [221/330 20250210140031_Оператор10.wav] uploading... low
+    [222/330 20250211131517_Оператор10.wav] uploading... low
+    [223/330 20250211134946_Оператор10.wav] uploading... low
+    [224/330 20250212140605_Оператор10.wav] uploading... low
+    [225/330 20250225100853_Оператор10.wav] uploading... low
+    [226/330 20250227162930_Оператор7.wav] uploading... low
+    [227/330 20250228113316_Оператор7.wav] uploading... low
+    [228/330 20250314092135_Оператор10.wav] uploading... low
+    [229/330 20250314095243_Оператор10.wav] uploading... low
+    [230/330 20250314154550_Оператор10.wav] uploading... low
+    [231/330 20250318095836_Оператор7.wav] uploading... low
+    [232/330 20250318104533_Оператор7.wav] uploading... low
+    [233/330 20250320092209_Оператор7.wav] uploading... moderate
+    [234/330 20250320105316_Оператор7.wav] uploading... high
+    [235/330 20250402155618_Оператор7.wav] uploading... moderate
+    [236/330 20250403171613_Оператор11.wav] uploading... low
+    [237/330 20250404104046_Оператор11.wav] uploading... low
+    [238/330 20250404115628_Оператор11.wav] uploading... severe
+    [239/330 20250422121954_Оператор10.wav] uploading... low
+    [240/330 20250422123643_Оператор10.wav] uploading... low
+    [241/330 20250423141603_Оператор11.wav] uploading... low
+    [242/330 20250423161305_Оператор11.wav] uploading... low
+    [243/330 20250428101429_Оператор11.wav] uploading... low
+    [244/330 20250428113416_Оператор11.wav] uploading... low
+    [245/330 20250507113854_Оператор7.wav] uploading... low
+    [246/330 20250516151001_Оператор10.wav] uploading... low
+    [247/330 20250516151611_Оператор10.wav] uploading... low
+    [248/330 20250604095332_Оператор7.wav] uploading... low
+    [249/330 20250618175907_Оператор11.wav] uploading... low
+    [250/330 20250619085904_Оператор11.wav] uploading... severe
+    [251/330 20250619114250_Оператор11.wav] uploading... low
+    [252/330 20250623123858_Оператор10.wav] uploading... low
+    [253/330 20250623125702_Оператор11.wav] uploading... moderate
+    [254/330 20250623131318_Оператор11.wav] uploading... low
+    [255/330 20250623162827_Оператор10.wav] uploading... low
+    [256/330 20250717101827_Оператор11.wav] uploading... low
+    [257/330 20250717103646_Оператор11.wav] uploading... high
+    [258/330 20250717114735_Оператор11.wav] uploading... low
+    [259/330 20250804160622_Оператор7.wav] uploading... low
+    [260/330 20250901074000_Оператор2.wav] uploading... low
+    [261/330 20250901090807_Оператор6.wav] uploading... low
+    [262/330 20250901091801_Оператор3.wav] uploading... low
+    [263/330 20250901101249_Оператор6.wav] uploading... low
+    [264/330 20250903065708_Оператор5.wav] uploading... low
+    [265/330 20250903081647_Оператор5.wav] uploading... low
+    [266/330 20250903162755_Оператор3.wav] uploading... moderate
+    [267/330 20250904120217_Оператор3.wav] uploading... low
+    [268/330 20250908093521_Оператор1.wav] uploading... moderate
+    [269/330 20250909124424_Оператор6.wav] uploading... high
+    [270/330 20250909125623_Оператор6.wav] uploading... low
+    [271/330 20250910095549_Оператор3.wav] uploading... low
+    [272/330 20250910100340_Оператор3.wav] uploading... low
+    [273/330 20250912062737_Оператор5.wav] uploading... low
+    [274/330 20250915065857_Оператор5.wav] uploading... low
+    [275/330 20250917090116_Оператор4.wav] uploading... moderate
+    [276/330 20250917123056_Оператор4.wav] uploading... low
+    [277/330 20250917180953_Оператор4.wav] uploading... high
+    [278/330 20250917183458_Оператор4.wav] uploading... low
+    [279/330 20250919153103_Оператор1.wav] uploading... low
+    [280/330 20250920101422_Оператор1.wav] uploading... moderate
+    [281/330 20250927112732_Оператор4.wav] uploading... low
+    [282/330 20250930185245_Оператор4.wav] uploading... low
+    [283/330 20251001020220_Оператор2.wav] uploading... moderate
+    [284/330 20251001135508_Оператор6.wav] uploading... low
+    [285/330 20251001142135_Оператор6.wav] uploading... low
+    [286/330 20251003090800_Оператор6.wav] uploading... low
+    [287/330 20251003101415_Оператор6.wav] uploading... severe
+    [288/330 20251006120556_Оператор3.wav] uploading... low
+    [289/330 20251006124451_Оператор6.wav] uploading... low
+    [290/330 20251006173643_Оператор6.wav] uploading... low
+    [291/330 20251007093356_Оператор7.wav] uploading... moderate
+    [292/330 20251008113329_Оператор6.wav] uploading... low
+    [293/330 20251008120543_Оператор6.wav] uploading... high
+    [294/330 20251008122535_Оператор6.wav] uploading... low
+    [295/330 20251013045312_Оператор5.wav] uploading... low
+    [296/330 20251015094154_Оператор4.wav] uploading... low
+    [297/330 20251015105745_Оператор4.wav] uploading... low
+    [298/330 20251016121146_Оператор1.wav] uploading... low
+    [299/330 20251016171318_Оператор1.wav] uploading... moderate
+    [300/330 20251017073947_Оператор5.wav] uploading... low
+    [301/330 20251017171507_Оператор1.wav] uploading... severe
+    [302/330 20251021182340_Оператор1.wav] uploading... low
+    [303/330 20251027070101_Оператор2.wav] uploading... low
+    [304/330 20251027080621_Оператор4.wav] uploading... low
+    [305/330 20251027094048_Оператор1.wav] uploading... low
+    [306/330 20251028033213_Оператор2.wav] uploading... low
+    [307/330 20251103052608_Оператор5.wav] uploading... low
+    [308/330 20251103142039_Оператор2.wav] uploading... low
+    [309/330 20251105084706_Оператор3.wav] uploading... severe
+    [310/330 20251105091700_Оператор3.wav] uploading... moderate
+    [311/330 20251105170744_Оператор3.wav] uploading... moderate
+    [312/330 20251106195236_Оператор1.wav] uploading... low
+    [313/330 20251107044800_Оператор5.wav] uploading... low
+    [314/330 20251107145316_Оператор3.wav] uploading... moderate
+    [315/330 20251110100319_Оператор3.wav] uploading... severe
+    [316/330 20251110143242_Оператор6.wav] uploading... high
+    [317/330 20251110194036_Оператор1.wav] uploading... moderate
+    [318/330 20251113165854_Оператор6.wav] uploading... low
+    [319/330 20251113182927_Оператор3.wav] uploading... low
+    [320/330 20251116222411_Оператор2.wav] uploading... low
+    [321/330 20251119094127_Оператор5.wav] uploading... low
+    [322/330 20251124093941_Оператор2.wav] uploading... low
+    [323/330 20251124171014_Оператор3.wav] uploading... low
+    [324/330 20251124173019_Оператор2.wav] uploading... severe
+    [325/330 20251124182633_Оператор5.wav] uploading... moderate
+    [326/330 20251127093515_Оператор2.wav] uploading... low
+    [327/330 20251127115404_Оператор3.wav] uploading... severe
+    [328/330 20251127124927_Оператор3.wav] uploading... low
+    [329/330 20251127140551_Оператор2.wav] uploading... low
+    [330/330 20251130114653_Оператор4.wav] uploading... low
+
+  Files with matching labels: 330 / 330
+============================================================
+  Burnout Model — Precision & Recall (labelled set)
+============================================================
+
+  Threshold: ≥ 'low' = POSITIVE
+  Total files with labels: 330
+
+  ┌──────────────────────┬───────┐
+  │                      │ Count │
+  ├──────────────────────┼───────┤
+  │ True Positives (TP)  │   120 │
+  │ False Positives (FP) │   210 │
+  │ True Negatives (TN)  │     0 │
+  │ False Negatives (FN) │     0 │
+  └──────────────────────┴───────┘
+
+  Precision  = 0.3636  (120/330)
+  Recall     = 1.0000  (120/120)
+  F1 Score   = 0.5333
+  Accuracy   = 0.3636
+
+  ── Predicted distribution ──
+    low        251
+    moderate    40
+    high        18
+    severe      21
+
+============================================================
+  Burnout Model — Precision & Recall (labelled set)
+============================================================
+
+  Threshold: ≥ 'moderate' = POSITIVE
+  Total files with labels: 330
+
+  ┌──────────────────────┬───────┐
+  │                      │ Count │
+  ├──────────────────────┼───────┤
+  │ True Positives (TP)  │    42 │
+  │ False Positives (FP) │    37 │
+  │ True Negatives (TN)  │   173 │
+  │ False Negatives (FN) │    78 │
+  └──────────────────────┴───────┘
+
+  Precision  = 0.5316  (42/79)
+  Recall     = 0.3500  (42/120)
+  F1 Score   = 0.4221
+  Accuracy   = 0.6515
+
+  ── Predicted distribution ──
+    low        251
+    moderate    40
+    high        18
+    severe      21
+
+============================================================
+  Burnout Model — Precision & Recall (labelled set)
+============================================================
+
+  Threshold: ≥ 'high' = POSITIVE
+  Total files with labels: 330
+
+  ┌──────────────────────┬───────┐
+  │                      │ Count │
+  ├──────────────────────┼───────┤
+  │ True Positives (TP)  │    20 │
+  │ False Positives (FP) │    19 │
+  │ True Negatives (TN)  │   191 │
+  │ False Negatives (FN) │   100 │
+  └──────────────────────┴───────┘
+
+  Precision  = 0.5128  (20/39)
+  Recall     = 0.1667  (20/120)
+  F1 Score   = 0.2516
+  Accuracy   = 0.6394
+
+  ── Predicted distribution ──
+    low        251
+    moderate    40
+    high        18
+    severe      21
+
+============================================================
+  Burnout Model — Precision & Recall (labelled set)
+============================================================
+
+  Threshold: ≥ 'severe' = POSITIVE
+  Total files with labels: 330
+
+  ┌──────────────────────┬───────┐
+  │                      │ Count │
+  ├──────────────────────┼───────┤
+  │ True Positives (TP)  │    14 │
+  │ False Positives (FP) │     7 │
+  │ True Negatives (TN)  │   203 │
+  │ False Negatives (FN) │   106 │
+  └──────────────────────┴───────┘
+
+  Precision  = 0.6667  (14/21)
+  Recall     = 0.1167  (14/120)
+  F1 Score   = 0.1986
+  Accuracy   = 0.6576
+
+  ── Predicted distribution ──
+    low        251
+    moderate    40
+    high        18
+    severe      21
+
+  Per-file results saved to: /tmp/opencode/burnout_measurement/full_results.csv
