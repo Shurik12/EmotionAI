@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../hooks/useLanguage';
-import { getEmotionColor } from '../utils/constants';
+import { getEmotionColor, getFeatureColor } from '../utils/constants';
 
 export const EmotionTimeline = ({ data, height = 200 }) => {
   const { t } = useLanguage();
@@ -53,16 +53,20 @@ export const EmotionTimeline = ({ data, height = 200 }) => {
   );
 };
 
-export const EmotionLineChart = ({ frameResults, height = 280 }) => {
+export const EmotionLineChart = ({ frameResults, height = 280, showFeatures = false, onlyFeatures = false }) => {
   const { t } = useLanguage();
   const [hoverTs, setHoverTs] = React.useState(null);
   const [hoverData, setHoverData] = React.useState(null);
   const chartRef = React.useRef(null);
 
+  const chartTitle = onlyFeatures
+    ? (t('detector.features.title') || 'Arousal / Valence')
+    : (t('detector.emotionTimeline') || 'Emotion Timeline');
+
   if (!frameResults?.length) {
     return (
       <div className="chart-container">
-        <h4>{t('detector.emotionTimeline') || 'Emotion Timeline'}</h4>
+        <h4>{chartTitle}</h4>
         <div className="no-data">{t('common.noData') || 'No data'}</div>
       </div>
     );
@@ -71,18 +75,27 @@ export const EmotionLineChart = ({ frameResults, height = 280 }) => {
   // Extract emotion keys from the first frame with data
   const firstFrame = frameResults.find(f => f.result?.additional_probs);
   if (!firstFrame) return null;
-  const emotionKeys = Object.keys(firstFrame.result.additional_probs)
-    .filter(k => !['valence', 'arousal'].includes(k));
+  const allKeys = Object.keys(firstFrame.result.additional_probs);
+  const emotionKeys = allKeys.filter(k => !['valence', 'arousal'].includes(k));
+  const featureKeys = allKeys.filter(k => ['valence', 'arousal'].includes(k));
+  let displayKeys;
+  if (onlyFeatures) {
+    displayKeys = featureKeys;
+  } else if (showFeatures) {
+    displayKeys = allKeys;
+  } else {
+    displayKeys = emotionKeys;
+  }
 
-  // Build datasets: for each emotion, an array of {ts, value}
+  // Build datasets: for each display key, an array of {ts, value}
   const series = {};
-  emotionKeys.forEach(k => { series[k] = []; });
+  displayKeys.forEach(k => { series[k] = []; });
 
   const points = frameResults.map(f => {
     const ts = f.timestamp || 0;
     const probs = f.result?.additional_probs || {};
     const entry = { ts, values: {} };
-    emotionKeys.forEach(k => {
+    displayKeys.forEach(k => {
       const raw = probs[k];
       const num = typeof raw === 'string' ? parseFloat(raw) : (raw || 0);
       entry.values[k] = num;
@@ -149,7 +162,7 @@ export const EmotionLineChart = ({ frameResults, height = 280 }) => {
 
   return (
     <div className="chart-container">
-      <h4>{t('detector.emotionTimeline') || 'Emotion Timeline'}</h4>
+      <h4>{chartTitle}</h4>
       <div className="chart-wrapper">
         <svg
           ref={chartRef}
@@ -162,12 +175,15 @@ export const EmotionLineChart = ({ frameResults, height = 280 }) => {
         >
         {/* Background grid */}
         <defs>
-          {emotionKeys.map(k => (
-            <linearGradient key={k} id={`grad-${k}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={getEmotionColor(k)} stopOpacity="0.2" />
-              <stop offset="100%" stopColor={getEmotionColor(k)} stopOpacity="0.02" />
-            </linearGradient>
-          ))}
+          {displayKeys.map(k => {
+            const color = featureKeys.includes(k) ? getFeatureColor(k) : getEmotionColor(k);
+            return (
+              <linearGradient key={k} id={`grad-${k}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity="0.2" />
+                <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+              </linearGradient>
+            );
+          })}
         </defs>
 
         {/* Y axis grid lines + labels */}
@@ -216,7 +232,7 @@ export const EmotionLineChart = ({ frameResults, height = 280 }) => {
         />
 
         {/* Area fills under lines */}
-        {emotionKeys.map(k => (
+        {displayKeys.map(k => (
           <path
             key={`area-${k}`}
             d={`${buildPath(series[k])} L${xScale(maxTs)},${height - margin.bottom} L${xScale(minTs)},${height - margin.bottom} Z`}
@@ -224,19 +240,22 @@ export const EmotionLineChart = ({ frameResults, height = 280 }) => {
           />
         ))}
 
-        {/* Emotion lines */}
-        {emotionKeys.map(k => (
-          <path
-            key={`line-${k}`}
-            d={buildPath(series[k])}
-            fill="none"
-            stroke={getEmotionColor(k)}
-            strokeWidth={2}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            className="emotion-line"
-          />
-        ))}
+        {/* Emotion/Feature lines */}
+        {displayKeys.map(k => {
+          const color = featureKeys.includes(k) ? getFeatureColor(k) : getEmotionColor(k);
+          return (
+            <path
+              key={`line-${k}`}
+              d={buildPath(series[k])}
+              fill="none"
+              stroke={color}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              className="emotion-line"
+            />
+          );
+        })}
 
         {/* Hover vertical line */}
         {hoverTs !== null && (
@@ -287,7 +306,7 @@ export const EmotionLineChart = ({ frameResults, height = 280 }) => {
                     cx={tooltipX + pad + 4}
                     cy={ty + 26 + i * rowH}
                     r={4}
-                    fill={getEmotionColor(k)}
+                    fill={featureKeys.includes(k) ? getFeatureColor(k) : getEmotionColor(k)}
                   />
                   <text
                     x={tooltipX + pad + 14}
@@ -295,7 +314,7 @@ export const EmotionLineChart = ({ frameResults, height = 280 }) => {
                     fontSize={11}
                     fill="#555"
                   >
-                    {t(`emotions.${k}`) || k}
+                    {featureKeys.includes(k) ? (t(`detector.features.${k}`) || k) : (t(`emotions.${k}`) || k)}
                   </text>
                   <text
                     x={tooltipX + tw - pad}
@@ -316,15 +335,21 @@ export const EmotionLineChart = ({ frameResults, height = 280 }) => {
 
       {/* Legend (outside SVG) */}
       <div className="chart-legend">
-        {emotionKeys.map(k => (
-          <div key={k} className="chart-legend-item">
-            <span
-              className="chart-legend-dot"
-              style={{ backgroundColor: getEmotionColor(k) }}
-            />
-            <span>{t(`emotions.${k}`) || k}</span>
-          </div>
-        ))}
+        {displayKeys.map(k => {
+          const color = featureKeys.includes(k) ? getFeatureColor(k) : getEmotionColor(k);
+          const label = featureKeys.includes(k)
+            ? (t(`detector.features.${k}`) || k)
+            : (t(`emotions.${k}`) || k);
+          return (
+            <div key={k} className="chart-legend-item">
+              <span
+                className="chart-legend-dot"
+                style={{ backgroundColor: color }}
+              />
+              <span>{label}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
     </div>
