@@ -33,8 +33,6 @@ export const DetectorResults = ({ results }) => {
         return <ImageResults results={results} resultData={resultData} />;
       case 'video':
         return <VideoResults results={results} resultData={resultData} />;
-      case 'video_realtime':
-        return <RealtimeResults results={results} resultData={resultData} />;
       case 'audio':
         return <AudioResults results={results} resultData={resultData} />;
       case 'audio_burnout':
@@ -180,71 +178,6 @@ const VideoFrame = ({ frame, index }) => {
         ))}
       </div>
       <ValenceArousal features={features} />
-    </div>
-  );
-};
-
-const RealtimeResults = ({ results, resultData }) => {
-  const { t } = useLanguage();
-  const { emotions } = getEmotionEntries(results.average_emotions);
-  const stats = results.statistics;
-
-  return (
-    <div className="result-card">
-      <h3>📊 {t('detector.realtimeAnalysis') || 'Real-time Video Analysis'}</h3>
-      <p>{t('detector.framesProcessed', { count: results.frames_processed })} over {results.duration?.toFixed(1)}s</p>
-
-      {/* Emotion timeline chart */}
-      {results.frame_results?.length > 1 && (
-        <EmotionLineChart frameResults={results.frame_results} />
-      )}
-      
-      {Object.keys(emotions).length > 0 && (
-        <div className="emotion-results">
-          <h4>{t('detector.averageEmotions') || 'Average Emotions'}</h4>
-          {Object.entries(emotions).map(([key, value]) => (
-            <EmotionBar key={key} emotion={key} probability={parseFloat(value)} />
-          ))}
-        </div>
-      )}
-
-      {stats && (stats.valence || stats.arousal) && (
-        <div className="emotion-results">
-          <h4>{t('detector.features.title') || 'Valence / Arousal'} (avg)</h4>
-          {['valence', 'arousal'].map(key => {
-            if (!stats[key]) return null;
-            const pct = (stats[key].avg * 100).toFixed(1);
-            return (
-              <div key={key} className="emotion-item">
-                <div className="emotion-label">
-                  <span>{t(`detector.features.${key}`) || key}</span>
-                  <span>{pct}%</span>
-                </div>
-                <div className="emotion-bar">
-                  <div
-                    className="emotion-fill"
-                    style={{
-                      width: `${pct}%`,
-                      backgroundColor: getFeatureColor(key),
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {results.frame_results?.length > 0 && (
-        <>
-          <h4>{t('detector.frames') || 'Frames'}</h4>
-          <div className="video-frames">
-            {results.frame_results.map((frame, index) => (
-              <VideoFrame key={index} frame={frame} index={index} />
-            ))}
-          </div>
-        </>
-      )}
     </div>
   );
 };
