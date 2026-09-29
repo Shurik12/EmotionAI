@@ -874,6 +874,7 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
             auto frame_result = process_video_frame(frame, frame_num, fps, task_id);
             results.push_back({
                 {"frame", frame_num},
+                {"timestamp", frame_result.timestamp},
                 {"image_url", file_storage_->getFileUrl(frame_result.storage_path)},
                 {"result", frame_result.result}
             });

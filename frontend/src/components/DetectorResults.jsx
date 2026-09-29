@@ -131,6 +131,12 @@ const VideoResults = ({ results, resultData }) => {
   const firstFrame = frames?.[0];
   const lastFrame = frames?.length > 1 ? frames[frames.length - 1] : null;
 
+  // Build frame results with timestamps for the chart
+  const chartFrames = (frames || []).map(f => ({
+    timestamp: f.timestamp ?? (f.frame / (results.fps || 30)),
+    result: f.result,
+  }));
+
   return (
     <div className="result-card">
       <h3>🎬 {t('detector.videoAnalysisComplete')}</h3>
@@ -143,6 +149,16 @@ const VideoResults = ({ results, resultData }) => {
         </div>
       )}
 
+      {/* Emotion timeline chart */}
+      {chartFrames.length > 1 && (
+        <EmotionLineChart frameResults={chartFrames} />
+      )}
+
+      {/* Arousal / Valence chart */}
+      {chartFrames.length > 1 && (
+        <EmotionLineChart frameResults={chartFrames} onlyFeatures={true} height={200} />
+      )}
+
       {Object.keys(emotions).length > 0 && (
         <div className="emotion-results">
           <h4>{t('detector.averageEmotions') || 'Average Emotions'}</h4>
@@ -151,7 +167,7 @@ const VideoResults = ({ results, resultData }) => {
           ))}
         </div>
       )}
-      
+
       <div className="video-frames">
         {firstFrame && <VideoFrame frame={firstFrame} index={0} />}
         {lastFrame && <VideoFrame frame={lastFrame} index={frames.length - 1} />}
