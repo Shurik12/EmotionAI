@@ -12,27 +12,40 @@ echo "=========================================="
 # Install core dependencies
 echo "Installing core dependencies..."
 sudo apt-get install -y \
-    nginx \
+    build-essential \
     certbot \
-    python3-certbot-nginx \
-    python3.12-venv \
-    unzip \
-    npm \
     cmake \
-    ninja-build \
+    ffmpeg \
     gdb \
-    redis-server \
-    libopencv-dev \
-    libyaml-cpp-dev \
-    libspdlog-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libbenchmark-dev \
+    libbrotli-dev \
     libcurl4-openssl-dev \
     libcurlpp-dev \
-    libpugixml-dev \
+    libeigen3-dev \
+    libfftw3-dev \
     libfmt-dev \
-    nlohmann-json3-dev \
+    libgmock-dev \
+    libgtest-dev \
     libhiredis-dev \
-    build-essential \
-    pkg-config
+    libmsgsl-dev \
+    libopencv-dev \
+    libpugixml-dev \
+    libspdlog-dev \
+    libswresample-dev \
+    libuuid-dev \
+    libyaml-cpp-dev \
+    nginx \
+    ninja-build \
+    nlohmann-json3-dev \
+    npm \
+    pkg-config \
+    python3-certbot-nginx \
+    python3.12-venv \
+    redis-server \
+    unzip
 
 # Install submodules
 echo "Installing git submodules..."
@@ -75,6 +88,9 @@ echo "=========================================="
 # Verify installations
 echo "Verifying OpenCV:"
 pkg-config --modversion opencv4 || pkg-config --modversion opencv
+
+echo "Verifying FFTW3:"
+pkg-config --modversion fftw3 || echo "  (fftw3 not found via pkg-config; CMake checks headers/libs directly)"
 
 echo "Verifying yaml-cpp:"
 pkg-config --modversion yaml-cpp

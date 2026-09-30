@@ -32,7 +32,7 @@ make up               # docker compose: dragonfly + server
 | Command | Why it fails |
 |---|---|
 | `make run` | **No such target.** Use `make up` or run `./build/emotionai` from the repo root. |
-| `install_deps.sh` | Does **not** install `libfftw3-dev` or FFmpeg dev packages. FFTW3 is mandatory — a clean install fails at build. It also omits `libgtest-dev`/`libbenchmark-dev`, needed for `make test`. Its "Verifying installations" output claims to check PostgreSQL client, httplib and redis-plus-plus, none of which it installs. |
+| `install_deps.sh` | Installs all required apt packages (including `libfftw3-dev`, FFmpeg dev, `libgtest-dev`/`libgmock-dev`, `libbenchmark-dev`). Its "Verifying installations" output claims to check PostgreSQL client, httplib and redis-plus-plus, none of which it installs. |
 
 Install the missing deps manually:
 
