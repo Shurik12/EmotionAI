@@ -1,7 +1,7 @@
-# YOUGILE.md — идентификаторы YouGile (Razuma)
+# YOUGILE.md — идентификаторы YouGile (Razuma / four quartets)
 
-Справочник UUID для работы с YouGile (API/MCP): компания Razuma, проект EmotionAI,
-колонки доски, стикеры и их значения.
+Справочник UUID для работы с YouGile (API/MCP): компания Razuma (team ID `81d5f026f963`),
+проект EmotionAI, колонки доски, стикеры и их значения.
 
 ---
 
@@ -9,7 +9,8 @@
 
 | Сущность | ID |
 |----------|----|
-| Компания Razuma | `f6cc0673-b0f5-41fc-9e1d-81d5f026f963` |
+| Компания Razuma (team ID) | `81d5f026f963` |
+| Компания (ID для авторизации API, full UUID) | `f6cc0673-b0f5-41fc-9e1d-81d5f026f963` |
 
 ## Пользователи
 

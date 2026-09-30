@@ -28,9 +28,9 @@ build_frontend: ## Build the React app into frontend/dist
 
 build: build_backend build_frontend ## Configure and build everything
 
-benchmark: ## Build the offline burnout benchmark (tests/benchmark)
+benchmark: ## Build the offline benchmarks (tests/benchmark)
 	cmake -S . -B build -G Ninja -DBUILD_BENCHMARKS=ON
-	cmake --build build --target emotionai_burnout_benchmark
+	cmake --build build --target emotionai_benchmark
 
 test: ## Build and run the unit test suite
 	cmake -S . -B build -G Ninja -DBUILD_TESTS=ON -DEMOTIONAI_BUILD_INTEGRATION_TESTS=OFF

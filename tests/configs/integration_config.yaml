@@ -51,5 +51,5 @@ mtcnn:
 
 model:
   backend: "torch"
-  emotion_model_path: "/home/alex/git/EmotionAI/contrib/emotiefflib/models/emotieffcpplib_prepared_models/enet_b0_8_va_mtl.pt"
-  face_detection_models_path: "/home/alex/git/EmotionAI/contrib/emotiefflib/emotieffcpplib/3rdparty/opencv-mtcnn/data/models/"
+  emotion_model_path: "models/enet_b0_8_va_mtl.pt"
+  face_detection_models_path: "models/"
