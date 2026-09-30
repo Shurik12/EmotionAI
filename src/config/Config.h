@@ -141,7 +141,6 @@ private:
 	struct QueueConfig
 	{
 		std::string batch_queue_name{"tasks:batch"};
-		std::string realtime_queue_name{"tasks:realtime"};
 		int visibility_timeout{300}; // 5 minutes
 		int max_retries{3};
 		int batch_size{50};

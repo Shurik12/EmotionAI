@@ -27,7 +27,7 @@ Python at runtime. Python is used only for model training and for exporting mode
   optionally confirmed by context flags (urgency, coached answers, "safe account", …). Emits a
   severity status + manager action — **not** fraud proof, never blocks an operation. All weights
   and boundaries live in the `external_influence:` config section for recalibration.
-- **Batch and realtime pipelines** — two Dragonfly/Redis queues with visibility timeouts and
+- **Batch processing pipeline** — Dragonfly/Redis queue with visibility timeouts and
   retries, so long video jobs never block quick single-image requests.
 - **Pluggable storage** — local, NFS, or S3 (MinIO) behind one `FileStorage` interface, selected by
   config.
@@ -185,7 +185,7 @@ Key sections (see `config_template.yaml` for full annotated defaults):
 | `paths`             | upload / results / logs / frontend directories                  |
 | `app`               | max upload size, allowed extensions, task and result TTLs       |
 | `logging`           | level, rotation size, file count, console/file patterns         |
-| `queue`             | batch and realtime queue names, visibility timeout, retries     |
+| `queue`             | batch queue name, visibility timeout, retries     |
 | `task_management`   | cache TTL and size, batching window                             |
 | `dragonfly`         | host, port, db index, password, pool size, pipelining           |
 | `storage`           | `local` / `nfs` / `s3` plus base path or bucket credentials     |
@@ -209,7 +209,6 @@ All endpoints are under `/api`. CORS preflight (`OPTIONS`) is handled for every 
 | Endpoint                  | Description                                            |
 |---------------------------|--------------------------------------------------------|
 | `/api/upload`             | Queue an image/video/audio file for batch processing   |
-| `/api/upload_realtime`    | Process a file immediately on the realtime queue       |
 | `/api/upload_burnout`     | Queue audio for burnout analysis                       |
 | `/api/submit_application` | Submit a contact/access application                    |
 | `/api/batch_progress`     | Progress for a set of task ids                         |
@@ -234,7 +233,6 @@ Any path that is not an API route falls through to the React SPA, so client-side
 
 ```bash
 curl http://localhost/api/health
-curl -F "file=@sample.jpg" http://localhost/api/upload_realtime
 curl http://localhost/api/progress/<task_id>
 ```
 
