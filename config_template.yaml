@@ -6,7 +6,7 @@ paths:
   upload: "./uploads"
   results: "./results"
   logs: "./logs"
-  frontend: "./frontend"
+  frontend: "./frontend/dist"
 
 app:
   max_content_length: 52428800  # 50MB in bytes
