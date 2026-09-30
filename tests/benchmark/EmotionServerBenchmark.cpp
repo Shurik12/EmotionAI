@@ -111,28 +111,6 @@ bool EmotionServerBenchmark::benchmarkVideoUpload(benchmark::State &state, std::
 	}
 }
 
-bool EmotionServerBenchmark::benchmarkRealtimeVideoUpload(benchmark::State &state, std::string &task_id)
-{
-	auto response = client_->uploadFile("/api/upload_realtime", test_video_data_, "test_video.mp4", "file");
-
-	if (!response.success() || response.status_code != 202)
-	{
-		state.SkipWithError(("Realtime video upload failed: " + std::to_string(response.status_code) + " - " + response.body).c_str());
-		return false;
-	}
-
-	try
-	{
-		auto json_response = nlohmann::json::parse(response.body);
-		task_id = json_response["task_id"].get<std::string>();
-		return true;
-	}
-	catch (const std::exception &e)
-	{
-		state.SkipWithError(("Failed to parse task_id from response: " + std::string(e.what())).c_str());
-		return false;
-	}
-}
 
 HttpClient::Response EmotionServerBenchmark::checkTaskProgress(const std::string &task_id)
 {
