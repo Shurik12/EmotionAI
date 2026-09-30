@@ -30,7 +30,6 @@ cluster:
 
 queue:
   batch_queue_name: "tasks:batch"
-  realtime_queue_name: "tasks:realtime"
   visibility_timeout: 300  # 5 minutes - task invisible to others during processing
   max_retries: 3          # maximum retries for failed tasks
   batch_size: 50          # number of tasks to process in batch operations

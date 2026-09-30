@@ -31,7 +31,6 @@ public:
 	// Single request benchmarks
 	bool benchmarkImageUpload(benchmark::State &state, std::string &task_id);
 	bool benchmarkVideoUpload(benchmark::State &state, std::string &task_id);
-	bool benchmarkRealtimeVideoUpload(benchmark::State &state, std::string &task_id);
 
 	// Utility methods
 	bool waitForTaskCompletion(const std::string &task_id);
