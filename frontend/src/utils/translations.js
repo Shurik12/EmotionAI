@@ -44,7 +44,7 @@ export const translations = {
       heroTitle: 'Технология,\nкоторая помогает\nвидеть больше',
       heroLead: 'ИИ-платформа анализа состояния и реакций человека по видео и голосу.',
       tryDemo: 'Попробуйте демо',
-      discussPilot: 'Обсудить пилот: info@razuma.tech, +7 (961) 063-67-71',
+      discussPilot: 'Обсудить пилот: info@razuma.tech',
       industriesLabel: 'Отрасли',
       analysis: {
         title: 'RAZUMA анализирует не только то, что человек говорит',
@@ -193,7 +193,7 @@ export const translations = {
         demoBtn: 'Попробуйте демо',
         contactTitle: 'Обсудим, как RAZUMA\nможет работать в вашей компании',
         contactText: 'Расскажите о вашей задаче — и мы предложим оптимальный сценарий внедрения.',
-        contactBtn: 'Обсудить пилот: info@razuma.tech, +7 (961) 063-67-71',
+        contactBtn: 'Обсудить пилот: info@razuma.tech',
       },
     },
     features: {
