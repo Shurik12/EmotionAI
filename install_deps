@@ -35,7 +35,7 @@ sudo apt-get install -y \
     libpugixml-dev \
     libspdlog-dev \
     libswresample-dev \
-    libuuid-dev \
+    uuid-dev \
     libyaml-cpp-dev \
     nginx \
     ninja-build \
