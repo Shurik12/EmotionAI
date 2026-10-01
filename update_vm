@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# update_vm.sh - Build, stop the remote service, and deploy updated artifacts
+#
+# Usage: ./update_vm.sh <vm-host>
+#
+# Steps:
+#   1. Build the backend and frontend locally
+#   2. Stop emotion-ai on the VM
+#   3. SCP the binary and frontend dist to the deployment directory
+#
+# Example:
+#   ./update_vm.sh alpha.razuma.pro
+
+set -e
+
+VM_USER="alex"
+VM_HOST=""
+VM_DIR="/home/alex/emotionai"
+
+usage() {
+    echo "Usage: $0 <vm-host>"
+    echo ""
+    echo "Updates the EmotionAI deployment on a target VM."
+    echo ""
+    echo "Arguments:"
+    echo "  vm-host    Hostname or IP of the target VM (e.g. alpha.razuma.pro)"
+    echo ""
+    echo "Example:"
+    echo "  $0 alpha.razuma.pro"
+    exit 1
+}
+
+if [ $# -lt 1 ]; then
+    VM_HOST="84.201.164.227"
+    echo "  No host specified; using default: ${VM_HOST}"
+else
+    VM_HOST="$1"
+fi
+VM_SSH="${VM_USER}@${VM_HOST}"
+
+echo "============================================"
+echo "  Updating EmotionAI on ${VM_HOST}"
+echo "============================================"
+
+# -------------------------------------------------------
+# 1. Build locally
+# -------------------------------------------------------
+echo ""
+echo "[1/4] Building..."
+make build
+
+# -------------------------------------------------------
+# 2. Stop service on VM
+# -------------------------------------------------------
+echo ""
+echo "[2/4] Stopping emotion-ai service on ${VM_HOST}..."
+ssh "${VM_SSH}" "sudo service emotion-ai stop"
+
+# -------------------------------------------------------
+# 3. Deploy via scp
+# -------------------------------------------------------
+echo ""
+echo "[3/4] Deploying files to ${VM_HOST}..."
+
+# Binary
+echo "  -> copying build/emotionai..."
+scp build/emotionai "${VM_SSH}:${VM_DIR}/emotionai"
+
+# Frontend dist  -> nginx root (frontend/build)
+echo "  -> copying frontend/dist/* -> frontend/build/..."
+ssh "${VM_SSH}" "mkdir -p ${VM_DIR}/frontend/build"
+scp -r frontend/dist/* "${VM_SSH}:${VM_DIR}/frontend/build/"
+
+# -------------------------------------------------------
+# 4. Start service on VM
+# -------------------------------------------------------
+echo ""
+echo "[4/4] Starting emotion-ai service on ${VM_HOST}..."
+ssh "${VM_SSH}" "sudo service emotion-ai start"
+echo "  -> Service started."
+
+echo ""
+echo "============================================"
+echo "  Update complete!"
+echo "============================================"

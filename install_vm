@@ -1,0 +1,103 @@
+#!/bin/bash
+
+# install_vm - Install dependencies and shared libraries on the VM
+#
+# Usage: ./install_vm <vm-host>
+#
+# Steps:
+#   1. Install runtime dependencies + infrastructure on the VM
+#   2. Copy shared libraries (libtorch, onnxruntime) to the VM
+#   3. Register so/ in the linker path
+#
+# Example:
+#   ./install_vm alpha.razuma.pro
+
+set -e
+
+VM_USER="alex"
+VM_HOST=""
+VM_DIR="/home/alex/emotionai"
+
+usage() {
+    echo "Usage: $0 <vm-host>"
+    echo ""
+    echo "Installs system dependencies and shared libraries on the target VM."
+    echo ""
+    echo "Arguments:"
+    echo "  vm-host    Hostname or IP of the target VM (e.g. alpha.razuma.pro)"
+    echo ""
+    echo "Example:"
+    echo "  $0 alpha.razuma.pro"
+    exit 1
+}
+
+if [ $# -lt 1 ]; then
+    VM_HOST="84.201.164.227"
+    echo "  No host specified; using default: ${VM_HOST}"
+else
+    VM_HOST="$1"
+fi
+VM_SSH="${VM_USER}@${VM_HOST}"
+
+echo "============================================"
+echo "  Installing EmotionAI dependencies on ${VM_HOST}"
+echo "============================================"
+
+# -------------------------------------------------------
+# 1. Install apt packages on the VM
+# -------------------------------------------------------
+echo ""
+echo "[1/3] Installing system dependencies on ${VM_HOST}..."
+ssh -t "${VM_SSH}" "sudo apt-get update && sudo apt-get install -y \
+    ca-certificates \
+    certbot \
+    curl \
+    ffmpeg \
+    libavcodec-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libbrotli-dev \
+    libcurl4-openssl-dev \
+    libfftw3-dev \
+    libfmt-dev \
+    libhiredis-dev \
+    libopencv-dev \
+    libpugixml-dev \
+    libspdlog-dev \
+    libssl-dev \
+    libswresample-dev \
+    libyaml-cpp-dev \
+    nginx \
+    python3-certbot-nginx \
+    uuid-dev \
+    zlib1g-dev"
+
+# -------------------------------------------------------
+# 2. Copy shared libraries
+# -------------------------------------------------------
+echo ""
+echo "[2/3] Copying shared libraries to ${VM_HOST}..."
+
+ssh "${VM_SSH}" "mkdir -p ${VM_DIR}/so"
+
+scp contrib/libtorch/lib/libtorch.so \
+    contrib/libtorch/lib/libtorch_cpu.so \
+    contrib/libtorch/lib/libc10.so \
+    contrib/libtorch/lib/libgomp-52f2fd74.so.1 \
+    "${VM_SSH}:${VM_DIR}/so/"
+
+scp contrib/onnxruntime/lib64/libonnxruntime.so.1 \
+    "${VM_SSH}:${VM_DIR}/so/"
+
+# -------------------------------------------------------
+# 3. Register so/ in ld.so.conf.d
+# -------------------------------------------------------
+echo ""
+echo "[3/3] Registering ${VM_DIR}/so in linker path..."
+ssh -t "${VM_SSH}" "echo '${VM_DIR}/so' | sudo tee /etc/ld.so.conf.d/emotionai.conf && sudo ldconfig"
+echo "  -> Libraries registered."
+
+echo ""
+echo "============================================"
+echo "  Install complete!"
+echo "============================================"
