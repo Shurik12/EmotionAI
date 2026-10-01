@@ -68,7 +68,7 @@ exists). The mobile menu (below 1100px) also closes on every section click.
 | `contact` | contact column of the CTA band | `landing.cta.contact*` |
 
 Both "Обсудить пилот" buttons and the header CTA call `navigateTo('contact')` — the app never sends
-email; the contact page only shows `mailto:` / `tel:` links.
+email; the contact page only shows `mailto:` links.
 
 ## Conventions
 

@@ -129,8 +129,8 @@ Missing step 2 or 3 fails silently as a 404 or a CORS error in the browser.
   scrolling). In `Home.jsx`: `technology` (hero), `solutions` (analysis cards), `industries`,
   `cases` (benefit cards + decision banner), `demo` (CTA band), `contact` (CTA contact column);
   `about` is on the `<footer>` element in `Footer.jsx`.
-- **Nothing sends email.** All "Обсудить пилот" buttons call `navigateTo('contact')`; `mailto:` /
-  `tel:` links exist only as information on the contact page. A real email flow would need a new
+- **Nothing sends email.** All "Обсудить пилот" buttons call `navigateTo('contact')`; `mailto:` 
+  links exist only as information on the contact page. A real email flow would need a new
   backend route — the binary has no SMTP code.
 - **Assets:** `frontend/public/static/` referenced as `/static/<file>` (Vite copies `public/` into
   `dist/`). Branding is `razuma.svg` + `skolkovo.webp`; photos are `.webp`. The landing hero
