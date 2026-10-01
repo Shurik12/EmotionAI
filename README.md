@@ -261,7 +261,7 @@ The landing page is composed of anchored sections that the header and footer men
 | `about` | the footer element |
 
 Every "Обсудить пилот" button and the header CTA open the contact page; the frontend never sends
-email and the contact page only displays `mailto:` / `tel:` links.
+email and the contact page only displays `mailto:` links.
 
 Localisation lives in `src/utils/translations.js` (RU and EN in one file; a missing key renders as
 the raw key in the UI). Static images live in `frontend/public/static/` and are referenced as
