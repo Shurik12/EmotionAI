@@ -10,9 +10,9 @@ help: ## List targets
 install: ## System deps, submodules, libtorch/onnxruntime
 	bash install_deps.sh
 
-python_env: ## Create venv and install Python deps
-	python3 -m venv venv
-	. venv/bin/activate && pip install -r requirements.txt
+python_env: ## Create venv and install Python deps (uses uv)
+	uv venv
+	. venv/bin/activate && uv pip install -r requirements.txt
 
 models: python_env ## Export C++ model headers from emotiefflib
 	. venv/bin/activate && cd $(MODELS_DIR) && python3 prepare_models_for_emotieffcpplib.py
