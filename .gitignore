@@ -18,7 +18,7 @@ frontend/package-lock.json
 results.txt
 src/emotion_detection_app.egg-info/
 src/source/pytorch_utils/
-venv/
+.venv/
 training/pretrained_model.pt
 training/model_v0.0.1.pt
 training/images/

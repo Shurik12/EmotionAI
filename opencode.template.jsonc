@@ -47,7 +47,7 @@
       "build/**",
       "contrib/**",
       "models/**",
-      "venv/**",
+      ".venv/**",
       "data/**",
       "storage/**",
       "uploads/**",
