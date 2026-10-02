@@ -43,9 +43,17 @@ sudo apt-get install -y \
     npm \
     pkg-config \
     python3-certbot-nginx \
-    python3.12-venv \
     redis-server \
     unzip
+
+# Install uv (Python package manager)
+echo "Installing uv..."
+if ! command -v uv &>/dev/null; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    # Add uv to PATH for the remainder of this script
+    export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+fi
+echo "uv version: $(uv --version 2>/dev/null || echo 'not found')"
 
 # Install submodules
 echo "Installing git submodules..."
