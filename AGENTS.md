@@ -182,6 +182,21 @@ The codebase is **inconsistent** — match the file you are editing rather than 
 | `training/` | PyTorch training and dataset prep |
 | `tests/` | unit / integration / end_to_end / benchmark |
 
+## YouGile MCP (task management)
+
+The YouGile MCP server (`yougile_*` tools) is configured at the **project level** in
+`.opencode/opencode.jsonc`. It runs via a launcher script at
+`.opencode/mcp/yougile-launcher.mjs` that:
+
+1. Reads the repo-root `.env` file
+2. Maps `YOUGILE_API_TOKEN` → `YOUGILE_API_KEY`
+3. Passes `YOUGILE_COMPANY_ID` from `.env`
+4. Spawns `@nebelov/yougile-mcp` with the correct environment
+
+This means the server is only available when working inside the EmotionAI project.
+Both variables must be present in `.env` (see `.env.example`). The `.mcp.json` file
+previously at the repo root has been removed — OpenCode does not read that format.
+
 ## Guardrails
 
 - **Never commit** `config.yaml`, `models/`, `venv/`, `build/`, `uploads/`, `results/`, `logs/`,
