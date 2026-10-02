@@ -17,7 +17,7 @@ Repo: `git@github.com:Shurik12/EmotionAI.git`, branch `main`. No CI is configure
 ```bash
 make help             # self-documenting target list, generated from the Makefile
 make install          # apt deps + submodules + libtorch/onnxruntime into contrib/ + emotiefflib patch
-make python_env       # venv + requirements.txt
+make python_env       # .venv + pyproject.toml (uv sync)
 make models           # export C++ model headers from contrib/emotiefflib/models
 make build            # configure (CMake+Ninja) + build_backend + build_frontend
 make test             # build + run the unit suite (needs libgtest-dev/libgmock-dev)
@@ -199,7 +199,7 @@ previously at the repo root has been removed — OpenCode does not read that for
 
 ## Guardrails
 
-- **Never commit** `config.yaml`, `models/`, `venv/`, `build/`, `uploads/`, `results/`, `logs/`,
+- **Never commit** `config.yaml`, `models/`, `.venv/`, `build/`, `uploads/`, `results/`, `logs/`,
   `data/`, `frontend/dist/` — all gitignored, and `config.yaml` holds credentials
   (`dragonfly.password`, `gigachat.auth_key`).
 - **`contrib/emotiefflib` submodule is always dirty after `make install` — this is expected, not a

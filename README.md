@@ -137,7 +137,7 @@ exist, and at **runtime** by `model.backend` in `config.yaml`.
 # 1. System deps, git submodules, contrib downloads, emotiefflib patch
 make install
 
-# 2. Python venv + requirements (uses uv — installed by make install)
+# 2. Python .venv + deps (uv sync from pyproject.toml — uv installed by make install)
 make python_env
 
 # 3. Export C++ model headers from the Python scripts
