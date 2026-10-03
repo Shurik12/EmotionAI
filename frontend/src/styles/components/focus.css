@@ -306,6 +306,101 @@
   text-align: center;
 }
 
+/* Session */
+.focus-progress {
+  height: 6px;
+  margin-bottom: var(--spacing-md);
+  border-radius: 999px;
+  background: var(--rz-muted);
+  overflow: hidden;
+}
+
+.focus-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--rz-primary);
+  transition: width 0.3s ease;
+}
+
+.focus-progress-label {
+  margin: 0 0 var(--spacing-sm) !important;
+  font-size: var(--rz-text-sm);
+}
+
+.focus-timer {
+  margin: var(--spacing-md) 0;
+  font-size: clamp(2.5rem, 12vw, 4rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+.focus-durations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  justify-content: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.focus-preset.active {
+  background: var(--rz-primary);
+  border-color: var(--rz-primary);
+  color: var(--rz-primary-foreground);
+  font-weight: 600;
+}
+
+.focus-session .focus-actions,
+.focus-done .focus-actions {
+  justify-content: center;
+}
+
+.focus-step-pick {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.focus-step.current {
+  border-color: var(--rz-ring);
+  box-shadow: 0 0 0 2px var(--rz-ring);
+}
+
+.focus-step.done .focus-step-title {
+  color: var(--rz-muted-foreground);
+  text-decoration: line-through;
+}
+
+.focus-step.done .focus-step-index {
+  background: var(--rz-mint);
+  color: var(--rz-on-mint);
+}
+
+.focus-done {
+  padding: var(--spacing-lg);
+  text-align: center;
+}
+
+.focus-done-title {
+  margin: 0 0 var(--spacing-xs) !important;
+  color: var(--rz-foreground);
+  font-size: var(--rz-text-lg);
+  font-weight: 600;
+}
+
+.focus-done-text {
+  margin: 0 0 var(--spacing-md) !important;
+}
+
 @media (max-width: 768px) {
   .focus-page {
     margin: var(--spacing-md) auto;

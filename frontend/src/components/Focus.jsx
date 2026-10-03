@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 import { breakdownTask } from '../utils/taskBreakdown';
+import { FocusSession } from './FocusSession';
 
 const makeSteps = (keys) =>
   keys.map((key, index) => ({ id: `step-${Date.now()}-${index}`, key }));
@@ -44,7 +45,7 @@ export const Focus = () => {
     if (plan.length) setActiveTab('session');
   };
 
-  const renderPlan = (readOnly = false) => (
+  const renderPlan = () => (
     <div className="focus-plan">
       <div className="focus-plan-head">
         <h3>{t('focus.plan.heading')}</h3>
@@ -59,26 +60,22 @@ export const Focus = () => {
             <li key={step.id} className="focus-step">
               <span className="focus-step-index">{index + 1}</span>
               <span className="focus-step-title">{t(step.key)}</span>
-              {!readOnly && (
-                <button
-                  type="button"
-                  className="focus-step-remove"
-                  onClick={() => handleRemoveStep(step.id)}
-                  aria-label={t('focus.plan.remove')}
-                >
-                  ×
-                </button>
-              )}
+              <button
+                type="button"
+                className="focus-step-remove"
+                onClick={() => handleRemoveStep(step.id)}
+                aria-label={t('focus.plan.remove')}
+              >
+                ×
+              </button>
             </li>
           ))}
         </ol>
       )}
 
-      {!readOnly && (
-        <button type="button" className="focus-btn ghost" onClick={handleAddStep}>
-          + {t('focus.plan.addStep')}
-        </button>
-      )}
+      <button type="button" className="focus-btn ghost" onClick={handleAddStep}>
+        + {t('focus.plan.addStep')}
+      </button>
     </div>
   );
 
@@ -143,7 +140,7 @@ export const Focus = () => {
             </div>
 
             <div className="focus-card">
-              {renderPlan(false)}
+              {renderPlan()}
 
               <div className="focus-options">
                 <label className="focus-option">
@@ -182,7 +179,7 @@ export const Focus = () => {
           <div className="focus-card">
             <h2>{t('focus.session.title')}</h2>
             <p>{t('focus.session.text')}</p>
-            {renderPlan(true)}
+            <FocusSession plan={plan} />
           </div>
         )}
 
