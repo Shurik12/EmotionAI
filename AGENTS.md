@@ -118,6 +118,10 @@ async task per frame: `POST /api/focus/session` creates it, `POST /api/focus/ses
 scores a frame on the thread pool (no disk, no GigaChat), `GET /api/focus/session/<id>` returns
 the accumulated dynamics, and `POST /api/focus/session/<id>/close` drops it. Reaction levels
 (`noSignal`/`steady`/`rising`) are decided in C++ and mapped to i18n keys by the frontend.
+The `rising` thresholds in `FocusSessionManager::classify` are **provisional** — calibrated on
+~15 still faces (no labelled FER set ships), and the va_mtl `valence`/`arousal` heads are
+regression outputs on ~[-1, 1], not probabilities, so absolute probability-style thresholds are
+wrong. `valence` gates the rule; re-measure before trusting it on real sessions.
 
 ## Frontend (SPA)
 

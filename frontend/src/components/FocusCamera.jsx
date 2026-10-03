@@ -206,7 +206,7 @@ export const FocusCamera = ({ numaNearby = true }) => {
       try {
         const session = await apiClient.getFocusSession(id);
         if (!aliveRef.current) return;
-        setSamples((session.samples || []).map((s) => ({ level: s.level, arousal: s.arousal })));
+        setSamples((session.samples || []).map((s) => ({ level: s.level, activation: s.activation })));
         setReaction(session.latest || null);
         setTotal(session.total || session.count || 0);
         if (session.updated_ms && session.updated_ms !== updatedRef.current) {
@@ -384,7 +384,7 @@ export const FocusCamera = ({ numaNearby = true }) => {
               <span
                 key={`${index}-${sample.level}`}
                 className={`focus-dynamics-bar ${sample.level}`}
-                style={{ height: `${20 + (sample.arousal || 0) * 80}%` }}
+                style={{ height: `${15 + (sample.activation ?? 0.5) * 85}%` }}
               />
             ))}
           </div>

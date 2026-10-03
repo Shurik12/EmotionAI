@@ -42,6 +42,15 @@ namespace
         static const std::vector<std::string> keys = {"anger", "fear", "sad", "disgust", "contempt"};
         return keys;
     }
+
+    // Reaction thresholds. The MTL heads (enet_b0_8_va_mtl) are regression
+    // outputs on roughly [-1, 1], not probabilities, so an absolute
+    // "arousal >= 0.6" is meaningless. Provisional values, calibrated on the
+    // ~15 still faces available in the repo/host (no labelled FER set is
+    // shipped) — re-measure before trusting them on real sessions.
+    constexpr double kNegativeValence = -0.20; // valence at or below this = clearly negative affect
+    constexpr double kHighActivation = 0.68;   // activation ((arousal+1)/2) for the negative-emotion path
+    constexpr double kStrongNegative = 0.60;   // summed anger/fear/sadness/disgust/contempt
 }
 
 FocusSessionManager &FocusSessionManager::instance()
@@ -81,6 +90,7 @@ nlohmann::json FocusSessionManager::classify(const nlohmann::json &result)
         {"level", "noSignal"},
         {"arousal", 0.0},
         {"valence", 0.0},
+        {"activation", 0.0},
         {"probability", 0.0}};
 
     if (!result.is_object())
@@ -123,11 +133,14 @@ nlohmann::json FocusSessionManager::classify(const nlohmann::json &result)
         return sample;
     }
 
-    const double raw_arousal = probs.contains("arousal")
-                                   ? toNumber(probs.at("arousal"))
-                                   : std::max(0.0, 1.0 - neutral);
-    const double arousal = std::clamp(raw_arousal, 0.0, 1.0);
-    const double valence = probs.contains("valence") ? toNumber(probs.at("valence")) : 0.0;
+    // The MTL heads are regression outputs on ~[-1, 1]; the 7-class model has
+    // neither, so fall back to 1 - neutral as a crude activation proxy.
+    const bool has_va = probs.contains("arousal") && probs.contains("valence");
+    const double arousal = has_va ? std::clamp(toNumber(probs.at("arousal")), -1.0, 1.0) : 0.0;
+    const double valence = has_va ? std::clamp(toNumber(probs.at("valence")), -1.0, 1.0) : 0.0;
+    const double activation = has_va
+                                  ? std::clamp((arousal + 1.0) / 2.0, 0.0, 1.0)
+                                  : std::clamp(1.0 - neutral, 0.0, 1.0);
 
     std::string label;
     double probability = 0.0;
@@ -144,9 +157,17 @@ nlohmann::json FocusSessionManager::classify(const nlohmann::json &result)
         }
     }
 
-    sample["level"] = (arousal >= 0.6 || negative >= 0.5) ? "rising" : "steady";
+    // "Rising" = clearly negative affect, or a strong negative expression that
+    // is also activated. Valence gates the arousal/negative path so a smile
+    // with a secondary contempt component does not fire.
+    const bool negative_affect = valence <= kNegativeValence;
+    const bool activated_negative = activation >= kHighActivation && negative >= kStrongNegative;
+
+    sample["level"] = (negative_affect || activated_negative) ? "rising" : "steady";
     sample["arousal"] = arousal;
     sample["valence"] = valence;
+    sample["activation"] = activation;
+    sample["negative"] = negative;
     sample["probability"] = probability;
     if (!label.empty())
     {
