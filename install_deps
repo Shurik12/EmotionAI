@@ -10,6 +10,9 @@ echo "Installing dependencies for EmotionAI project"
 echo "=========================================="
 
 # Install core dependencies
+# NOTE: 'npm' is intentionally NOT installed here. NodeSource's 'nodejs' package
+# declares "Conflicts: npm" and already bundles npm, so apt cannot install the
+# Ubuntu 'npm' package alongside it ("held broken packages").
 echo "Installing core dependencies..."
 sudo apt-get install -y \
     build-essential \
@@ -40,7 +43,6 @@ sudo apt-get install -y \
     nginx \
     ninja-build \
     nlohmann-json3-dev \
-    npm \
     pkg-config \
     python3-certbot-nginx \
     redis-server \

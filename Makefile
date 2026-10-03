@@ -8,7 +8,7 @@ help: ## List targets
 		'{split($$1,a,":"); printf "  \033[36m%-15s\033[0m %s\n", a[1], $$2}'
 
 install: ## System deps, submodules, libtorch/onnxruntime
-	bash install_deps.sh
+	bash install_deps
 
 python_env: ## Create .venv and install Python deps (uses uv, pyproject.toml)
 	uv sync
