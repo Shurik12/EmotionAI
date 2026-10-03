@@ -6,16 +6,21 @@ import { buildCameraReaction } from '../utils/focusCamera';
 const FRAME_QUALITY = 0.85;
 const POLL_INTERVAL_MS = 1000;
 const MAX_POLLS = 60;
-const MAX_SAMPLES = 12;
+const MAX_SAMPLES = 24;
+// While the camera is on, one frame goes to the core at this cadence.
+// The backend handles a single image per async task, so we sample rather
+// than stream. Overlapping analyses are skipped (busyRef).
+const SAMPLE_INTERVAL_MS = 20000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Camera + emotional dynamics for the Focus session (EMO-17, phase 4).
 //
 // The camera only starts after an explicit consent checkbox, stops as soon as
-// the tab is hidden, and never records: a single JPEG frame is captured on
-// demand and sent to the existing Razuma core (POST /api/upload) only when the
-// user asks for it. The returned signal is mapped locally to a calm next step.
+// the tab is hidden, and never records. While it is on, a frame is sampled on
+// an interval (and on demand) and sent to the existing Razuma core
+// (POST /api/upload). The returned signal is mapped locally to a calm next
+// step, and the samples build the emotional-dynamics strip for the session.
 export const FocusCamera = ({ numaNearby = true }) => {
   const { t } = useLanguage();
 
@@ -23,12 +28,15 @@ export const FocusCamera = ({ numaNearby = true }) => {
   const streamRef = useRef(null);
   const requestRef = useRef(0);
   const aliveRef = useRef(true);
+  const busyRef = useRef(false);
+  const frameUrlRef = useRef(null);
 
   const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState('off'); // off | asking | on | error
+  const [autoAnalyze, setAutoAnalyze] = useState(true);
   const [message, setMessage] = useState('');
-  const [frame, setFrame] = useState(null); // { blob, url, width, height }
-  const [analysis, setAnalysis] = useState('idle'); // idle | processing | done | error
+  const [frame, setFrame] = useState(null); // manual snapshot: { blob, url, width, height }
+  const [analyzing, setAnalyzing] = useState(false);
   const [progressValue, setProgressValue] = useState(0);
   const [reaction, setReaction] = useState(null);
   const [samples, setSamples] = useState([]);
@@ -53,6 +61,7 @@ export const FocusCamera = ({ numaNearby = true }) => {
       document.removeEventListener('visibilitychange', handleVisibility);
       aliveRef.current = false;
       stopCamera();
+      if (frameUrlRef.current) URL.revokeObjectURL(frameUrlRef.current);
     };
   }, [stopCamera]);
 
@@ -109,65 +118,98 @@ export const FocusCamera = ({ numaNearby = true }) => {
     }
   };
 
-  const captureFrame = () => {
-    const video = videoRef.current;
-    if (!video || !video.videoWidth || video.readyState < 2) {
+  // Grab the current video frame as a JPEG blob, or null if the video is not
+  // ready yet.
+  const captureBlob = useCallback(
+    () =>
+      new Promise((resolve) => {
+        const video = videoRef.current;
+        if (!video || !video.videoWidth || video.readyState < 2) {
+          resolve(null);
+          return;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => resolve(blob ? { blob, width: canvas.width, height: canvas.height } : null),
+          'image/jpeg',
+          FRAME_QUALITY,
+        );
+      }),
+    [],
+  );
+
+  // Send one frame to the core and fold the answer into the session view.
+  const analyzeBlob = useCallback(
+    async (blob) => {
+      if (!blob || busyRef.current) return;
+      busyRef.current = true;
+      setAnalyzing(true);
+      setProgressValue(0);
+
+      try {
+        const file = new File([blob], 'focus-frame.jpg', { type: 'image/jpeg' });
+        const { task_id: taskId } = await apiClient.uploadFile(file, 'standard');
+
+        let data = null;
+        for (let attempt = 0; attempt < MAX_POLLS; attempt += 1) {
+          await sleep(POLL_INTERVAL_MS);
+          if (!aliveRef.current) return;
+          data = await apiClient.getProgress(taskId);
+          setProgressValue(data?.progress || 0);
+          if (data?.complete) break;
+        }
+
+        if (!data?.complete) throw new Error('analysis timeout');
+        if (!aliveRef.current) return;
+
+        const next = buildCameraReaction(data.result ?? data);
+        setReaction(next);
+        setSamples((prev) =>
+          [...prev, { arousal: next.signal?.arousal ?? 0, kind: next.kind }].slice(-MAX_SAMPLES),
+        );
+      } catch (err) {
+        if (aliveRef.current) setMessage(t('focus.camera.error'));
+      } finally {
+        busyRef.current = false;
+        if (aliveRef.current) setAnalyzing(false);
+      }
+    },
+    [t],
+  );
+
+  // Continuous sampling for as long as the camera is on. This is what makes
+  // the strip a session-level "dynamics" view instead of one snapshot.
+  useEffect(() => {
+    if (status !== 'on' || !autoAnalyze) return undefined;
+
+    const tick = async () => {
+      if (busyRef.current) return;
+      const shot = await captureBlob();
+      if (shot) analyzeBlob(shot.blob);
+    };
+
+    const id = setInterval(tick, SAMPLE_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [status, autoAnalyze, captureBlob, analyzeBlob]);
+
+  const handleCapture = async () => {
+    const shot = await captureBlob();
+    if (!shot) {
       setMessage(t('focus.camera.captureHint'));
       return;
     }
-
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return;
-        if (frame?.url) URL.revokeObjectURL(frame.url);
-        setFrame({ blob, url: URL.createObjectURL(blob), width: canvas.width, height: canvas.height });
-        setMessage('');
-      },
-      'image/jpeg',
-      FRAME_QUALITY,
-    );
+    if (frameUrlRef.current) URL.revokeObjectURL(frameUrlRef.current);
+    const url = URL.createObjectURL(shot.blob);
+    frameUrlRef.current = url;
+    setFrame({ blob: shot.blob, url, width: shot.width, height: shot.height });
+    setMessage('');
   };
 
-  const analyzeFrame = async () => {
-    if (!frame?.blob || analysis === 'processing') return;
-
-    setAnalysis('processing');
-    setProgressValue(0);
-    setReaction(null);
-    setMessage('');
-
-    try {
-      const file = new File([frame.blob], 'focus-frame.jpg', { type: 'image/jpeg' });
-      const { task_id: taskId } = await apiClient.uploadFile(file, 'standard');
-
-      let data = null;
-      for (let attempt = 0; attempt < MAX_POLLS; attempt += 1) {
-        await sleep(POLL_INTERVAL_MS);
-        if (!aliveRef.current) return;
-        data = await apiClient.getProgress(taskId);
-        setProgressValue(data?.progress || 0);
-        if (data?.complete) break;
-      }
-
-      if (!data?.complete) throw new Error('analysis timeout');
-      if (!aliveRef.current) return;
-
-      const next = buildCameraReaction(data.result ?? data);
-      setReaction(next);
-      setSamples((prev) =>
-        [...prev, { arousal: next.signal?.arousal ?? 0, kind: next.kind }].slice(-MAX_SAMPLES),
-      );
-      setAnalysis('done');
-    } catch (err) {
-      if (!aliveRef.current) return;
-      setAnalysis('error');
-      setMessage(t('focus.camera.error'));
-    }
+  const handleAnalyze = () => {
+    if (frame?.blob) analyzeBlob(frame.blob);
   };
 
   const reactionBase = reaction?.baseKey;
@@ -201,18 +243,6 @@ export const FocusCamera = ({ numaNearby = true }) => {
         )}
       </div>
 
-      <p className="focus-camera-frame-status">
-        {frame
-          ? t('focus.camera.frameReady', { width: frame.width, height: frame.height })
-          : t('focus.camera.frameNone')}
-      </p>
-
-      {frame && (
-        <figure className="focus-camera-snapshot">
-          <img src={frame.url} alt={t('focus.camera.frameAlt')} />
-        </figure>
-      )}
-
       <label className="focus-option">
         <input
           type="checkbox"
@@ -223,10 +253,21 @@ export const FocusCamera = ({ numaNearby = true }) => {
         {t('focus.camera.consent')}
       </label>
 
+      <label className="focus-option">
+        <input
+          type="checkbox"
+          checked={autoAnalyze}
+          onChange={(e) => setAutoAnalyze(e.target.checked)}
+          disabled={status !== 'on'}
+        />
+        {t('focus.camera.auto')}
+      </label>
+      {autoAnalyze && <p className="focus-hint">{t('focus.camera.autoHint')}</p>}
+
       <div className="focus-actions">
         {status === 'on' ? (
           <>
-            <button type="button" className="focus-btn primary" onClick={captureFrame}>
+            <button type="button" className="focus-btn primary" onClick={handleCapture}>
               {t('focus.camera.capture')}
             </button>
             <button type="button" className="focus-btn ghost" onClick={stopCamera}>
@@ -252,19 +293,27 @@ export const FocusCamera = ({ numaNearby = true }) => {
       )}
 
       {frame && (
-        <div className="focus-actions">
-          <button
-            type="button"
-            className="focus-btn primary"
-            onClick={analyzeFrame}
-            disabled={analysis === 'processing'}
-          >
-            {analysis === 'processing' ? t('focus.camera.analyzing') : t('focus.camera.analyze')}
-          </button>
-        </div>
+        <>
+          <p className="focus-camera-frame-status">
+            {t('focus.camera.frameReady', { width: frame.width, height: frame.height })}
+          </p>
+          <figure className="focus-camera-snapshot">
+            <img src={frame.url} alt={t('focus.camera.frameAlt')} />
+          </figure>
+          <div className="focus-actions">
+            <button
+              type="button"
+              className="focus-btn primary"
+              onClick={handleAnalyze}
+              disabled={analyzing}
+            >
+              {analyzing ? t('focus.camera.analyzing') : t('focus.camera.analyze')}
+            </button>
+          </div>
+        </>
       )}
 
-      {analysis === 'processing' && (
+      {analyzing && (
         <div className="focus-progress">
           <div className="focus-progress-bar" style={{ width: `${Math.max(5, progressValue)}%` }} />
         </div>
@@ -283,7 +332,11 @@ export const FocusCamera = ({ numaNearby = true }) => {
       </div>
 
       <div className="focus-dynamics">
-        <p className="focus-dynamics-title">{t('focus.camera.dynamic')}</p>
+        <p className="focus-dynamics-title">
+          {samples.length
+            ? t('focus.camera.dynamicCount', { count: samples.length })
+            : t('focus.camera.dynamic')}
+        </p>
         {samples.length ? (
           <div className="focus-dynamics-bars" aria-hidden="true">
             {samples.map((sample, index) => (
