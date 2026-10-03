@@ -1,0 +1,45 @@
+#!/bin/bash
+
+export HOME=/home/alex
+export PATH=/usr/local/bin:/usr/bin:/bin:/home/alex/yandex-cloud/bin
+export YC_CONFIG_DIR=/home/alex/.config/yandex-cloud
+
+YC="/home/alex/yandex-cloud/bin/yc"
+INSTANCE_ID="epdotpce79b54s7cf095"
+LOG_FILE="/home/alex/yandex-cloud/restart-vm.log"
+TUNNEL_HOST="alex@84.201.164.227"
+
+RAW=$($YC compute instance get "$INSTANCE_ID" --format json 2>&1)
+STATUS=$(echo "$RAW" | jq -r '.status' 2>/dev/null)
+
+echo "$(date): Checking VM status..." >> "$LOG_FILE"
+
+if [ -z "$STATUS" ] || [ "$STATUS" == "null" ]; then
+    echo "$(date): Failed to get status. Raw=[$RAW]" >> "$LOG_FILE"
+    exit 1
+fi
+
+if [ "$STATUS" == "STOPPED" ]; then
+    echo "$(date): VM is STOPPED. Starting..." >> "$LOG_FILE"
+    $YC compute instance start "$INSTANCE_ID" >> "$LOG_FILE" 2>&1
+    echo "$(date): Start command sent." >> "$LOG_FILE"
+
+    # Poll until RUNNING (max ~100s)
+    for i in {1..20}; do
+        sleep 5
+        STATUS=$($YC compute instance get "$INSTANCE_ID" --format json 2>/dev/null | jq -r '.status')
+        [ "$STATUS" == "RUNNING" ] && break
+    done
+
+    if [ "$STATUS" == "RUNNING" ]; then
+        # give sshd a moment to come up
+        sleep 10
+        ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new \
+            "$TUNNEL_HOST" "sudo systemctl restart ssh-tunnel.service" >> "$LOG_FILE" 2>&1
+        echo "$(date): SSH tunnel restarted." >> "$LOG_FILE"
+    else
+        echo "$(date): VM did not reach RUNNING (status: $STATUS)" >> "$LOG_FILE"
+    fi
+else
+    echo "$(date): VM is running (status: $STATUS)" >> "$LOG_FILE"
+fi
