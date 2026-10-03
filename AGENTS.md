@@ -140,8 +140,9 @@ Missing step 2 or 3 fails silently as a 404 or a CORS error in the browser.
   miss (a missing translation shows a raw key in the UI). Landing card lists are per-language arrays
   of objects paired with the `ANALYSIS_ICONS` / `BENEFIT_ICONS` arrays **by index** — reorder one,
   reorder the other.
-- **Dead tooling:** `npm test` (jest) and `npm run lint` (eslint) both fail — no jest config, no
-  eslint config, no test files. Only `npm run build` / `make build_frontend` work.
+- **Tooling:** the frontend uses **only Vite** (`npm run dev` / `npm run build` / `make build_frontend`).
+  The former Vitest/Testing Library/jsdom and ESLint/Prettier stack was removed — its newer versions
+  required Node ≥ 22 while the project targets Node 20, and it produced `npm warn EBADENGINE` noise.
 
 ## Code conventions
 
