@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 import { breakdownTask } from '../utils/taskBreakdown';
 import { FocusSession } from './FocusSession';
+import { FocusCamera } from './FocusCamera';
 
 const makeSteps = (keys) =>
   keys.map((key, index) => ({ id: `step-${Date.now()}-${index}`, key }));
@@ -176,11 +177,17 @@ export const Focus = () => {
         )}
 
         {activeTab === 'session' && (
-          <div className="focus-card">
-            <h2>{t('focus.session.title')}</h2>
-            <p>{t('focus.session.text')}</p>
-            <FocusSession plan={plan} />
-          </div>
+          <>
+            <div className="focus-card">
+              <h2>{t('focus.session.title')}</h2>
+              <p>{t('focus.session.text')}</p>
+              <FocusSession plan={plan} />
+            </div>
+
+            <div className="focus-card">
+              <FocusCamera numaNearby={numaNearby} />
+            </div>
+          </>
         )}
 
         {activeTab === 'how' && (
