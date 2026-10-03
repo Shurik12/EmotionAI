@@ -13,8 +13,6 @@
    ============================================ */
 
 :root {
-  color-scheme: dark;
-
   /* surfaces & text */
   --rz-background: #151b35;
   --rz-foreground: #ecedfa;
@@ -76,8 +74,6 @@
 
 @media (prefers-color-scheme: light) {
   :root {
-    color-scheme: light;
-
     --rz-background: #eef0fb;
     --rz-foreground: #28304d;
     --rz-card: #fafaff;

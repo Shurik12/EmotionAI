@@ -4,6 +4,7 @@
    ============================================ */
 
 .focus-page {
+  color-scheme: dark;
   max-width: 760px;
   margin: var(--spacing-xl) auto;
   padding: var(--spacing-xl);
@@ -399,6 +400,12 @@
 
 .focus-done-text {
   margin: 0 0 var(--spacing-md) !important;
+}
+
+@media (prefers-color-scheme: light) {
+  .focus-page {
+    color-scheme: light;
+  }
 }
 
 @media (max-width: 768px) {
