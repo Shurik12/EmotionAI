@@ -1,0 +1,132 @@
+/* ============================================
+   RAZUMA FOCUS — design tokens
+   Extracted from the mobile prototype:
+   https://razuma-focus-mobile.ksenandrevna.chatgpt.site/
+   Source stack: Next.js + Tailwind CSS v4 + shadcn-style tokens.
+
+   Theme is driven ONLY by `prefers-color-scheme` (no .dark/.light
+   classes); the default (no preference) is the dark palette.
+
+   Namespaced with --rz-* so this file does NOT override the existing
+   --color-* tokens in global.css. Map these onto the app tokens as
+   part of EMO-17 (see frontend integration task).
+   ============================================ */
+
+:root {
+  color-scheme: dark;
+
+  /* surfaces & text */
+  --rz-background: #151b35;
+  --rz-foreground: #ecedfa;
+  --rz-card: #232b47;
+  --rz-card-foreground: #ecedfa;
+  --rz-popover: #232b47;
+  --rz-popover-foreground: #ecedfa;
+
+  /* interactive */
+  --rz-primary: #c4ccf3;
+  --rz-primary-foreground: #242945;
+  --rz-secondary: #303955;
+  --rz-secondary-foreground: #ecedfa;
+  --rz-muted: #232b47;
+  --rz-muted-foreground: #bbc4df;
+  --rz-accent: #414f91;
+  --rz-accent-foreground: #ecedfa;
+  --rz-destructive: #f0b2c6;
+
+  /* forms */
+  --rz-border: #3c4769;
+  --rz-input: #3c4769;
+  --rz-ring: #c4ccf3;
+  --rz-field: #1d2541;
+
+  /* accent palette */
+  --rz-mint: #366767;
+  --rz-on-mint: #c8e6de;
+  --rz-purple: #6d4f89;
+  --rz-blue: #414f91;
+  --rz-shadow: #09102340;
+
+  /* radius */
+  --rz-radius: 1.35rem;
+  --rz-radius-xl: 0.75rem;
+  --rz-radius-xs: 0.125rem;
+
+  /* elevation */
+  --rz-shadow-xs: 0 4px 14px var(--rz-shadow);
+  --rz-shadow-md: 0 8px 35px var(--rz-shadow);
+  --rz-shadow-lg: 0 24px 80px var(--rz-shadow);
+
+  /* typography (Inter is a system stack, no webfont is loaded) */
+  --rz-font-family: Inter, "Segoe UI", Arial, sans-serif;
+  --rz-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --rz-text-xs: 0.75rem;
+  --rz-text-sm: 0.875rem;
+  --rz-text-base: 1rem;
+  --rz-text-lg: 1.125rem;
+  --rz-tracking-tight: -0.025em;
+  --rz-tracking-widest: 0.1em;
+
+  /* spacing & narrow mobile containers */
+  --rz-spacing: 0.25rem;
+  --rz-container-xs: 20rem;
+  --rz-container-sm: 24rem;
+  --rz-container-lg: 32rem;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+
+    --rz-background: #eef0fb;
+    --rz-foreground: #28304d;
+    --rz-card: #fafaff;
+    --rz-card-foreground: #28304d;
+    --rz-popover: #fafaff;
+    --rz-popover-foreground: #28304d;
+
+    --rz-primary: #d7dbf5;
+    --rz-primary-foreground: #303452;
+    --rz-secondary: #e3e7f5;
+    --rz-secondary-foreground: #28304d;
+    --rz-muted: #e3e7f5;
+    --rz-muted-foreground: #5c6480;
+    --rz-accent: #afbae9;
+    --rz-accent-foreground: #28304d;
+    --rz-destructive: #8d3554;
+
+    --rz-border: #d1d8ed;
+    --rz-input: #d1d8ed;
+    --rz-ring: #5e6da9;
+    --rz-field: #fafaff;
+
+    --rz-mint: #c8dcd8;
+    --rz-on-mint: #315650;
+    --rz-purple: #cdc0ed;
+    --rz-blue: #afbae9;
+    --rz-shadow: #7a87b51a;
+  }
+}
+
+/* ============================================
+   "Numa" assistant sprite animation
+   The prototype animates a sprite sheet via background-position;
+   steps below mirror @keyframes numa-blink/nod/point/wave.
+   ============================================ */
+@keyframes rz-numa-blink {
+  0%, 28%, 72%, to { background-position: 0 0; }
+  40%, 60% { background-position: 50% 0; }
+}
+@keyframes rz-numa-nod {
+  0%, to { background-position: 0 0; }
+  22%, 72% { background-position: 100% 100%; }
+}
+@keyframes rz-numa-point {
+  0%, to { background-position: 0 0; }
+  12%, 84% { background-position: 50% 100%; }
+}
+@keyframes rz-numa-wave {
+  0%, to { background-position: 0 0; }
+  12%, 48%, 84% { background-position: 100% 0; }
+  30%, 66% { background-position: 0 100%; }
+}
