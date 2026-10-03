@@ -8,7 +8,6 @@
 #   1. Install runtime dependencies + infrastructure on the VM
 #   2. Copy shared libraries (libtorch, onnxruntime) to the VM
 #   3. Register so/ in the linker path
-#   4. Set up cleanup cron job (every 6 hours)
 #
 # Example:
 #   ./install_vm alpha.razuma.pro

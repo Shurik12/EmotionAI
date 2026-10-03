@@ -10,12 +10,11 @@ help: ## List targets
 install: ## System deps, submodules, libtorch/onnxruntime
 	bash install_deps.sh
 
-python_env: ## Create venv and install Python deps
-	python3 -m venv venv
-	. venv/bin/activate && pip install -r requirements.txt
+python_env: ## Create .venv and install Python deps (uses uv, pyproject.toml)
+	uv sync
 
 models: python_env ## Export C++ model headers from emotiefflib
-	. venv/bin/activate && cd $(MODELS_DIR) && python3 prepare_models_for_emotieffcpplib.py
+	. .venv/bin/activate && cd $(MODELS_DIR) && python3 prepare_models_for_emotieffcpplib.py
 
 configure: ## Configure CMake with Ninja
 	cmake -S . -B build -G Ninja
@@ -59,8 +58,8 @@ down: ## Stop containers
 
 re-up: down up ## Restart containers
 
-clean: ## Remove build output, venv, node_modules, caches
-	rm -rf build frontend/dist frontend/node_modules venv
+clean: ## Remove build output, .venv, node_modules, caches
+	rm -rf build frontend/dist frontend/node_modules .venv
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 
 clean-data: ## Remove runtime server data (uploads, storage, results, logs)

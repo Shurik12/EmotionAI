@@ -105,7 +105,7 @@ contrib/         emotiefflib, minio-cpp, inih (submodules), libtorch, onnxruntim
 ## Requirements
 
 **System packages** (Ubuntu/Debian): build-essential, cmake, ninja-build, pkg-config, nginx,
-certbot, python3.12-venv, npm, redis-server, gdb, and dev libraries for OpenCV, yaml-cpp, spdlog,
+certbot, curl, npm, redis-server, gdb, and dev libraries for OpenCV, yaml-cpp, spdlog,
 fmt, nlohmann-json, libcurl + curlpp, OpenSSL, zlib, pugixml, hiredis.
 
 **Also required by the build but not installed by `install_deps.sh`** — add these manually:
@@ -137,7 +137,7 @@ exist, and at **runtime** by `model.backend` in `config.yaml`.
 # 1. System deps, git submodules, contrib downloads, emotiefflib patch
 make install
 
-# 2. Python venv + requirements
+# 2. Python .venv + deps (uv sync from pyproject.toml — uv installed by make install)
 make python_env
 
 # 3. Export C++ model headers from the Python scripts

@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "yougile": {
-      "command": "node",
-      "args": [".opencode/mcp/yougile-launcher.mjs"]
-    }
-  }
-}
