@@ -47,7 +47,7 @@ echo "============================================"
 # 1. Install apt packages on the VM
 # -------------------------------------------------------
 echo ""
-echo "[1/3] Installing system dependencies on ${VM_HOST}..."
+echo "[1/4] Installing system dependencies on ${VM_HOST}..."
 ssh -t "${VM_SSH}" "sudo apt-get update && sudo apt-get install -y \
     ca-certificates \
     certbot \
@@ -76,7 +76,7 @@ ssh -t "${VM_SSH}" "sudo apt-get update && sudo apt-get install -y \
 # 2. Copy shared libraries
 # -------------------------------------------------------
 echo ""
-echo "[2/3] Copying shared libraries to ${VM_HOST}..."
+echo "[2/4] Copying shared libraries to ${VM_HOST}..."
 
 ssh "${VM_SSH}" "mkdir -p ${VM_DIR}/so"
 
@@ -89,13 +89,24 @@ scp contrib/libtorch/lib/libtorch.so \
 scp contrib/onnxruntime/lib64/libonnxruntime.so.1 \
     "${VM_SSH}:${VM_DIR}/so/"
 
+scp cleanup "${VM_SSH}:${VM_DIR}/cleanup"
+ssh "${VM_SSH}" "chmod +x ${VM_DIR}/cleanup"
+
 # -------------------------------------------------------
 # 3. Register so/ in ld.so.conf.d
 # -------------------------------------------------------
 echo ""
-echo "[3/3] Registering ${VM_DIR}/so in linker path..."
+echo "[3/4] Registering ${VM_DIR}/so in linker path..."
 ssh -t "${VM_SSH}" "echo '${VM_DIR}/so' | sudo tee /etc/ld.so.conf.d/emotionai.conf && sudo ldconfig"
 echo "  -> Libraries registered."
+
+# -------------------------------------------------------
+# 4. Set up cleanup cron job
+# -------------------------------------------------------
+echo ""
+echo "[4/4] Setting up cleanup cron job on ${VM_HOST}..."
+ssh -t "${VM_SSH}" "(crontab -l 2>/dev/null | grep -v '/home/alex/emotionai/cleanup'; echo '0 */6 * * * /home/alex/emotionai/cleanup') | crontab -"
+echo "  -> Cleanup script scheduled every 6 hours."
 
 echo ""
 echo "============================================"
