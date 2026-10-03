@@ -34,6 +34,11 @@ public:
     bool allowed_file(const std::string& filename);
     void process_file(const std::string& task_id, const std::string& filepath, const std::string& filename);
 
+    // Analyze one image frame held in memory (no disk, no task status). Used by
+    // the Focus camera session endpoint; returns the core "result" object
+    // ({main_prediction, additional_probs}) synchronously for the caller.
+    nlohmann::json process_image_frame(const std::vector<uint8_t>& bytes);
+
     // ============ NEW: Burnout API ============
     // Process audio with burnout analysis
     nlohmann::json process_audio_with_burnout(

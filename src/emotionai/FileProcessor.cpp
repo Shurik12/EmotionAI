@@ -818,6 +818,24 @@ nlohmann::json FileProcessor::process_image_file(const std::string& task_id,
     };
 }
 
+// In-memory single-frame inference for the Focus camera session (EMO-17):
+// no storage write, no task status, no GigaChat — just decode + score.
+nlohmann::json FileProcessor::process_image_frame(const std::vector<uint8_t>& bytes)
+{
+    if (bytes.empty()) {
+        throw std::runtime_error("Empty image frame");
+    }
+
+    cv::Mat image = cv::imdecode(cv::Mat(bytes), cv::IMREAD_COLOR);
+    if (image.empty()) {
+        throw std::runtime_error("Could not decode image frame");
+    }
+
+    auto [processed_image, emotion_result] = process_image(image);
+    (void)processed_image;
+    return emotion_result;
+}
+
 //=============================================================================
 // Video Processing
 //=============================================================================

@@ -37,7 +37,7 @@ make up               # docker compose: dragonfly + server
 Install the missing deps manually:
 
 ```bash
-sudo apt-get install -y libfftw3-dev libgtest-dev libgmock-dev \
+sudo apt-get install -y libeigen3-dev libfftw3-dev libgtest-dev libgmock-dev \
   ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
 ```
 
@@ -108,8 +108,20 @@ loop in `src/server/Server.cpp`. Don't add handlers to httplib expecting them to
 2. Add to the `options_routes_` list for CORS preflight — `Server.cpp:352-358`
 3. If parameterized (`/api/foo/<id>`), add prefix matching in the GET dispatcher — `Server.cpp:626-649`.
    Exact-match maps are checked first; prefix routes are hardcoded `if/else` on `path.find(...)`.
+   POST has no generic prefix mechanism: exact-match map only, except the hardcoded
+   `/api/focus/session/<id>/frame|close` branch in the POST dispatcher (`Server.cpp`).
 
 Missing step 2 or 3 fails silently as a 404 or a CORS error in the browser.
+
+The Focus camera uses an in-memory session (`src/focus/FocusSessionManager`) instead of one
+async task per frame: `POST /api/focus/session` creates it, `POST /api/focus/session/<id>/frame`
+scores a frame on the thread pool (no disk, no GigaChat), `GET /api/focus/session/<id>` returns
+the accumulated dynamics, and `POST /api/focus/session/<id>/close` drops it. Reaction levels
+(`noSignal`/`steady`/`rising`) are decided in C++ and mapped to i18n keys by the frontend.
+The `rising` thresholds in `FocusSessionManager::classify` are **provisional** — calibrated on
+~15 still faces (no labelled FER set ships), and the va_mtl `valence`/`arousal` heads are
+regression outputs on ~[-1, 1], not probabilities, so absolute probability-style thresholds are
+wrong. `valence` gates the rule; re-measure before trusting it on real sessions.
 
 ## Frontend (SPA)
 
@@ -140,8 +152,9 @@ Missing step 2 or 3 fails silently as a 404 or a CORS error in the browser.
   miss (a missing translation shows a raw key in the UI). Landing card lists are per-language arrays
   of objects paired with the `ANALYSIS_ICONS` / `BENEFIT_ICONS` arrays **by index** — reorder one,
   reorder the other.
-- **Dead tooling:** `npm test` (jest) and `npm run lint` (eslint) both fail — no jest config, no
-  eslint config, no test files. Only `npm run build` / `make build_frontend` work.
+- **Tooling:** the frontend uses **only Vite** (`npm run dev` / `npm run build` / `make build_frontend`).
+  The former Vitest/Testing Library/jsdom and ESLint/Prettier stack was removed — its newer versions
+  required Node ≥ 22 while the project targets Node 20, and it produced `npm warn EBADENGINE` noise.
 
 ## Code conventions
 
@@ -170,6 +183,7 @@ The codebase is **inconsistent** — match the file you are editing rather than 
 |---|---|
 | `src/server/` | epoll HTTP server, routing, `ThreadPool` |
 | `src/emotionai/` | `Image`, `Audio`, `FileProcessor` — inference orchestration |
+| `src/focus/` | `FocusSessionManager` — in-memory Focus camera session (emotional dynamics); nothing persisted |
 | `src/mtcnn/` | face detection (pnet/rnet/onet) |
 | `src/audio/` | `LibrosaFeatureExtractor` (FFTW3-based), `BurnoutAnalyzer` |
 | `src/db/` | `RedisManager`, `DragonflyManager`, `TaskManager` |
@@ -205,7 +219,7 @@ previously at the repo root has been removed — OpenCode does not read that for
 - **`contrib/emotiefflib` submodule is always dirty after `make install` — this is expected, not a
   problem.** The two modified files (`emotieffcpplib/CMakeLists.txt`,
   `models/prepare_models_for_emotieffcpplib.py`) are exactly the content of the tracked
-  `emotiefflib.patch`, applied by `install_deps.sh:43`. The changes live in the parent repo as the
+  `emotiefflib.patch`, applied by `install_deps.sh:64`. The changes live in the parent repo as the
   patch file, so they are reproducible for anyone running `make install`. **Never commit inside the
   submodule or bump the parent's submodule pointer** — a local fork commit is unreachable for other
   clones and breaks their `git submodule update`, and `git apply` would then fail on re-install.
