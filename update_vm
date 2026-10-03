@@ -68,9 +68,9 @@ echo "  -> copying build/emotionai..."
 scp build/emotionai "${VM_SSH}:${VM_DIR}/emotionai"
 
 # Frontend dist  -> nginx root (frontend/build)
-echo "  -> copying frontend/dist/* -> frontend/build/..."
-ssh "${VM_SSH}" "mkdir -p ${VM_DIR}/frontend/build"
-scp -r frontend/dist/* "${VM_SSH}:${VM_DIR}/frontend/build/"
+echo "  -> copying frontend/dist/* -> frontend/..."
+ssh "${VM_SSH}" "mkdir -p ${VM_DIR}/frontend"
+scp -r frontend/dist/* "${VM_SSH}:${VM_DIR}/frontend/"
 
 # -------------------------------------------------------
 # 4. Start service on VM

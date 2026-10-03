@@ -45,4 +45,36 @@ export const apiClient = {
   async getProgress(taskId) {
     return this.request(`/progress/${taskId}`);
   },
+
+  // ---- Focus camera session (EMO-17) ----
+  // A session aggregates emotional dynamics on the server; frames are streamed
+  // into it and the client polls the accumulated state.
+  async createFocusSession() {
+    return this.request('/focus/session', { method: 'POST', body: '{}' });
+  },
+
+  async getFocusSession(sessionId) {
+    return this.request(`/focus/session/${sessionId}`);
+  },
+
+  async sendFocusFrame(sessionId, blob) {
+    const formData = new FormData();
+    formData.append('file', blob, 'focus-frame.jpg');
+
+    const response = await fetch(`${API_BASE}/focus/session/${sessionId}/frame`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || `Frame upload failed: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  async closeFocusSession(sessionId) {
+    return this.request(`/focus/session/${sessionId}/close`, { method: 'POST', body: '{}' });
+  },
 };

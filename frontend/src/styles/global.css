@@ -6,6 +6,8 @@
 @import url('./base/typography.css');
 @import url('./base/utilities.css');
 
+@import url('./tokens/razuma.css');
+
 @import url('./components/header.css');
 @import url('./components/footer.css');
 @import url('./components/hero.css');
@@ -18,6 +20,7 @@
 @import url('./components/modal.css');
 @import url('./components/cookie.css');
 @import url('./components/contact.css');
+@import url('./components/focus.css');
 
 @import url('./responsive/responsive.css');
 

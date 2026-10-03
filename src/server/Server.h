@@ -138,6 +138,13 @@ private:
     void handleUploadExternalInfluence(const std::shared_ptr<ClientContext> &context, const std::string &body);
     void handleExternalInfluenceAnalyze(const std::shared_ptr<ClientContext> &context, const std::string &body);
 
+    // Focus camera session Route Handlers (EMO-17)
+    void handleFocusSessionCreate(const std::shared_ptr<ClientContext> &context, const std::string &body);
+    void handleFocusFrame(const std::shared_ptr<ClientContext> &context, const std::string &body,
+                          const std::string &session_id);
+    void handleFocusSessionClose(const std::shared_ptr<ClientContext> &context, const std::string &session_id);
+    void handleFocusSessionGet(const std::shared_ptr<ClientContext> &context, const std::string &session_id);
+
     // Common handlers
     std::string handleUploadCommon(const std::string &file_content, const std::string &filename);
     std::string handleUploadBurnoutCommon(const std::string &file_content, const std::string &filename);

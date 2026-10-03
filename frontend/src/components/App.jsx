@@ -8,6 +8,7 @@ import { Features } from './Features';
 import { Detector } from './Detector';
 import { Privacy } from './Privacy';
 import { Contact } from './Contact';
+import { Focus } from './Focus';
 import { CookieConsent } from './CookieConsent';
 import { ApplicationModal } from './ApplicationModal';
 import { useNavigation } from '../hooks/useNavigation';
@@ -42,6 +43,8 @@ const AppContent = () => {
         return <Privacy />;
       case 'contact':
         return <Contact />;
+      case 'focus':
+        return <Focus />;
       default:
         return <Home />;
     }
