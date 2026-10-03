@@ -37,7 +37,7 @@ make up               # docker compose: dragonfly + server
 Install the missing deps manually:
 
 ```bash
-sudo apt-get install -y libfftw3-dev libgtest-dev libgmock-dev \
+sudo apt-get install -y libeigen3-dev libfftw3-dev libgtest-dev libgmock-dev \
   ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
 ```
 
@@ -205,7 +205,7 @@ previously at the repo root has been removed — OpenCode does not read that for
 - **`contrib/emotiefflib` submodule is always dirty after `make install` — this is expected, not a
   problem.** The two modified files (`emotieffcpplib/CMakeLists.txt`,
   `models/prepare_models_for_emotieffcpplib.py`) are exactly the content of the tracked
-  `emotiefflib.patch`, applied by `install_deps.sh:43`. The changes live in the parent repo as the
+  `emotiefflib.patch`, applied by `install_deps.sh:64`. The changes live in the parent repo as the
   patch file, so they are reproducible for anyone running `make install`. **Never commit inside the
   submodule or bump the parent's submodule pointer** — a local fork commit is unreachable for other
   clones and breaks their `git submodule update`, and `git apply` would then fail on re-install.
