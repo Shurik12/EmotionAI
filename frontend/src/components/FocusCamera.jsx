@@ -1,26 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 import { apiClient } from '../api/client';
-import { buildCameraReaction } from '../utils/focusCamera';
 
 const FRAME_QUALITY = 0.85;
-const POLL_INTERVAL_MS = 1000;
-const MAX_POLLS = 60;
-const MAX_SAMPLES = 24;
-// While the camera is on, one frame goes to the core at this cadence.
-// The backend handles a single image per async task, so we sample rather
-// than stream. Overlapping analyses are skipped (busyRef).
+const MAX_STRIP_SAMPLES = 40;
+// How often the client pushes a frame into the session, and how often it reads
+// the accumulated dynamics back. The server owns the aggregation.
 const SAMPLE_INTERVAL_MS = 20000;
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const SESSION_POLL_MS = 1500;
 
 // Camera + emotional dynamics for the Focus session (EMO-17, phase 4).
 //
 // The camera only starts after an explicit consent checkbox, stops as soon as
-// the tab is hidden, and never records. While it is on, a frame is sampled on
-// an interval (and on demand) and sent to the existing Razuma core
-// (POST /api/upload). The returned signal is mapped locally to a calm next
-// step, and the samples build the emotional-dynamics strip for the session.
+// the tab is hidden, and never records. While it is on, frames are streamed
+// into a server-side session (POST /api/focus/session/<id>/frame) and the
+// accumulated dynamics are polled back (GET /api/focus/session/<id>). The
+// server does the scoring and the reaction classification; nothing is stored.
 export const FocusCamera = ({ numaNearby = true }) => {
   const { t } = useLanguage();
 
@@ -28,18 +23,42 @@ export const FocusCamera = ({ numaNearby = true }) => {
   const streamRef = useRef(null);
   const requestRef = useRef(0);
   const aliveRef = useRef(true);
-  const busyRef = useRef(false);
+  const sessionIdRef = useRef(null);
+  const countRef = useRef(0);
+  const inFlightRef = useRef(false);
   const frameUrlRef = useRef(null);
 
   const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState('off'); // off | asking | on | error
   const [autoAnalyze, setAutoAnalyze] = useState(true);
   const [message, setMessage] = useState('');
-  const [frame, setFrame] = useState(null); // manual snapshot: { blob, url, width, height }
-  const [analyzing, setAnalyzing] = useState(false);
-  const [progressValue, setProgressValue] = useState(0);
-  const [reaction, setReaction] = useState(null);
-  const [samples, setSamples] = useState([]);
+  const [frame, setFrame] = useState(null); // manual snapshot: { url, width, height }
+  const [measuring, setMeasuring] = useState(false);
+  const [reaction, setReaction] = useState(null); // latest server sample
+  const [samples, setSamples] = useState([]); // [{ level, arousal }]
+
+  const endSession = useCallback(() => {
+    const id = sessionIdRef.current;
+    sessionIdRef.current = null;
+    countRef.current = 0;
+    inFlightRef.current = false;
+    if (id) {
+      apiClient.closeFocusSession(id).catch(() => {});
+    }
+  }, []);
+
+  const startSession = useCallback(async () => {
+    try {
+      const data = await apiClient.createFocusSession();
+      if (!aliveRef.current) return;
+      sessionIdRef.current = data.session_id;
+      countRef.current = 0;
+      setSamples([]);
+      setReaction(null);
+    } catch (err) {
+      if (aliveRef.current) setMessage(t('focus.camera.sessionError'));
+    }
+  }, [t]);
 
   const stopCamera = useCallback(() => {
     requestRef.current += 1;
@@ -49,7 +68,8 @@ export const FocusCamera = ({ numaNearby = true }) => {
     }
     if (videoRef.current) videoRef.current.srcObject = null;
     setStatus('off');
-  }, []);
+    endSession();
+  }, [endSession]);
 
   useEffect(() => {
     aliveRef.current = true;
@@ -69,7 +89,8 @@ export const FocusCamera = ({ numaNearby = true }) => {
     streamRef.current = null;
     setStatus('error');
     setMessage(t('focus.camera.streamEnded'));
-  }, [t]);
+    endSession();
+  }, [t, endSession]);
 
   const enableCamera = async () => {
     if (!consent) return;
@@ -118,8 +139,7 @@ export const FocusCamera = ({ numaNearby = true }) => {
     }
   };
 
-  // Grab the current video frame as a JPEG blob, or null if the video is not
-  // ready yet.
+  // Grab the current video frame as a JPEG blob, or null if not ready.
   const captureBlob = useCallback(
     () =>
       new Promise((resolve) => {
@@ -141,61 +161,73 @@ export const FocusCamera = ({ numaNearby = true }) => {
     [],
   );
 
-  // Send one frame to the core and fold the answer into the session view.
-  const analyzeBlob = useCallback(
+  const pushFrame = useCallback(
     async (blob) => {
-      if (!blob || busyRef.current) return;
-      busyRef.current = true;
-      setAnalyzing(true);
-      setProgressValue(0);
-
+      const id = sessionIdRef.current;
+      if (!id) {
+        setMessage(t('focus.camera.sessionError'));
+        return false;
+      }
+      inFlightRef.current = true;
+      setMeasuring(true);
+      // Safety net: never let a lost sample stall the stream forever.
+      window.setTimeout(() => {
+        inFlightRef.current = false;
+      }, SAMPLE_INTERVAL_MS * 4);
       try {
-        const file = new File([blob], 'focus-frame.jpg', { type: 'image/jpeg' });
-        const { task_id: taskId } = await apiClient.uploadFile(file, 'standard');
-
-        let data = null;
-        for (let attempt = 0; attempt < MAX_POLLS; attempt += 1) {
-          await sleep(POLL_INTERVAL_MS);
-          if (!aliveRef.current) return;
-          data = await apiClient.getProgress(taskId);
-          setProgressValue(data?.progress || 0);
-          if (data?.complete) break;
-        }
-
-        if (!data?.complete) throw new Error('analysis timeout');
-        if (!aliveRef.current) return;
-
-        const next = buildCameraReaction(data.result ?? data);
-        setReaction(next);
-        setSamples((prev) =>
-          [...prev, { arousal: next.signal?.arousal ?? 0, kind: next.kind }].slice(-MAX_SAMPLES),
-        );
+        await apiClient.sendFocusFrame(id, blob);
+        return true;
       } catch (err) {
+        inFlightRef.current = false;
         if (aliveRef.current) setMessage(t('focus.camera.error'));
+        return false;
       } finally {
-        busyRef.current = false;
-        if (aliveRef.current) setAnalyzing(false);
+        if (aliveRef.current) setMeasuring(false);
       }
     },
     [t],
   );
 
-  // Continuous sampling for as long as the camera is on. This is what makes
-  // the strip a session-level "dynamics" view instead of one snapshot.
+  // Open the session and read the accumulated dynamics back.
+  useEffect(() => {
+    if (status !== 'on') return undefined;
+
+    if (!sessionIdRef.current) startSession();
+
+    const pollId = setInterval(async () => {
+      const id = sessionIdRef.current;
+      if (!id) return;
+      try {
+        const session = await apiClient.getFocusSession(id);
+        if (!aliveRef.current) return;
+        setSamples((session.samples || []).map((s) => ({ level: s.level, arousal: s.arousal })));
+        setReaction(session.latest || null);
+        if ((session.count || 0) > countRef.current) {
+          countRef.current = session.count;
+          inFlightRef.current = false;
+        }
+      } catch (err) {
+        // Transient: the session may be closing. Keep the last known state.
+      }
+    }, SESSION_POLL_MS);
+
+    return () => clearInterval(pollId);
+  }, [status, startSession]);
+
+  // Stream a frame into the session while the camera is on.
   useEffect(() => {
     if (status !== 'on' || !autoAnalyze) return undefined;
 
-    const tick = async () => {
-      if (busyRef.current) return;
+    const sampleId = setInterval(async () => {
+      if (inFlightRef.current || !sessionIdRef.current) return;
       const shot = await captureBlob();
-      if (shot) analyzeBlob(shot.blob);
-    };
+      if (shot) pushFrame(shot.blob);
+    }, SAMPLE_INTERVAL_MS);
 
-    const id = setInterval(tick, SAMPLE_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [status, autoAnalyze, captureBlob, analyzeBlob]);
+    return () => clearInterval(sampleId);
+  }, [status, autoAnalyze, captureBlob, pushFrame]);
 
-  const handleCapture = async () => {
+  const handleManualCheck = async () => {
     const shot = await captureBlob();
     if (!shot) {
       setMessage(t('focus.camera.captureHint'));
@@ -204,15 +236,13 @@ export const FocusCamera = ({ numaNearby = true }) => {
     if (frameUrlRef.current) URL.revokeObjectURL(frameUrlRef.current);
     const url = URL.createObjectURL(shot.blob);
     frameUrlRef.current = url;
-    setFrame({ blob: shot.blob, url, width: shot.width, height: shot.height });
+    setFrame({ url, width: shot.width, height: shot.height });
     setMessage('');
+    await pushFrame(shot.blob);
   };
 
-  const handleAnalyze = () => {
-    if (frame?.blob) analyzeBlob(frame.blob);
-  };
-
-  const reactionBase = reaction?.baseKey;
+  const reactionBase = reaction?.level ? `focus.reaction.${reaction.level}` : null;
+  const strip = samples.slice(-MAX_STRIP_SAMPLES);
 
   return (
     <div className="focus-camera">
@@ -243,6 +273,14 @@ export const FocusCamera = ({ numaNearby = true }) => {
         )}
       </div>
 
+      <p className="focus-camera-frame-status">
+        {measuring
+          ? t('focus.camera.measuring')
+          : samples.length
+            ? t('focus.camera.dynamicCount', { count: samples.length })
+            : t('focus.camera.frameNone')}
+      </p>
+
       <label className="focus-option">
         <input
           type="checkbox"
@@ -267,8 +305,8 @@ export const FocusCamera = ({ numaNearby = true }) => {
       <div className="focus-actions">
         {status === 'on' ? (
           <>
-            <button type="button" className="focus-btn primary" onClick={handleCapture}>
-              {t('focus.camera.capture')}
+            <button type="button" className="focus-btn primary" onClick={handleManualCheck} disabled={measuring}>
+              {measuring ? t('focus.camera.measuring') : t('focus.camera.capture')}
             </button>
             <button type="button" className="focus-btn ghost" onClick={stopCamera}>
               {t('focus.camera.disable')}
@@ -300,26 +338,10 @@ export const FocusCamera = ({ numaNearby = true }) => {
           <figure className="focus-camera-snapshot">
             <img src={frame.url} alt={t('focus.camera.frameAlt')} />
           </figure>
-          <div className="focus-actions">
-            <button
-              type="button"
-              className="focus-btn primary"
-              onClick={handleAnalyze}
-              disabled={analyzing}
-            >
-              {analyzing ? t('focus.camera.analyzing') : t('focus.camera.analyze')}
-            </button>
-          </div>
         </>
       )}
 
-      {analyzing && (
-        <div className="focus-progress">
-          <div className="focus-progress-bar" style={{ width: `${Math.max(5, progressValue)}%` }} />
-        </div>
-      )}
-
-      <div className={`focus-numa ${reaction?.kind || 'idle'}`}>
+      <div className={`focus-numa ${reaction?.level || 'idle'}`}>
         <p className="focus-numa-label">{numaNearby ? t('focus.reaction.numa') : t('focus.reaction.core')}</p>
         {reactionBase ? (
           <>
@@ -337,13 +359,13 @@ export const FocusCamera = ({ numaNearby = true }) => {
             ? t('focus.camera.dynamicCount', { count: samples.length })
             : t('focus.camera.dynamic')}
         </p>
-        {samples.length ? (
+        {strip.length ? (
           <div className="focus-dynamics-bars" aria-hidden="true">
-            {samples.map((sample, index) => (
+            {strip.map((sample, index) => (
               <span
-                key={`${index}-${sample.kind}`}
-                className={`focus-dynamics-bar ${sample.kind}`}
-                style={{ height: `${20 + sample.arousal * 80}%` }}
+                key={`${index}-${sample.level}`}
+                className={`focus-dynamics-bar ${sample.level}`}
+                style={{ height: `${20 + (sample.arousal || 0) * 80}%` }}
               />
             ))}
           </div>

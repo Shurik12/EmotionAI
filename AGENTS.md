@@ -108,8 +108,16 @@ loop in `src/server/Server.cpp`. Don't add handlers to httplib expecting them to
 2. Add to the `options_routes_` list for CORS preflight — `Server.cpp:352-358`
 3. If parameterized (`/api/foo/<id>`), add prefix matching in the GET dispatcher — `Server.cpp:626-649`.
    Exact-match maps are checked first; prefix routes are hardcoded `if/else` on `path.find(...)`.
+   POST has no generic prefix mechanism: exact-match map only, except the hardcoded
+   `/api/focus/session/<id>/frame|close` branch in the POST dispatcher (`Server.cpp`).
 
 Missing step 2 or 3 fails silently as a 404 or a CORS error in the browser.
+
+The Focus camera uses an in-memory session (`src/focus/FocusSessionManager`) instead of one
+async task per frame: `POST /api/focus/session` creates it, `POST /api/focus/session/<id>/frame`
+scores a frame on the thread pool (no disk, no GigaChat), `GET /api/focus/session/<id>` returns
+the accumulated dynamics, and `POST /api/focus/session/<id>/close` drops it. Reaction levels
+(`noSignal`/`steady`/`rising`) are decided in C++ and mapped to i18n keys by the frontend.
 
 ## Frontend (SPA)
 
@@ -171,6 +179,7 @@ The codebase is **inconsistent** — match the file you are editing rather than 
 |---|---|
 | `src/server/` | epoll HTTP server, routing, `ThreadPool` |
 | `src/emotionai/` | `Image`, `Audio`, `FileProcessor` — inference orchestration |
+| `src/focus/` | `FocusSessionManager` — in-memory Focus camera session (emotional dynamics); nothing persisted |
 | `src/mtcnn/` | face detection (pnet/rnet/onet) |
 | `src/audio/` | `LibrosaFeatureExtractor` (FFTW3-based), `BurnoutAnalyzer` |
 | `src/db/` | `RedisManager`, `DragonflyManager`, `TaskManager` |

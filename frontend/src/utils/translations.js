@@ -103,7 +103,7 @@ export const translations = {
       },
       camera: {
         title: 'Камера и эмоциональная динамика',
-        text: 'Фронтальная камера включается только после вашего разрешения. Кадр виден на экране и уходит в ядро Razuma только по вашей команде.',
+        text: 'Фронтальная камера включается только после вашего разрешения. Пока она включена, кадры уходят в ядро Razuma для анализа динамики.',
         consent: 'Разрешаю доступ к камере',
         enable: 'Включить камеру',
         asking: 'Запрос доступа…',
@@ -111,6 +111,7 @@ export const translations = {
         capture: 'Проверить кадр',
         analyze: 'Анализировать кадр',
         analyzing: 'Анализирую кадр…',
+        measuring: 'Замер…',
         live: 'Живой просмотр · без записи',
         off: 'Камера выключена',
         frameReady: 'Кадр доступен: {width} × {height}',
@@ -130,6 +131,7 @@ export const translations = {
         notFound: 'Камера не найдена. Можно продолжить без камеры.',
         unavailable: 'Камера недоступна или занята. Попробуйте снова.',
         streamEnded: 'Поток камеры прервался. Повторите подключение.',
+        sessionError: 'Не удалось открыть сессию анализа.',
         error: 'Не удалось проанализировать кадр. Попробуйте ещё раз.',
       },
       reaction: {
@@ -153,7 +155,7 @@ export const translations = {
         title: 'Как это работает',
         text: 'Экран открыт, камера доступна, решение за вами. Эмоциональная динамика помогает начать разговор, а не доказывает потерю фокуса.',
       },
-      privacy: 'AI-разбивка получает только текст задачи и длительность блока. Кадр с камеры уходит в ядро Razuma только по вашей команде и не записывается.',
+      privacy: 'AI-разбивка получает только текст задачи и длительность блока. Кадры с камеры уходят в ядро Razuma для анализа динамики и не записываются.',
     },
     home: {
       title: 'Razuma – флагманская ИИ-платформа для комплексного анализа эмоций по фото и видео',
@@ -870,7 +872,7 @@ export const translations = {
       },
       camera: {
         title: 'Camera and emotional dynamics',
-        text: 'The front camera starts only after your permission. The frame is visible on screen and reaches the Razuma core only on your command.',
+        text: 'The front camera starts only after your permission. While it is on, frames go to the Razuma core for dynamics analysis.',
         consent: 'I allow camera access',
         enable: 'Turn on the camera',
         asking: 'Requesting access…',
@@ -878,6 +880,7 @@ export const translations = {
         capture: 'Check the frame',
         analyze: 'Analyze the frame',
         analyzing: 'Analyzing the frame…',
+        measuring: 'Measuring…',
         live: 'Live preview · no recording',
         off: 'Camera is off',
         frameReady: 'Frame available: {width} × {height}',
@@ -897,6 +900,7 @@ export const translations = {
         notFound: 'No camera found. You can continue without the camera.',
         unavailable: 'The camera is unavailable or busy. Try again.',
         streamEnded: 'The camera stream was interrupted. Reconnect to continue.',
+        sessionError: 'Could not open the analysis session.',
         error: 'Could not analyze the frame. Please try again.',
       },
       reaction: {
@@ -920,7 +924,7 @@ export const translations = {
         title: 'How it works',
         text: 'The screen is on, the camera is available, the decision is yours. Emotional dynamics help start a conversation, not prove a loss of focus.',
       },
-      privacy: 'The AI breakdown receives only the task text and the block duration. A camera frame reaches the Razuma core only on your command and is not recorded.',
+      privacy: 'The AI breakdown receives only the task text and the block duration. Camera frames go to the Razuma core for dynamics analysis and are not recorded.',
     },
     home: {
       title: 'Razuma - flagship AI platform for comprehensive emotion analysis from photos and videos',

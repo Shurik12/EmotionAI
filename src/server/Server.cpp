@@ -16,6 +16,7 @@
 #include <common/uuid.h>
 #include <db/TaskManager.h>
 #include <emotionai/FileProcessor.h>
+#include <focus/FocusSessionManager.h>
 #include <metrics/MetricsCollector.h>
 #include <metrics/MetricsMiddleware.h>
 #include <storage/FileStorageFactory.h>
@@ -329,7 +330,9 @@ void Server::setupRoutes()
         {"/api/upload_external_influence", [this](auto &&ctx, auto &&body)
          { handleUploadExternalInfluence(ctx, body); }},
         {"/api/external-influence/analyze", [this](auto &&ctx, auto &&body)
-         { handleExternalInfluenceAnalyze(ctx, body); }}
+         { handleExternalInfluenceAnalyze(ctx, body); }},
+        {"/api/focus/session", [this](auto &&ctx, auto &&body)
+         { handleFocusSessionCreate(ctx, body); }}
     };
 
     // GET routes
@@ -613,7 +616,38 @@ void Server::processRequest(const std::shared_ptr<ClientContext> &context)
         {
             std::string body = context->buffer.substr(0, context->content_length);
             auto it = post_routes_.find(context->path);
-            (it != post_routes_.end()) ? it->second(context, body) : sendErrorResponse(context->fd, 404, "Not found");
+            if (it != post_routes_.end())
+            {
+                it->second(context, body);
+            }
+            else if (context->path.find("/api/focus/session/") == 0)
+            {
+                // POST /api/focus/session/<id>/frame  -> add a frame
+                // POST /api/focus/session/<id>/close  -> close the session
+                const std::string prefix = "/api/focus/session/";
+                std::string suffix = context->path.substr(prefix.size());
+                const std::string frame_suffix = "/frame";
+                const std::string close_suffix = "/close";
+
+                if (suffix.size() > frame_suffix.size() &&
+                    suffix.compare(suffix.size() - frame_suffix.size(), frame_suffix.size(), frame_suffix) == 0)
+                {
+                    handleFocusFrame(context, body, suffix.substr(0, suffix.size() - frame_suffix.size()));
+                }
+                else if (suffix.size() > close_suffix.size() &&
+                         suffix.compare(suffix.size() - close_suffix.size(), close_suffix.size(), close_suffix) == 0)
+                {
+                    handleFocusSessionClose(context, suffix.substr(0, suffix.size() - close_suffix.size()));
+                }
+                else
+                {
+                    sendErrorResponse(context->fd, 404, "Not found");
+                }
+            }
+            else
+            {
+                sendErrorResponse(context->fd, 404, "Not found");
+            }
         }
         else if (context->method == "GET")
         {
@@ -640,6 +674,11 @@ void Server::processRequest(const std::shared_ptr<ClientContext> &context)
             {
                 context->params["user_id"] = context->path.substr(22);
                 handleBurnoutBaselineGet(context);
+            }
+            else if (context->path.find("/api/focus/session/") == 0)
+            {
+                const std::string prefix = "/api/focus/session/";
+                handleFocusSessionGet(context, context->path.substr(prefix.size()));
             }
             else if (context->path.find("/api/health") == 0)
             {
@@ -1404,6 +1443,109 @@ void Server::handleBurnoutBaselineGet(
     } catch (const std::exception &e) {
         LOG_ERROR("Exception in burnout baseline get: {}", e.what());
         sendErrorResponse(context->fd, 500, fmt::format("Internal server error: {}", e.what()));
+    }
+}
+
+// Focus camera session (EMO-17)
+void Server::handleFocusSessionCreate(const std::shared_ptr<ClientContext> &context, const std::string &)
+{
+    try
+    {
+        const std::string session_id = FocusSessionManager::instance().createSession();
+        LOG_INFO("Focus session created: {}", session_id);
+        sendHttpResponse(context->fd, 201, "application/json",
+                         fmt::format(R"({{"session_id": "{}"}})", session_id));
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Failed to create focus session: {}", e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
+void Server::handleFocusFrame(const std::shared_ptr<ClientContext> &context, const std::string &body,
+                              const std::string &session_id)
+{
+    try
+    {
+        if (!FocusSessionManager::instance().hasSession(session_id))
+        {
+            sendErrorResponse(context->fd, 404, "Focus session not found");
+            return;
+        }
+
+        auto content_type_it = context->headers.find("content-type");
+        if (content_type_it == context->headers.end() ||
+            content_type_it->second.find("multipart/form-data") == std::string::npos)
+        {
+            sendErrorResponse(context->fd, 400, "Expected multipart form data");
+            return;
+        }
+
+        const std::string boundary = extractBoundary(content_type_it->second);
+        if (boundary.empty())
+        {
+            sendErrorResponse(context->fd, 400, "Invalid multipart data");
+            return;
+        }
+
+        auto form_data = parseMultipartFormData(body, boundary);
+        auto file_it = form_data.find("file");
+        if (file_it == form_data.end() || file_it->second.empty())
+        {
+            sendErrorResponse(context->fd, 400, "No file provided");
+            return;
+        }
+
+        std::vector<uint8_t> frame(file_it->second.begin(), file_it->second.end());
+        auto *processor = file_processor_.get();
+
+        // Score off the epoll thread and fold the result into the session.
+        thread_pool_->enqueue([processor, session_id, frame = std::move(frame)]() mutable
+                              {
+            try
+            {
+                auto result = processor->process_image_frame(frame);
+                FocusSessionManager::instance().addResult(session_id, result);
+            }
+            catch (const std::exception &e)
+            {
+                LOG_ERROR("Focus frame processing failed for session {}: {}", session_id, e.what());
+            } });
+
+        LOG_DEBUG("Focus frame queued for session {}", session_id);
+        sendHttpResponse(context->fd, 202, "application/json",
+                         fmt::format(R"({{"session_id": "{}", "queued": true}})", session_id));
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Exception in focus frame: {}", e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
+void Server::handleFocusSessionClose(const std::shared_ptr<ClientContext> &context, const std::string &session_id)
+{
+    FocusSessionManager::instance().closeSession(session_id);
+    sendHttpResponse(context->fd, 200, "application/json", R"({"closed": true})");
+}
+
+void Server::handleFocusSessionGet(const std::shared_ptr<ClientContext> &context, const std::string &session_id)
+{
+    try
+    {
+        auto session = FocusSessionManager::instance().getSession(session_id);
+        if (session.is_null())
+        {
+            sendErrorResponse(context->fd, 404, "Focus session not found");
+            return;
+        }
+        sendHttpResponse(context->fd, 200, "application/json", session.dump());
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Exception in focus session get: {}", e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
     }
 }
 

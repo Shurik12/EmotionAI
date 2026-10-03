@@ -136,6 +136,7 @@ set(SRC_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/config
     ${CMAKE_CURRENT_SOURCE_DIR}/src/db
     ${CMAKE_CURRENT_SOURCE_DIR}/src/emotionai
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/focus
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gigachat
     ${CMAKE_CURRENT_SOURCE_DIR}/src/logging
     ${CMAKE_CURRENT_SOURCE_DIR}/src/metrics
