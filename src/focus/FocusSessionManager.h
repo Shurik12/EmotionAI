@@ -42,12 +42,14 @@ private:
     struct Session
     {
         std::vector<nlohmann::json> samples;
+        size_t total{0}; // samples ever added, even after old ones are dropped
         long long created_ms{0};
         long long updated_ms{0};
     };
 
     // Bound memory for a long session; oldest samples are dropped first.
-    static constexpr size_t kMaxSamples = 240;
+    // ~1 s sampling for 20 min fits without dropping.
+    static constexpr size_t kMaxSamples = 1200;
 
     mutable std::mutex mutex_;
     std::map<std::string, Session> sessions_;

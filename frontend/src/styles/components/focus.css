@@ -297,6 +297,17 @@
   cursor: pointer;
 }
 
+.focus-option-select select {
+  background: var(--rz-field);
+  color: var(--rz-foreground);
+  border: 1px solid var(--rz-border);
+  border-radius: var(--rz-radius-xs);
+  padding: 2px 6px;
+  font: inherit;
+  font-size: var(--rz-text-sm);
+  cursor: pointer;
+}
+
 /* Privacy note */
 .focus-privacy {
   margin: var(--spacing-lg) 0 0;

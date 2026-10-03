@@ -4,10 +4,11 @@ import { apiClient } from '../api/client';
 
 const FRAME_QUALITY = 0.85;
 const MAX_STRIP_SAMPLES = 40;
-// How often the client pushes a frame into the session, and how often it reads
-// the accumulated dynamics back. The server owns the aggregation.
-const SAMPLE_INTERVAL_MS = 20000;
-const SESSION_POLL_MS = 1500;
+// The server scores a frame in ~0.25 s, so anything from 1 s up is safe; the
+// in-flight guard below makes a slow frame simply delay the next one.
+const SAMPLE_INTERVAL_OPTIONS = [1, 3, 10];
+const DEFAULT_SAMPLE_INTERVAL_SEC = 3;
+const SESSION_POLL_MS = 1000;
 
 // Camera + emotional dynamics for the Focus session (EMO-17, phase 4).
 //
@@ -24,23 +25,27 @@ export const FocusCamera = ({ numaNearby = true }) => {
   const requestRef = useRef(0);
   const aliveRef = useRef(true);
   const sessionIdRef = useRef(null);
-  const countRef = useRef(0);
+  const updatedRef = useRef(0);
   const inFlightRef = useRef(false);
   const frameUrlRef = useRef(null);
 
   const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState('off'); // off | asking | on | error
   const [autoAnalyze, setAutoAnalyze] = useState(true);
+  const [intervalSec, setIntervalSec] = useState(DEFAULT_SAMPLE_INTERVAL_SEC);
   const [message, setMessage] = useState('');
   const [frame, setFrame] = useState(null); // manual snapshot: { url, width, height }
   const [measuring, setMeasuring] = useState(false);
   const [reaction, setReaction] = useState(null); // latest server sample
   const [samples, setSamples] = useState([]); // [{ level, arousal }]
+  const [total, setTotal] = useState(0); // samples measured this session
+
+  const intervalMs = intervalSec * 1000;
 
   const endSession = useCallback(() => {
     const id = sessionIdRef.current;
     sessionIdRef.current = null;
-    countRef.current = 0;
+    updatedRef.current = 0;
     inFlightRef.current = false;
     if (id) {
       apiClient.closeFocusSession(id).catch(() => {});
@@ -52,9 +57,10 @@ export const FocusCamera = ({ numaNearby = true }) => {
       const data = await apiClient.createFocusSession();
       if (!aliveRef.current) return;
       sessionIdRef.current = data.session_id;
-      countRef.current = 0;
+      updatedRef.current = 0;
       setSamples([]);
       setReaction(null);
+      setTotal(0);
     } catch (err) {
       if (aliveRef.current) setMessage(t('focus.camera.sessionError'));
     }
@@ -173,7 +179,7 @@ export const FocusCamera = ({ numaNearby = true }) => {
       // Safety net: never let a lost sample stall the stream forever.
       window.setTimeout(() => {
         inFlightRef.current = false;
-      }, SAMPLE_INTERVAL_MS * 4);
+      }, Math.max(intervalMs * 3, 4000));
       try {
         await apiClient.sendFocusFrame(id, blob);
         return true;
@@ -185,7 +191,7 @@ export const FocusCamera = ({ numaNearby = true }) => {
         if (aliveRef.current) setMeasuring(false);
       }
     },
-    [t],
+    [t, intervalMs],
   );
 
   // Open the session and read the accumulated dynamics back.
@@ -202,8 +208,9 @@ export const FocusCamera = ({ numaNearby = true }) => {
         if (!aliveRef.current) return;
         setSamples((session.samples || []).map((s) => ({ level: s.level, arousal: s.arousal })));
         setReaction(session.latest || null);
-        if ((session.count || 0) > countRef.current) {
-          countRef.current = session.count;
+        setTotal(session.total || session.count || 0);
+        if (session.updated_ms && session.updated_ms !== updatedRef.current) {
+          updatedRef.current = session.updated_ms;
           inFlightRef.current = false;
         }
       } catch (err) {
@@ -222,10 +229,10 @@ export const FocusCamera = ({ numaNearby = true }) => {
       if (inFlightRef.current || !sessionIdRef.current) return;
       const shot = await captureBlob();
       if (shot) pushFrame(shot.blob);
-    }, SAMPLE_INTERVAL_MS);
+    }, intervalMs);
 
     return () => clearInterval(sampleId);
-  }, [status, autoAnalyze, captureBlob, pushFrame]);
+  }, [status, autoAnalyze, captureBlob, pushFrame, intervalMs]);
 
   const handleManualCheck = async () => {
     const shot = await captureBlob();
@@ -276,8 +283,8 @@ export const FocusCamera = ({ numaNearby = true }) => {
       <p className="focus-camera-frame-status">
         {measuring
           ? t('focus.camera.measuring')
-          : samples.length
-            ? t('focus.camera.dynamicCount', { count: samples.length })
+          : total
+            ? t('focus.camera.dynamicCount', { count: total })
             : t('focus.camera.frameNone')}
       </p>
 
@@ -301,6 +308,18 @@ export const FocusCamera = ({ numaNearby = true }) => {
         {t('focus.camera.auto')}
       </label>
       {autoAnalyze && <p className="focus-hint">{t('focus.camera.autoHint')}</p>}
+      {autoAnalyze && (
+        <label className="focus-option focus-option-select">
+          <span>{t('focus.camera.frequency')}</span>
+          <select value={intervalSec} onChange={(e) => setIntervalSec(Number(e.target.value))}>
+            {SAMPLE_INTERVAL_OPTIONS.map((sec) => (
+              <option key={sec} value={sec}>
+                {t('focus.camera.seconds', { n: sec })}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <div className="focus-actions">
         {status === 'on' ? (
@@ -355,8 +374,8 @@ export const FocusCamera = ({ numaNearby = true }) => {
 
       <div className="focus-dynamics">
         <p className="focus-dynamics-title">
-          {samples.length
-            ? t('focus.camera.dynamicCount', { count: samples.length })
+          {total
+            ? t('focus.camera.dynamicCount', { count: total })
             : t('focus.camera.dynamic')}
         </p>
         {strip.length ? (

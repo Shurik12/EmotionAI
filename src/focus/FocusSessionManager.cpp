@@ -166,9 +166,10 @@ void FocusSessionManager::addResult(const std::string &session_id, const nlohman
         return;
     }
 
-    sample["index"] = static_cast<int>(it->second.samples.size());
+    sample["index"] = static_cast<int>(it->second.total);
     sample["at_ms"] = nowMs();
     it->second.samples.push_back(std::move(sample));
+    it->second.total += 1;
 
     if (it->second.samples.size() > kMaxSamples)
     {
@@ -192,6 +193,7 @@ nlohmann::json FocusSessionManager::getSession(const std::string &session_id) co
     nlohmann::json out;
     out["session_id"] = session_id;
     out["count"] = session.samples.size();
+    out["total"] = session.total;
     out["samples"] = session.samples;
     out["created_ms"] = session.created_ms;
     out["updated_ms"] = session.updated_ms;
