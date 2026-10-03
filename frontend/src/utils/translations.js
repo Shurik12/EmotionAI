@@ -25,6 +25,31 @@ export const translations = {
       cases: 'Кейсы',
       about: 'О компании',
       contactUs: 'Связаться с нами',
+      focus: 'Фокус',
+    },
+    focus: {
+      badge: 'Приватная бета',
+      kicker: 'Razuma Focus — ваше место для работы',
+      title: 'В своём темпе. Одна задача. Один посильный шаг.',
+      subtitle: 'Нума рядом, когда нужна помощь.',
+      tabs: {
+        movement: 'Движение',
+        session: 'Моя сессия',
+        how: 'Как это работает',
+      },
+      movement: {
+        title: 'Движение',
+        text: 'Что хочется сдвинуть с места? Здесь появится выбор задачи и разбивка на шаги.',
+      },
+      session: {
+        title: 'Моя сессия',
+        text: 'Ваш план по шагам: добавляйте шаги, ограничивайте время и делайте паузу в любой момент.',
+      },
+      how: {
+        title: 'Как это работает',
+        text: 'Экран открыт, камера доступна, решение за вами. Эмоциональная динамика помогает начать разговор, а не доказывает потерю фокуса.',
+      },
+      privacy: 'AI-разбивка получает только текст задачи и длительность блока. Видео не передаётся.',
     },
     home: {
       title: 'Razuma – флагманская ИИ-платформа для комплексного анализа эмоций по фото и видео',
@@ -663,6 +688,31 @@ export const translations = {
       cases: 'Cases',
       about: 'About us',
       contactUs: 'Contact us',
+      focus: 'Focus',
+    },
+    focus: {
+      badge: 'Private beta',
+      kicker: 'Razuma Focus — your place to work',
+      title: 'At your own pace. One task. One manageable step.',
+      subtitle: 'Numa is nearby when you need help.',
+      tabs: {
+        movement: 'Movement',
+        session: 'My session',
+        how: 'How it works',
+      },
+      movement: {
+        title: 'Movement',
+        text: 'What would you like to move forward? Task selection and step breakdown will appear here.',
+      },
+      session: {
+        title: 'My session',
+        text: 'Your step-by-step plan: add steps, cap the time and pause at any moment.',
+      },
+      how: {
+        title: 'How it works',
+        text: 'The screen is on, the camera is available, the decision is yours. Emotional dynamics help start a conversation, not prove a loss of focus.',
+      },
+      privacy: 'The AI breakdown receives only the task text and the block duration. Video is not transmitted.',
     },
     home: {
       title: 'Razuma - flagship AI platform for comprehensive emotion analysis from photos and videos',

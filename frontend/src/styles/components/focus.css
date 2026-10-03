@@ -1,0 +1,118 @@
+/* ============================================
+   RAZUMA FOCUS (EMO-17) — Phase 1 shell
+   Uses --rz-* tokens from tokens/razuma.css
+   ============================================ */
+
+.focus-page {
+  max-width: 760px;
+  margin: var(--spacing-xl) auto;
+  padding: var(--spacing-xl);
+  background: var(--rz-background);
+  color: var(--rz-foreground);
+  border-radius: var(--rz-radius);
+  box-shadow: var(--rz-shadow-lg);
+}
+
+.focus-hero {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.focus-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  margin-bottom: var(--spacing-md);
+  border-radius: 999px;
+  background: var(--rz-accent);
+  color: var(--rz-accent-foreground);
+  font-size: var(--rz-text-xs);
+  letter-spacing: var(--rz-tracking-widest);
+  text-transform: uppercase;
+}
+
+.focus-kicker {
+  margin: 0 0 var(--spacing-sm);
+  color: var(--rz-muted-foreground);
+  font-size: var(--rz-text-sm);
+  letter-spacing: var(--rz-tracking-widest);
+  text-transform: uppercase;
+}
+
+.focus-title {
+  margin: 0 0 var(--spacing-sm);
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.focus-subtitle {
+  margin: 0;
+  color: var(--rz-muted-foreground);
+}
+
+.focus-tabs {
+  display: flex;
+  gap: var(--spacing-xs);
+  padding: 4px;
+  margin-bottom: var(--spacing-lg);
+  background: var(--rz-muted);
+  border-radius: 999px;
+}
+
+.focus-tab {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--rz-muted-foreground);
+  font: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.focus-tab:hover {
+  color: var(--rz-foreground);
+}
+
+.focus-tab.active {
+  background: var(--rz-primary);
+  color: var(--rz-primary-foreground);
+  font-weight: 600;
+}
+
+.focus-card {
+  padding: var(--spacing-lg);
+  background: var(--rz-card);
+  border: 1px solid var(--rz-border);
+  border-radius: var(--rz-radius-xl);
+}
+
+.focus-card h2 {
+  margin: 0 0 var(--spacing-sm);
+  color: var(--rz-foreground);
+  font-size: var(--rz-text-lg);
+}
+
+.focus-card p {
+  margin: 0;
+  color: var(--rz-muted-foreground);
+  line-height: 1.6;
+}
+
+.focus-privacy {
+  margin: var(--spacing-lg) 0 0;
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--rz-border);
+  color: var(--rz-muted-foreground);
+  font-size: var(--rz-text-sm);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .focus-page {
+    margin: var(--spacing-md) auto;
+    padding: var(--spacing-lg) var(--spacing-md);
+    border-radius: var(--radius-lg);
+  }
+}

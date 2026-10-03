@@ -11,12 +11,19 @@ export const Header = ({ language, setLanguage }) => {
     { section: 'solutions', label: t('nav.solutions') },
     { section: 'industries', label: t('nav.industries') },
     { section: 'security', label: t('nav.security') },
+    { page: 'focus', label: t('nav.focus') },
   ];
 
   const handleSectionClick = (section) => (e) => {
     e.preventDefault();
     setShowMobileMenu(false);
     navigateToSection(section);
+  };
+
+  const handlePageClick = (page) => (e) => {
+    e.preventDefault();
+    setShowMobileMenu(false);
+    navigateTo(page);
   };
 
   const handleLogoClick = (e) => {
@@ -63,12 +70,12 @@ export const Header = ({ language, setLanguage }) => {
       </a>
 
       <nav className={`main-nav ${showMobileMenu ? 'show' : ''}`}>
-        {navItems.map(({ section, label }) => (
+        {navItems.map(({ section, page, label }) => (
           <a
-            key={section}
-            href={`#${section}`}
-            className="nav-link"
-            onClick={handleSectionClick(section)}
+            key={section || page}
+            href={page ? `/${page}` : `#${section}`}
+            className={`nav-link ${page && currentPage === page ? 'active' : ''}`}
+            onClick={page ? handlePageClick(page) : handleSectionClick(section)}
           >
             {label}
           </a>

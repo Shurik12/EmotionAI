@@ -30,6 +30,7 @@ export const NavigationProvider = ({ children }) => {
       home: 'Razuma | Emotion Recognition',
       features: 'Razuma | Features',
       detector: 'Razuma | Demo',
+      focus: 'Razuma | Focus',
       privacy: 'Razuma | Privacy',
       contact: 'Razuma | Contact',
     };
