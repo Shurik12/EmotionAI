@@ -47,11 +47,17 @@ jobs:
         if: steps.cache-contrib.outputs.cache-hit != 'true'
         run: make install
 
-      # install_deps already applies emotiefflib.patch on miss.
-      # On cache hit the submodule is fresh from checkout → apply separately.
-      - name: Apply emotiefflib patch (cache hit only)
-        if: steps.cache-contrib.outputs.cache-hit == 'true'
-        run: git apply emotiefflib.patch
+      # install_deps applies emotiefflib.patch on a miss, and the contrib cache
+      # stores the already-patched tree — so on a hit the patch is present too.
+      # Apply it only when missing (idempotent) instead of failing on a hit.
+      - name: Ensure emotiefflib patch is applied
+        run: |
+          if git apply --check emotiefflib.patch 2>/dev/null; then
+            echo "Applying emotiefflib.patch"
+            git apply emotiefflib.patch
+          else
+            echo "emotiefflib.patch already applied — skipping"
+          fi
 
       # ---------- Config ----------
       - name: Prepare config
