@@ -9,20 +9,29 @@ const formatTime = (totalSeconds) => {
   return `${minutes}:${seconds}`;
 };
 
-export const FocusSession = ({ plan }) => {
+// The session state (current step, running flag, completed steps) lives in the
+// parent so the camera offer card can point at a step, pause and resume the
+// same session. This component keeps only the local countdown.
+export const FocusSession = ({
+  plan,
+  index,
+  onIndexChange,
+  running,
+  onRunningChange,
+  completed,
+  onCompletedChange,
+  highlightId = null,
+}) => {
   const { t } = useLanguage();
-  const [index, setIndex] = useState(0);
   const [durationMin, setDurationMin] = useState(DURATIONS[0]);
   const [secondsLeft, setSecondsLeft] = useState(DURATIONS[0] * 60);
-  const [running, setRunning] = useState(false);
-  const [completed, setCompleted] = useState([]);
 
   // A new plan (e.g. regenerated) starts the session from scratch.
   useEffect(() => {
-    setIndex(0);
-    setRunning(false);
-    setCompleted([]);
-  }, [plan]);
+    onIndexChange(0);
+    onRunningChange(false);
+    onCompletedChange([]);
+  }, [plan, onIndexChange, onRunningChange, onCompletedChange]);
 
   // Changing the duration or the current step resets the countdown.
   useEffect(() => {
@@ -38,8 +47,8 @@ export const FocusSession = ({ plan }) => {
   }, [running]);
 
   useEffect(() => {
-    if (secondsLeft === 0 && running) setRunning(false);
-  }, [secondsLeft, running]);
+    if (secondsLeft === 0 && running) onRunningChange(false);
+  }, [secondsLeft, running, onRunningChange]);
 
   if (!plan.length) {
     return <p className="focus-empty">{t('focus.plan.empty')}</p>;
@@ -50,28 +59,28 @@ export const FocusSession = ({ plan }) => {
   const isFresh = secondsLeft === durationMin * 60;
 
   const markCompleted = (stepId) =>
-    setCompleted((prev) => (prev.includes(stepId) ? prev : [...prev, stepId]));
+    onCompletedChange((prev) => (prev.includes(stepId) ? prev : [...prev, stepId]));
 
   const handleNext = () => {
     markCompleted(current.id);
-    setRunning(false);
-    setIndex((prev) => Math.min(prev + 1, plan.length - 1));
+    onRunningChange(false);
+    onIndexChange(Math.min(index + 1, plan.length - 1));
   };
 
   const handleSelect = (stepIndex) => {
-    setRunning(false);
-    setIndex(stepIndex);
+    onRunningChange(false);
+    onIndexChange(stepIndex);
   };
 
   const handleDuration = (minutes) => {
-    setRunning(false);
+    onRunningChange(false);
     setDurationMin(minutes);
   };
 
   const handleReset = () => {
-    setRunning(false);
-    setIndex(0);
-    setCompleted([]);
+    onRunningChange(false);
+    onIndexChange(0);
+    onCompletedChange([]);
     setSecondsLeft(durationMin * 60);
   };
 
@@ -119,7 +128,7 @@ export const FocusSession = ({ plan }) => {
             <button
               type="button"
               className="focus-btn primary"
-              onClick={() => setRunning((prev) => !prev)}
+              onClick={() => onRunningChange((prev) => !prev)}
             >
               {running
                 ? t('focus.session.pause')
@@ -138,7 +147,8 @@ export const FocusSession = ({ plan }) => {
               return (
                 <li
                   key={step.id}
-                  className={`focus-step ${stepIndex === index ? 'current' : ''} ${isDone ? 'done' : ''}`}
+                  id={`focus-step-${step.id}`}
+                  className={`focus-step ${stepIndex === index ? 'current' : ''} ${isDone ? 'done' : ''} ${highlightId === step.id ? 'highlight' : ''}`}
                 >
                   <button
                     type="button"

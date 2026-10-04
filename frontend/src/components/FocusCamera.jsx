@@ -1,23 +1,60 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 import { apiClient } from '../api/client';
+import {
+  baselineReady,
+  decideEmotionOffer,
+  emotionPatterns,
+  emotionPolicy,
+  emptyOfferMemory,
+  recordEmotionOffer,
+  sampleToFrame,
+} from '../utils/emotionPolicy';
 
 const FRAME_QUALITY = 0.85;
 const MAX_STRIP_SAMPLES = 40;
-// The server scores a frame in ~0.25 s, so anything from 1 s up is safe; the
-// in-flight guard below makes a slow frame simply delay the next one.
-const SAMPLE_INTERVAL_OPTIONS = [1, 3, 10];
-const DEFAULT_SAMPLE_INTERVAL_SEC = 3;
+// The policy needs at least 8 answers in the last 15 s window, so the rate is
+// kept at 1–2 s; a slower rate can never satisfy the window.
+const SAMPLE_INTERVAL_OPTIONS = [1, 2];
+const DEFAULT_SAMPLE_INTERVAL_SEC = 1;
 const SESSION_POLL_MS = 1000;
+// Keep about a minute of recent frames so the 15 s window is fully covered.
+const RECENT_FRAMES = 60;
+
+// Walk backwards from the newest frame while consecutive samples are close
+// enough for the policy's `ordered` (max gap 5 s). A camera pause starts a new
+// run, so a long gap cannot poison an otherwise usable baseline.
+const trailingRun = (frames) => {
+  if (frames.length === 0) return [];
+  let start = frames.length - 1;
+  while (
+    start > 0 &&
+    frames[start].timestampMs - frames[start - 1].timestampMs <= emotionPolicy.maxGapMs
+  ) {
+    start -= 1;
+  }
+  return frames.slice(start);
+};
 
 // Camera + emotional dynamics for the Focus session (EMO-17, phase 4).
 //
 // The camera only starts after an explicit consent checkbox, stops as soon as
 // the tab is hidden, and never records. While it is on, frames are streamed
 // into a server-side session (POST /api/focus/session/<id>/frame) and the
-// accumulated dynamics are polled back (GET /api/focus/session/<id>). The
-// server does the scoring and the reaction classification; nothing is stored.
-export const FocusCamera = ({ numaNearby = true }) => {
+// normalized observations are polled back (GET /api/focus/session/<id>). The
+// server only adapts the core output; the `emotion-pilot-v1` decision runs here
+// against a user-confirmed personal baseline. Offers stay off until the user
+// enables them, and nothing is stored.
+export const FocusCamera = ({
+  numaNearby = true,
+  stepId = null,
+  hasStep = false,
+  running = false,
+  onPoint,
+  onSmaller,
+  onPause,
+  onResume,
+}) => {
   const { t } = useLanguage();
 
   const videoRef = useRef(null);
@@ -28,6 +65,8 @@ export const FocusCamera = ({ numaNearby = true }) => {
   const updatedRef = useRef(0);
   const inFlightRef = useRef(false);
   const frameUrlRef = useRef(null);
+  const offerMemoryRef = useRef(emptyOfferMemory());
+  const dismissTimerRef = useRef(null);
 
   const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState('off'); // off | asking | on | error
@@ -36,11 +75,31 @@ export const FocusCamera = ({ numaNearby = true }) => {
   const [message, setMessage] = useState('');
   const [frame, setFrame] = useState(null); // manual snapshot: { url, width, height }
   const [measuring, setMeasuring] = useState(false);
-  const [reaction, setReaction] = useState(null); // latest server sample
-  const [samples, setSamples] = useState([]); // [{ level, arousal }]
-  const [total, setTotal] = useState(0); // samples measured this session
+  const [samples, setSamples] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [offersEnabled, setOffersEnabled] = useState(false);
+  const [baseline, setBaseline] = useState(null); // { confirmedOnTask, frames }
+  const [offer, setOffer] = useState(null); // { pattern, persistence }
+  const [decision, setDecision] = useState(null);
 
   const intervalMs = intervalSec * 1000;
+  const frames = useMemo(() => samples.map(sampleToFrame), [samples]);
+  const baselineRun = useMemo(() => trailingRun(frames), [frames]);
+  const baselineReadyNow = useMemo(() => baselineReady(baselineRun), [baselineRun]);
+  const baselineValid = baselineRun.filter((f) => f.valid).length;
+  const baselineSeconds = baselineRun.length
+    ? Math.round(
+        (baselineRun[baselineRun.length - 1].timestampMs - baselineRun[0].timestampMs) / 1000,
+      )
+    : 0;
+
+  const dismissOffer = useCallback(() => {
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
+    setOffer(null);
+  }, []);
 
   const endSession = useCallback(() => {
     const id = sessionIdRef.current;
@@ -58,9 +117,12 @@ export const FocusCamera = ({ numaNearby = true }) => {
       if (!aliveRef.current) return;
       sessionIdRef.current = data.session_id;
       updatedRef.current = 0;
+      offerMemoryRef.current = emptyOfferMemory();
       setSamples([]);
-      setReaction(null);
       setTotal(0);
+      setOffer(null);
+      setDecision(null);
+      setBaseline(null);
     } catch (err) {
       if (aliveRef.current) setMessage(t('focus.camera.sessionError'));
     }
@@ -73,9 +135,15 @@ export const FocusCamera = ({ numaNearby = true }) => {
       streamRef.current = null;
     }
     if (videoRef.current) videoRef.current.srcObject = null;
+    dismissOffer();
+    offerMemoryRef.current = emptyOfferMemory();
+    setSamples([]);
+    setTotal(0);
+    setBaseline(null);
+    setDecision(null);
     setStatus('off');
     endSession();
-  }, [endSession]);
+  }, [dismissOffer, endSession]);
 
   useEffect(() => {
     aliveRef.current = true;
@@ -88,6 +156,7 @@ export const FocusCamera = ({ numaNearby = true }) => {
       aliveRef.current = false;
       stopCamera();
       if (frameUrlRef.current) URL.revokeObjectURL(frameUrlRef.current);
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
     };
   }, [stopCamera]);
 
@@ -194,7 +263,7 @@ export const FocusCamera = ({ numaNearby = true }) => {
     [t, intervalMs],
   );
 
-  // Open the session and read the accumulated dynamics back.
+  // Open the session and read the accumulated observations back.
   useEffect(() => {
     if (status !== 'on') return undefined;
 
@@ -206,8 +275,7 @@ export const FocusCamera = ({ numaNearby = true }) => {
       try {
         const session = await apiClient.getFocusSession(id);
         if (!aliveRef.current) return;
-        setSamples((session.samples || []).map((s) => ({ level: s.level, activation: s.activation })));
-        setReaction(session.latest || null);
+        setSamples(session.samples || []);
         setTotal(session.total || session.count || 0);
         if (session.updated_ms && session.updated_ms !== updatedRef.current) {
           updatedRef.current = session.updated_ms;
@@ -234,6 +302,47 @@ export const FocusCamera = ({ numaNearby = true }) => {
     return () => clearInterval(sampleId);
   }, [status, autoAnalyze, captureBlob, pushFrame, intervalMs]);
 
+  // Run the emotion policy whenever the observation or the context changes.
+  useEffect(() => {
+    if (status !== 'on' || offer) return;
+    const nowMs = frames.length ? frames[frames.length - 1].timestampMs : Date.now();
+    const observation = {
+      source: 'razuma-core',
+      // The server adapter maps the core output to the agreed scale
+      // (valence [-1,1]; arousal, intensity, categories [0,1]).
+      normalizedScaleVerified: true,
+      baseline: baseline ?? { confirmedOnTask: false, frames: [] },
+      frames: frames.slice(-RECENT_FRAMES),
+    };
+    const context = {
+      session: true,
+      visible: !document.hidden,
+      running,
+      hasCurrentStep: hasStep,
+      supportOpen: false,
+      enabled: offersEnabled,
+      nowMs,
+      stepId,
+      memory: offerMemoryRef.current,
+    };
+    const next = decideEmotionOffer(observation, context);
+    setDecision(next);
+    if (next.action === 'question' && next.pattern && stepId) {
+      offerMemoryRef.current = recordEmotionOffer(offerMemoryRef.current, stepId, nowMs);
+      setOffer({ pattern: next.pattern, persistence: next.persistence });
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = window.setTimeout(() => {
+        dismissTimerRef.current = null;
+        setOffer(null);
+      }, emotionPolicy.offerLifetimeMs);
+    }
+  }, [status, frames, baseline, offersEnabled, running, hasStep, stepId, offer]);
+
+  const confirmBaseline = () => {
+    if (!baselineReadyNow) return;
+    setBaseline({ confirmedOnTask: true, frames: baselineRun });
+  };
+
   const handleManualCheck = async () => {
     const shot = await captureBlob();
     if (!shot) {
@@ -248,8 +357,27 @@ export const FocusCamera = ({ numaNearby = true }) => {
     await pushFrame(shot.blob);
   };
 
-  const reactionBase = reaction?.level ? `focus.reaction.${reaction.level}` : null;
+  const choose = (action) => {
+    dismissOffer();
+    if (action === 'point') onPoint?.();
+    else if (action === 'smaller') onSmaller?.();
+    else if (action === 'pause') onPause?.();
+    else if (action === 'continue') onResume?.();
+  };
+
+  const toggleOffers = (value) => {
+    setOffersEnabled(value);
+    if (!value) dismissOffer();
+  };
+
+  const primary = offer ? emotionPatterns[offer.pattern]?.primary : null;
   const strip = samples.slice(-MAX_STRIP_SAMPLES);
+
+  let statusText = t('focus.emotion.idle');
+  if (!total) statusText = t('focus.emotion.noSignal');
+  else if (decision?.action === 'quiet' && decision.reason === 'emotion-only') {
+    statusText = t('focus.emotion.quiet');
+  }
 
   return (
     <div className="focus-camera">
@@ -321,6 +449,53 @@ export const FocusCamera = ({ numaNearby = true }) => {
         </label>
       )}
 
+      <label className="focus-option">
+        <input
+          type="checkbox"
+          checked={offersEnabled}
+          onChange={(e) => toggleOffers(e.target.checked)}
+        />
+        {t('focus.emotion.offersLabel')}
+      </label>
+      <p className="focus-hint">{t('focus.emotion.offersHint')}</p>
+
+      {status === 'on' && (
+        <div className="focus-baseline">
+          <div className="focus-baseline-head">
+            <span className="focus-baseline-label">{t('focus.emotion.baselineTitle')}</span>
+            <span
+              className={`focus-baseline-badge ${
+                baseline?.confirmedOnTask ? 'confirmed' : baselineReadyNow ? 'ready' : ''
+              }`}
+            >
+              {baseline?.confirmedOnTask
+                ? t('focus.emotion.baselineConfirmed')
+                : `${baselineValid} · ${baselineSeconds}s`}
+            </span>
+          </div>
+          {!baseline?.confirmedOnTask && (
+            <>
+              <p className="focus-hint">
+                {baselineReadyNow
+                  ? t('focus.emotion.baselineReady')
+                  : t('focus.emotion.baselineCollecting', {
+                      valid: baselineValid,
+                      seconds: baselineSeconds,
+                    })}
+              </p>
+              <button
+                type="button"
+                className="focus-btn ghost"
+                onClick={confirmBaseline}
+                disabled={!baselineReadyNow}
+              >
+                {t('focus.emotion.baselineConfirm')}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="focus-actions">
         {status === 'on' ? (
           <>
@@ -360,15 +535,48 @@ export const FocusCamera = ({ numaNearby = true }) => {
         </>
       )}
 
-      <div className={`focus-numa ${reaction?.level || 'idle'}`}>
-        <p className="focus-numa-label">{numaNearby ? t('focus.reaction.numa') : t('focus.reaction.core')}</p>
-        {reactionBase ? (
+      <div
+        className={`focus-numa ${offer ? 'offer' : 'idle'}`}
+        aria-live="polite"
+      >
+        <p className="focus-numa-label">{numaNearby ? t('focus.emotion.numa') : t('focus.emotion.core')}</p>
+        {offer ? (
           <>
-            <h4>{t(`${reactionBase}.title`)}</h4>
-            <p>{t(`${reactionBase}.body`)}</p>
+            <h4>{t(`focus.emotion.patterns.${offer.pattern}.title`)}</h4>
+            <p>{t(`focus.emotion.patterns.${offer.pattern}.body`)}</p>
+            <div className="focus-offer-actions">
+              <button
+                type="button"
+                className={`focus-btn ${primary === 'point' ? 'primary' : 'ghost'}`}
+                onClick={() => choose('point')}
+              >
+                {t('focus.emotion.action.point')}
+              </button>
+              <button
+                type="button"
+                className={`focus-btn ${primary === 'smaller' ? 'primary' : 'ghost'}`}
+                onClick={() => choose('smaller')}
+              >
+                {t('focus.emotion.action.smaller')}
+              </button>
+              <button
+                type="button"
+                className={`focus-btn ${primary === 'pause' ? 'primary' : 'ghost'}`}
+                onClick={() => choose('pause')}
+              >
+                {t('focus.emotion.action.pause')}
+              </button>
+              <button
+                type="button"
+                className="focus-btn ghost"
+                onClick={() => choose('continue')}
+              >
+                {t('focus.emotion.action.continue')}
+              </button>
+            </div>
           </>
         ) : (
-          <p className="focus-numa-idle">{t('focus.reaction.idle')}</p>
+          <p className="focus-numa-idle">{statusText}</p>
         )}
       </div>
 
@@ -382,9 +590,9 @@ export const FocusCamera = ({ numaNearby = true }) => {
           <div className="focus-dynamics-bars" aria-hidden="true">
             {strip.map((sample, index) => (
               <span
-                key={`${index}-${sample.level}`}
-                className={`focus-dynamics-bar ${sample.level}`}
-                style={{ height: `${15 + (sample.activation ?? 0.5) * 85}%` }}
+                key={`${index}-${sample.at_ms}`}
+                className={`focus-dynamics-bar ${sample.valid ? 'valid' : 'invalid'}`}
+                style={{ height: `${15 + (sample.arousal ?? 0.5) * 85}%` }}
               />
             ))}
           </div>
@@ -393,7 +601,7 @@ export const FocusCamera = ({ numaNearby = true }) => {
         )}
       </div>
 
-      <p className="focus-camera-note">{t('focus.camera.engineNote')}</p>
+      <p className="focus-camera-note">{t('focus.emotion.note')}</p>
     </div>
   );
 };

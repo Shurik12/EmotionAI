@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <set>
 #include <stdexcept>
 
 #include <db/DragonflyManager.h>
@@ -37,20 +38,20 @@ namespace
         return 0.0;
     }
 
-    const std::vector<std::string> &negativeKeys()
+    // Map a core category name to the policy's logical name. The policy only
+    // uses fear/anger/disgust/sadness actively, but neutral/joy/surprise/contempt
+    // are carried through for display and baseline statistics. Unknown or
+    // absent categories are never invented.
+    std::string policyEmotionName(const std::string &key)
     {
-        static const std::vector<std::string> keys = {"anger", "fear", "sad", "disgust", "contempt"};
-        return keys;
+        if (key == "happiness")
+        {
+            return "joy";
+        }
+        static const std::set<std::string> known = {
+            "fear", "anger", "disgust", "sadness", "joy", "surprise", "neutral", "interest", "shame", "contempt"};
+        return known.count(key) ? key : std::string();
     }
-
-    // Reaction thresholds. The MTL heads (enet_b0_8_va_mtl) are regression
-    // outputs on roughly [-1, 1], not probabilities, so an absolute
-    // "arousal >= 0.6" is meaningless. Provisional values, calibrated on the
-    // ~15 still faces available in the repo/host (no labelled FER set is
-    // shipped) — re-measure before trusting them on real sessions.
-    constexpr double kNegativeValence = -0.20; // valence at or below this = clearly negative affect
-    constexpr double kHighActivation = 0.68;   // activation ((arousal+1)/2) for the negative-emotion path
-    constexpr double kStrongNegative = 0.60;   // summed anger/fear/sadness/disgust/contempt
 }
 
 FocusSessionManager &FocusSessionManager::instance()
@@ -87,11 +88,11 @@ void FocusSessionManager::closeSession(const std::string &session_id)
 nlohmann::json FocusSessionManager::classify(const nlohmann::json &result)
 {
     nlohmann::json sample = {
-        {"level", "noSignal"},
-        {"arousal", 0.0},
+        {"valid", false},
         {"valence", 0.0},
-        {"activation", 0.0},
-        {"probability", 0.0}};
+        {"arousal", 0.0},
+        {"intensity", 0.0},
+        {"emotions", nlohmann::json::object()}};
 
     if (!result.is_object())
     {
@@ -105,8 +106,11 @@ nlohmann::json FocusSessionManager::classify(const nlohmann::json &result)
     }
 
     const auto &probs = *probs_it;
-    double neutral = 0.0;
-    double negative = 0.0;
+    nlohmann::json emotions = nlohmann::json::object();
+    // The core has no separate intensity channel, so the adapter uses the
+    // strongest category score as the expression strength. This is an adapter
+    // choice, not a probability and not an independent sensor.
+    double intensity = 0.0;
     bool has_emotion = false;
 
     for (auto it = probs.begin(); it != probs.end(); ++it)
@@ -115,64 +119,47 @@ nlohmann::json FocusSessionManager::classify(const nlohmann::json &result)
         {
             continue;
         }
+        const std::string name = policyEmotionName(it.key());
+        if (name.empty())
+        {
+            continue;
+        }
+        // The core rounds category scores to two decimals; clamp defensively.
+        const double value = std::clamp(toNumber(it.value()), 0.0, 1.0);
+        emotions[name] = value;
+        intensity = std::max(intensity, value);
         has_emotion = true;
-        const double value = toNumber(it.value());
-        if (it.key() == "neutral")
-        {
-            neutral = value;
-        }
-        const auto &negatives = negativeKeys();
-        if (std::find(negatives.begin(), negatives.end(), it.key()) != negatives.end())
-        {
-            negative += value;
-        }
     }
 
-    if (!has_emotion)
+    // The MTL heads (enet_b0_8_va_mtl) are regression outputs on ~[-1, 1]; the
+    // 7-class model has neither, so its frames cannot satisfy the policy and
+    // stay invalid rather than being filled with a fabricated 0.
+    const bool has_va = probs.contains("valence") && probs.contains("arousal");
+    sample["valid"] = has_emotion && has_va;
+    sample["intensity"] = intensity;
+    sample["emotions"] = std::move(emotions);
+
+    if (has_va)
     {
-        return sample;
+        sample["valence"] = std::clamp(toNumber(probs.at("valence")), -1.0, 1.0);
+        const double arousal = std::clamp(toNumber(probs.at("arousal")), -1.0, 1.0);
+        // The policy expects activation on [0, 1].
+        sample["arousal"] = std::clamp((arousal + 1.0) / 2.0, 0.0, 1.0);
     }
 
-    // The MTL heads are regression outputs on ~[-1, 1]; the 7-class model has
-    // neither, so fall back to 1 - neutral as a crude activation proxy.
-    const bool has_va = probs.contains("arousal") && probs.contains("valence");
-    const double arousal = has_va ? std::clamp(toNumber(probs.at("arousal")), -1.0, 1.0) : 0.0;
-    const double valence = has_va ? std::clamp(toNumber(probs.at("valence")), -1.0, 1.0) : 0.0;
-    const double activation = has_va
-                                  ? std::clamp((arousal + 1.0) / 2.0, 0.0, 1.0)
-                                  : std::clamp(1.0 - neutral, 0.0, 1.0);
-
-    std::string label;
-    double probability = 0.0;
     const auto main_it = result.find("main_prediction");
     if (main_it != result.end() && main_it->is_object())
     {
         if (main_it->contains("label") && (*main_it)["label"].is_string())
         {
-            label = (*main_it)["label"].get<std::string>();
+            sample["label"] = (*main_it)["label"].get<std::string>();
         }
         if (main_it->contains("probability"))
         {
-            probability = toNumber((*main_it)["probability"]);
+            sample["probability"] = toNumber((*main_it)["probability"]);
         }
     }
 
-    // "Rising" = clearly negative affect, or a strong negative expression that
-    // is also activated. Valence gates the arousal/negative path so a smile
-    // with a secondary contempt component does not fire.
-    const bool negative_affect = valence <= kNegativeValence;
-    const bool activated_negative = activation >= kHighActivation && negative >= kStrongNegative;
-
-    sample["level"] = (negative_affect || activated_negative) ? "rising" : "steady";
-    sample["arousal"] = arousal;
-    sample["valence"] = valence;
-    sample["activation"] = activation;
-    sample["negative"] = negative;
-    sample["probability"] = probability;
-    if (!label.empty())
-    {
-        sample["label"] = label;
-    }
     return sample;
 }
 
@@ -224,21 +211,31 @@ nlohmann::json FocusSessionManager::getSession(const std::string &session_id) co
         out["latest"] = nullptr;
         out["dynamics"] = {
             {"count", 0},
+            {"valid_count", 0},
             {"mean_arousal", 0.0},
-            {"trend", "noSignal"}};
+            {"mean_intensity", 0.0}};
         return out;
     }
 
-    double sum = 0.0;
+    double sum_arousal = 0.0;
+    double sum_intensity = 0.0;
+    size_t valid_count = 0;
     for (const auto &sample : session.samples)
     {
-        sum += sample.value("arousal", 0.0);
+        sum_arousal += sample.value("arousal", 0.0);
+        sum_intensity += sample.value("intensity", 0.0);
+        if (sample.value("valid", false))
+        {
+            valid_count += 1;
+        }
     }
 
+    const auto size = static_cast<double>(session.samples.size());
     out["latest"] = session.samples.back();
     out["dynamics"] = {
         {"count", session.samples.size()},
-        {"mean_arousal", sum / static_cast<double>(session.samples.size())},
-        {"trend", session.samples.back().value("level", "noSignal")}};
+        {"valid_count", valid_count},
+        {"mean_arousal", sum_arousal / size},
+        {"mean_intensity", sum_intensity / size}};
     return out;
 }

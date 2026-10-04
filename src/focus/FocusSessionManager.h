@@ -10,8 +10,9 @@
 // In-memory, per-camera-session aggregation for the Razuma Focus page (EMO-17).
 //
 // The epoll server stays non-blocking: a frame is decoded and scored on the
-// thread pool, then the resulting signal is appended here. The client polls the
-// session to read the accumulated emotional dynamics over the whole session.
+// thread pool, then the resulting observation is appended here. The client polls
+// the session, splits the frames into a confirmed baseline and the recent
+// window, and runs the `emotion-pilot-v1` policy (frontend/src/utils/emotionPolicy.js).
 // Nothing is persisted, and sessions are dropped when closed.
 class FocusSessionManager
 {
@@ -25,15 +26,19 @@ public:
     bool hasSession(const std::string &session_id) const;
     void closeSession(const std::string &session_id);
 
-    // Classify one core image result and append it. No-op if the session is gone.
+    // Normalize one core image result and append it. No-op if the session is gone.
     void addResult(const std::string &session_id, const nlohmann::json &result);
 
-    // {session_id, count, samples:[...], latest:{...}, dynamics:{...}} or null.
+    // {session_id, count, total, samples:[...], latest, dynamics} or null.
     nlohmann::json getSession(const std::string &session_id) const;
 
-    // Deterministic mapping of a core image result to a calm reaction level
-    // ("noSignal" | "steady" | "rising") plus the signal values used for it.
-    // Emits KEYS/symbols only, like BurnoutAnalyzer — never human-readable text.
+    // Adapter from the core image result to one normalized EmotionFrame:
+    //   {valid, valence, arousal, intensity, emotions:{name:score}, label, probability}
+    // valence stays in [-1,1], arousal is rescaled to [0,1], intensity and each
+    // category score are in [0,1]. A frame is `valid` only when a face was
+    // detected AND both valence/arousal heads exist; the 7-class model has no
+    // regression heads, so its frames stay invalid (a missing channel is never
+    // replaced with 0). Emits data only, like BurnoutAnalyzer — never text.
     static nlohmann::json classify(const nlohmann::json &result);
 
 private:
@@ -48,8 +53,8 @@ private:
     };
 
     // Bound memory for a long session; oldest samples are dropped first.
-    // ~1 s sampling for 20 min fits without dropping.
-    static constexpr size_t kMaxSamples = 1200;
+    // 1 s sampling for 30 min fits without dropping.
+    static constexpr size_t kMaxSamples = 1800;
 
     mutable std::mutex mutex_;
     std::map<std::string, Session> sessions_;
