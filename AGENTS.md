@@ -116,12 +116,21 @@ Missing step 2 or 3 fails silently as a 404 or a CORS error in the browser.
 The Focus camera uses an in-memory session (`src/focus/FocusSessionManager`) instead of one
 async task per frame: `POST /api/focus/session` creates it, `POST /api/focus/session/<id>/frame`
 scores a frame on the thread pool (no disk, no GigaChat), `GET /api/focus/session/<id>` returns
-the accumulated dynamics, and `POST /api/focus/session/<id>/close` drops it. Reaction levels
-(`noSignal`/`steady`/`rising`) are decided in C++ and mapped to i18n keys by the frontend.
-The `rising` thresholds in `FocusSessionManager::classify` are **provisional** — calibrated on
-~15 still faces (no labelled FER set ships), and the va_mtl `valence`/`arousal` heads are
-regression outputs on ~[-1, 1], not probabilities, so absolute probability-style thresholds are
-wrong. `valence` gates the rule; re-measure before trusting it on real sessions.
+the accumulated observations, and `POST /api/focus/session/<id>/close` drops it.
+
+**The emotion decision mirrors the supplied v6 spec** (`Razuma_Focus_Developer_v6_Emotion_Rules_*`,
+profile `emotion-pilot-v1`). The backend is only an adapter: `FocusSessionManager::classify` maps
+the core output to one normalized frame — `valid`, `valence` [-1,1], `arousal` rescaled to [0,1],
+`intensity` and category scores [0,1], with `happiness`→`joy`. A frame is `valid` only with a face
+AND both va_mtl heads, so the 7-class model never triggers an offer (a missing channel is not
+filled with 0). The decision itself lives in the frontend
+(`frontend/src/utils/emotionPolicy.js`, a faithful port of `lib/emotion-policy.ts`): a
+user-confirmed baseline (≥60 s, ≥16 frames, ≥80% coverage), robust per-channel z-scores
+(`1.4826·MAD`, floor 0.05), a 15 s window with ≥80% persistence and ≥8 answers, and three patterns
+(`fear-high` / `friction-high` / `sadness-low`). Offers are opt-in (default off), one per step,
+≥5 min apart, ≤2 per session, and vanish after 20 s. Every threshold is a pilot hypothesis, not a
+validated attention classifier — keep the port in sync with `INTERVENTION_RULES_RU.md` if the
+spec is re-issued.
 
 ## Frontend (SPA)
 
