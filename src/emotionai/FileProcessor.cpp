@@ -268,7 +268,6 @@ nlohmann::json FileProcessor::process_audio_file(const std::string& task_id,
              audio.get_duration(), audio.get_sample_rate(), audio.get_channels());
 
     auto result = audio.process_audio(audio_torch_model_.get());
-    addGigaChatAnalysis(result, task_id);
 
     // Save result
     save_json_to_storage(result, task_id, "audio");
@@ -309,9 +308,6 @@ nlohmann::json FileProcessor::process_audio_with_burnout(
     
     // Process with burnout (reuses process_audio internally)
     auto result = audio.process_audio_with_burnout(audio_torch_model_.get(), baseline);
-    
-    // Add GigaChat analysis if available
-    addGigaChatAnalysis(result, task_id);
     
     // Save result
     save_json_to_storage(result, task_id, "audio_burnout");
@@ -808,7 +804,6 @@ nlohmann::json FileProcessor::process_image_file(const std::string& task_id,
     file_storage_->saveFile(image_data, storage_path);
 
     auto [processed_image, emotion_result] = process_image(image);
-    addGigaChatAnalysis(emotion_result, task_id);
 
     return {
         {"type", "image"},
@@ -819,7 +814,7 @@ nlohmann::json FileProcessor::process_image_file(const std::string& task_id,
 }
 
 // In-memory single-frame inference for the Focus camera session (EMO-17):
-// no storage write, no task status, no GigaChat — just decode + score.
+// no storage write, no task status — just decode + score.
 nlohmann::json FileProcessor::process_image_frame(const std::vector<uint8_t>& bytes)
 {
     if (bytes.empty()) {
@@ -950,7 +945,6 @@ FileProcessor::FrameResult FileProcessor::process_video_frame(const cv::Mat& fra
 
     // Process image
     auto [processed_frame, result] = process_image(frame);
-    addGigaChatAnalysis(result, task_id, frame_number);
 
     return {
         .frame = processed_frame,
@@ -1033,72 +1027,5 @@ std::pair<cv::Mat, nlohmann::json> FileProcessor::process_image(const cv::Mat& i
             {"error", e.what()},
             {"additional_probs", nlohmann::json::object()}
         }};
-    }
-}
-
-//=============================================================================
-// GigaChat Integration
-//=============================================================================
-emotionai::gigachat::EmotionData FileProcessor::extract_emotions_from_result(const nlohmann::json& result)
-{
-    emotionai::gigachat::EmotionData emotions = {0};
-    
-    if (!result.contains("additional_probs")) return emotions;
-
-    auto& probs = result["additional_probs"];
-    auto get_float = [&](const std::string& key) -> float {
-        if (!probs.contains(key)) return 0.0f;
-        auto& val = probs[key];
-        if (val.is_string()) {
-            try { return std::stof(val.get<std::string>()); }
-            catch (...) { return 0.0f; }
-        }
-        if (val.is_number()) return val.get<float>();
-        return 0.0f;
-    };
-
-    emotions.anger = get_float("anger");
-    emotions.disgust = get_float("disgust");
-    emotions.fear = get_float("fear");
-    emotions.happiness = get_float("happiness");
-    emotions.neutral = get_float("neutral");
-    emotions.sadness = get_float("sadness");
-    emotions.surprise = get_float("surprise");
-
-    return emotions;
-}
-
-void FileProcessor::addGigaChatAnalysis(nlohmann::json& result, const std::string& task_id, int frame_number)
-{
-    if (!gigachat_client_ || !gigachat_client_->isEnabled()) {
-        return;
-    }
-
-    try {
-        auto emotions = extract_emotions_from_result(result);
-        std::string session_id = task_id + (frame_number >= 0 ? "_frame_" + std::to_string(frame_number) : "");
-
-        LOG_INFO("Calling GigaChat: Task={}", task_id);
-        std::string analysis = gigachat_client_->analyzeEmotions(emotions, session_id);
-
-        if (!analysis.empty()) {
-            try {
-                auto json_response = nlohmann::json::parse(analysis);
-                if (json_response.contains("verdict") && 
-                    json_response.contains("probability") && 
-                    json_response.contains("reasoning")) {
-                    result["gigachat"] = json_response;
-                    LOG_INFO("GigaChat analysis added: Task={}", task_id);
-                } else {
-                    LOG_WARN("GigaChat response missing fields");
-                    result["gigachat"] = analysis;
-                }
-            } catch (const std::exception& e) {
-                LOG_WARN("GigaChat response not JSON: {}", e.what());
-                result["gigachat"] = analysis;
-            }
-        }
-    } catch (const std::exception& e) {
-        LOG_ERROR("GigaChat failed: {}", e.what());
     }
 }

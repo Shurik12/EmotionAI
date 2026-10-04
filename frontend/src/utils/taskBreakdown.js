@@ -1,9 +1,11 @@
 // Local, deterministic task breakdown for the Razuma Focus page (EMO-17).
 //
-// No external calls and no LLM: a small keyword match picks a plan template,
-// and the function returns translation KEYS (not human-readable strings).
-// The UI resolves them through t(), so the plan follows the selected
-// language — the same "content as keys" approach used by BurnoutAnalyzer.
+// Since EMO-19 the primary source is the AI model via POST /api/focus/breakdown.
+// This module is the offline fallback used when the model is disabled or
+// unavailable: a small keyword match picks a plan template, and the function
+// returns translation KEYS (not human-readable strings). The UI resolves them
+// through t(), so the fallback plan follows the selected language — the same
+// "content as keys" approach used by BurnoutAnalyzer.
 
 const TEMPLATES = {
   presentation: [

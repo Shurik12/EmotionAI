@@ -12,7 +12,6 @@
 #include <emotionai/Image.h>
 #include <emotionai/Audio.h>
 #include <storage/FileStorage.h>
-#include <gigachat/GigaChatClient.h>
 #include <torch/script.h>
 #include <audio/BurnoutModels.h>
 #include <audio/BurnoutAnalyzer.h>
@@ -90,11 +89,6 @@ public:
     torch::jit::Module* get_audio_torch_model() { return audio_torch_model_.get(); }
     bool is_model_loaded() const { return model_loaded_; }
     bool is_audio_model_loaded() const { return audio_model_loaded_; }
-    bool isGigaChatEnabled() const { return gigachat_client_ && gigachat_client_->isEnabled(); }
-
-    void setGigaChatClient(std::unique_ptr<emotionai::gigachat::GigaChatClient> client) {
-        gigachat_client_ = std::move(client);
-    }
 
 private:
     // Constants
@@ -106,7 +100,6 @@ private:
     // Dependencies
     std::shared_ptr<DragonflyManager> dragonfly_manager_;
     std::shared_ptr<FileStorage> file_storage_;
-    std::unique_ptr<emotionai::gigachat::GigaChatClient> gigachat_client_;
 
     // Models
     std::unique_ptr<EmotiEffLib::EmotiEffLibRecognizer> fer_;
@@ -152,10 +145,6 @@ private:
     // Statistics helpers
     nlohmann::json calculate_statistics(const std::vector<double>& values);
     nlohmann::json calculate_average_emotions(const std::vector<nlohmann::json>& frame_results);
-
-    // GigaChat integration
-    void addGigaChatAnalysis(nlohmann::json& result, const std::string& task_id, int frame_number = -1);
-    emotionai::gigachat::EmotionData extract_emotions_from_result(const nlohmann::json& result);
 
     // Cleanup
     void cleanup_file(const std::string& filepath);

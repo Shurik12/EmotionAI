@@ -46,7 +46,7 @@ public:
 	const auto &cluster() const { return data_.cluster; }
 	const auto &queue() const { return data_.queue; }
 	const auto &storage() const { return data_.storage; }
-	const auto &gigachat() const { return data_.gigachat; }
+	const auto &ai() const { return data_.ai; }
 	const auto &externalInfluence() const { return data_.external_influence; }
 	const auto &burnout() const { return data_.burnout; }
 
@@ -167,20 +167,16 @@ private:
 		bool s3_use_ssl = true;
 	};
 
-	struct GigaChatConfig
+	struct AIConfig
 	{
 		bool enabled{false};
-		std::string auth_key;
-		std::string model{"GigaChat"};
-		std::string api_url{"https://gigachat.devices.sberbank.ru/api/v1"};
-		std::string auth_url{"https://ngw.devices.sberbank.ru:9443/api/v2/oauth"};
-		bool verify_ssl{false};
-		float min_confidence{0.3f};
-		std::string prompt_template{R"(Опираясь на входной json данных вынеси вердикт: да или нет и вероятность ответа того, 
-			готов ли сотрудник приступить к заданию. Информация - это вероятности эмоций человеческого лица
-			{emotions}
-			Ответ должен быть в формате JSON: {"verdict": "да/нет", "probability": 0.0-1.0, "reasoning": "краткое пояснение"})"
-		};
+		// OpenAI-compatible endpoint. The client posts to
+		// {base_url}/chat/completions with "Authorization: Bearer <api_key>".
+		std::string base_url{"https://shared1.multitool.works:4000/v1"};
+		std::string model{"deepseek-v4-flash"};
+		std::string api_key;
+		bool verify_ssl{true};
+		long timeout_seconds{30};
 	};
 
 	struct ConfigData
@@ -197,7 +193,7 @@ private:
 		QueueConfig queue;
 		TaskManagementConfig task_management;
 		StorageConfig storage;
-		GigaChatConfig gigachat;
+		AIConfig ai;
 		audio::ExternalInfluenceConfig external_influence;
 		audio::BurnoutConfig burnout;
 	};
