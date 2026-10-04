@@ -18,7 +18,7 @@ env:
 
 jobs:
   build-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,7 +32,8 @@ jobs:
           sudo apt-get install -y \
             cmake ninja-build libeigen3-dev libfftw3-dev \
             libgtest-dev libgmock-dev \
-            ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
+            ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev \
+            libspdlog-dev
 
       # ---------- Cache contrib (libtorch + onnxruntime + emotiefflib, ~750 MB) ----------
       - name: Cache contrib
@@ -51,18 +52,6 @@ jobs:
       - name: Apply emotiefflib patch (cache hit only)
         if: steps.cache-contrib.outputs.cache-hit == 'true'
         run: git apply emotiefflib.patch
-
-      # spdlog 1.9.2 (default on Ubuntu 22.04) lacks format_string_t.
-      # Install 1.12.0 from source to match the local dev env (Ubuntu 24.04).
-      - name: Install spdlog 1.12.0
-        run: |
-          wget -q https://github.com/gabime/spdlog/archive/refs/tags/v1.12.0.tar.gz
-          tar xzf v1.12.0.tar.gz
-          cmake -S spdlog-1.12.0 -B spdlog-build \
-            -DSPDLOG_FMT_EXTERNAL=OFF -DSPDLOG_BUILD_SHARED=ON
-          sudo cmake --build spdlog-build --target install -j"$(nproc)"
-          sudo ldconfig
-          rm -rf spdlog-1.12.0 spdlog-build v1.12.0.tar.gz
 
       # ---------- Config ----------
       - name: Prepare config
@@ -101,7 +90,7 @@ jobs:
     needs: build-test
     if: |
       github.event_name != 'pull_request'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
