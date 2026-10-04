@@ -52,6 +52,18 @@ jobs:
         if: steps.cache-contrib.outputs.cache-hit == 'true'
         run: git apply emotiefflib.patch
 
+      # spdlog 1.9.2 (default on Ubuntu 22.04) lacks format_string_t.
+      # Install 1.12.0 from source to match the local dev env (Ubuntu 24.04).
+      - name: Install spdlog 1.12.0
+        run: |
+          wget -q https://github.com/gabime/spdlog/archive/refs/tags/v1.12.0.tar.gz
+          tar xzf v1.12.0.tar.gz
+          cmake -S spdlog-1.12.0 -B spdlog-build \
+            -DSPDLOG_FMT_EXTERNAL=OFF -DSPDLOG_BUILD_SHARED=ON
+          sudo cmake --build spdlog-build --target install -j"$(nproc)"
+          sudo ldconfig
+          rm -rf spdlog-1.12.0 spdlog-build v1.12.0.tar.gz
+
       # ---------- Config ----------
       - name: Prepare config
         run: cp config_template.yaml config.yaml
