@@ -77,4 +77,15 @@ export const apiClient = {
   async closeFocusSession(sessionId) {
     return this.request(`/focus/session/${sessionId}/close`, { method: 'POST', body: '{}' });
   },
+
+  // ---- Focus AI task breakdown (EMO-19) ----
+  // Only the task text and the block duration are sent to the model; camera
+  // frames never leave the Razuma core. Throws on error so the caller can
+  // fall back to the local templates.
+  async breakdownFocusTask(text, duration = '', lang = 'ru') {
+    return this.request('/focus/breakdown', {
+      method: 'POST',
+      body: JSON.stringify({ text, duration, lang }),
+    });
+  },
 };
