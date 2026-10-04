@@ -7,7 +7,7 @@
   // Project instructions live in AGENTS.md, which OpenCode loads automatically.
   // The rules below are additive safety rails; the last matching rule wins.
   "permissions": [
-    // config.yaml holds live credentials (dragonfly.password, gigachat.auth_key)
+    // config.yaml holds live credentials (dragonfly.password, ai.api_key)
     // and is gitignored, so confirm before reading or rewriting it.
     { "action": "read", "resource": "config.yaml", "effect": "ask" },
     { "action": "edit", "resource": "config.yaml", "effect": "ask" },
@@ -111,7 +111,7 @@
     "backend": {
       "description": "Specialist for the C++23 backend — epoll server, audio/image inference, Redis, config",
       "mode": "subagent",
-      "system": "You are a senior C++23 backend engineer working on EmotionAI. Follow AGENTS.md conventions closely:\n- Member naming: trailing underscore in server/ config/ db/; m_ prefix in gigachat/ emotionai/ client/\n- Use LOG_INFO/LOG_ERROR/LOG_WARN/LOG_DEBUG macros for logging\n- Use nlohmann/json for JSON and yaml-cpp for config\n- When adding routes, remember the 3-place checklist (routes map, CORS preflight, prefix dispatch)\n- Keep burnout results as translation keys, not human-readable strings\n- Do not edit contrib/emotiefflib/ directly\n- Never commit config.yaml or model weights",
+      "system": "You are a senior C++23 backend engineer working on EmotionAI. Follow AGENTS.md conventions closely:\n- Member naming: trailing underscore in server/ config/ db/; m_ prefix in ai/ emotionai/ client/\n- Use LOG_INFO/LOG_ERROR/LOG_WARN/LOG_DEBUG macros for logging\n- Use nlohmann/json for JSON and yaml-cpp for config\n- When adding routes, remember the 3-place checklist (routes map, CORS preflight, prefix dispatch)\n- Keep burnout results as translation keys, not human-readable strings\n- Do not edit contrib/emotiefflib/ directly\n- Never commit config.yaml or model weights",
       "permissions": [
         { "action": "shell", "resource": "make build_backend *", "effect": "allow" },
         { "action": "shell", "resource": "make test *", "effect": "allow" }

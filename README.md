@@ -34,8 +34,8 @@ Python at runtime. Python is used only for model training and for exporting mode
 - **Horizontal scaling** — stateless server instances behind nginx, coordinated through a shared
   Dragonfly cluster and distributed task manager.
 - **Observability** — Prometheus metrics endpoint with provisioned Grafana dashboards.
-- **Optional GigaChat enrichment** — LLM-generated commentary on detected emotions, gated behind a
-  confidence threshold.
+- **AI task breakdown** — the Razuma Focus tab splits a task into steps via an OpenAI-compatible
+  model. Only the task text and block duration are sent; camera frames stay in the Razuma core.
 - **React frontend** — Vite 5 SPA served by the same binary (SPA fallback), multilingual (RU/EN),
   landing page with anchored sections, detector workspace, contact page, cookie consent, charts.
 
@@ -85,7 +85,7 @@ src/
 ├── cluster/     ClusterManager, DistributedTaskManager
 ├── storage/     FileStorage interface + Local / NFS / S3 backends
 ├── metrics/     Prometheus collector and middleware
-├── gigachat/    optional LLM client
+├── ai/          OpenAI-compatible model client (Focus task breakdown)
 ├── config/      typed config loaded from YAML
 ├── logging/     spdlog wrapper
 ├── client/      HTTP client for tests and benchmarks
@@ -192,7 +192,7 @@ Key sections (see `config_template.yaml` for full annotated defaults):
 | `mtcnn`             | min face size, post-processing, keep-all, device                |
 | `model`             | backend (`torch`/`onnx`), emotion model, audio model, det. path |
 | `cluster`           | enable distributed coordination                                 |
-| `gigachat`          | optional LLM enrichment, auth key, min confidence               |
+| `ai`                | OpenAI-compatible provider for task breakdown (base_url, model, api_key) |
 | `external_influence`| all weights/boundaries of the scam-signal analyzer (pilot)      |
 
 Unit, integration and e2e tests use separate configs in `tests/configs/` on ports 8081–8083 and

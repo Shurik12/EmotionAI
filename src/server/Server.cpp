@@ -16,6 +16,7 @@
 #include <common/uuid.h>
 #include <db/TaskManager.h>
 #include <emotionai/FileProcessor.h>
+#include <ai/AIClient.h>
 #include <focus/FocusSessionManager.h>
 #include <metrics/MetricsCollector.h>
 #include <metrics/MetricsMiddleware.h>
@@ -137,25 +138,28 @@ void Server::initializeComponents()
         file_processor_ = std::make_unique<FileProcessor>(dragonfly_manager_, file_storage_);
         LOG_INFO("FileProcessor initialized successfully with {} storage", file_storage_->getStorageType());
 
-        if (config.gigachat().enabled && !config.gigachat().auth_key.empty())
+        // AI client (OpenAI-compatible) for the Focus task breakdown. Only the
+        // task text and block duration are sent — never camera frames.
+        if (config.ai().enabled && !config.ai().api_key.empty())
         {
-            LOG_INFO("Initializing GigaChat client...");
+            LOG_INFO("Initializing AI client...");
 
-            emotionai::gigachat::GigaChatConfig gigaConfig;
-            gigaConfig.enabled = true;
-            gigaConfig.authKey = config.gigachat().auth_key;
-            gigaConfig.model = config.gigachat().model;
-            gigaConfig.apiUrl = config.gigachat().api_url;
-            gigaConfig.authUrl = config.gigachat().auth_url;
-            gigaConfig.verifySsl = config.gigachat().verify_ssl;
+            emotionai::ai::AIConfig aiConfig;
+            aiConfig.enabled = true;
+            aiConfig.baseUrl = config.ai().base_url;
+            aiConfig.model = config.ai().model;
+            aiConfig.apiKey = config.ai().api_key;
+            aiConfig.verifySsl = config.ai().verify_ssl;
+            aiConfig.timeoutSeconds = config.ai().timeout_seconds;
 
-            auto gigachat_client = std::make_unique<emotionai::gigachat::GigaChatClient>(gigaConfig);
-            file_processor_->setGigaChatClient(std::move(gigachat_client));
+            ai_client_ = std::make_unique<emotionai::ai::AIClient>(aiConfig);
 
-            LOG_INFO("GigaChat client initialized successfully");
+            LOG_INFO("AI client initialized: model={}", aiConfig.model);
         }
-
-        LOG_INFO("FileProcessor initialized successfully");
+        else
+        {
+            LOG_INFO("AI client disabled or missing api_key (ai.enabled={})", config.ai().enabled);
+        }
     }
     catch (const std::exception &e)
     {
@@ -332,7 +336,9 @@ void Server::setupRoutes()
         {"/api/external-influence/analyze", [this](auto &&ctx, auto &&body)
          { handleExternalInfluenceAnalyze(ctx, body); }},
         {"/api/focus/session", [this](auto &&ctx, auto &&body)
-         { handleFocusSessionCreate(ctx, body); }}
+         { handleFocusSessionCreate(ctx, body); }},
+        {"/api/focus/breakdown", [this](auto &&ctx, auto &&body)
+         { handleFocusBreakdown(ctx, body); }}
     };
 
     // GET routes
@@ -357,7 +363,8 @@ void Server::setupRoutes()
     for (const auto &route : {"/api/upload", "/api/upload_burnout",
                               "/api/submit_application", "/api/progress", "/api/results", 
                               "/api/health", "/api/burnout/analyze", "/api/burnout/baseline", "/static",
-                              "/api/upload_external_influence", "/api/external-influence/analyze"})
+                              "/api/upload_external_influence", "/api/external-influence/analyze",
+                              "/api/focus/session", "/api/focus/breakdown"})
     {
         options_routes_[route] = [this](auto &&ctx)
         { handleOptions(ctx); };
@@ -731,7 +738,7 @@ void Server::processRequest(const std::shared_ptr<ClientContext> &context)
 void Server::sendHttpResponse(int client_fd, int status_code, const std::string &content_type, const std::string &body)
 {
     static const std::map<int, std::string> STATUS_TEXTS = {
-        {200, "OK"}, {201, "Created"}, {202, "Accepted"}, {400, "Bad Request"}, {404, "Not Found"}, {405, "Method Not Allowed"}, {500, "Internal Server Error"}};
+        {200, "OK"}, {201, "Created"}, {202, "Accepted"}, {400, "Bad Request"}, {404, "Not Found"}, {405, "Method Not Allowed"}, {500, "Internal Server Error"}, {502, "Bad Gateway"}, {503, "Service Unavailable"}};
 
     std::string status_text = STATUS_TEXTS.count(status_code) ? STATUS_TEXTS.at(status_code) : "Unknown";
 
@@ -1545,6 +1552,57 @@ void Server::handleFocusSessionGet(const std::shared_ptr<ClientContext> &context
     catch (const std::exception &e)
     {
         LOG_ERROR("Exception in focus session get: {}", e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
+// Focus task breakdown (EMO-19). The AI receives only the task text and the
+// block duration; camera frames never leave the Razuma core. Called
+// synchronously: the model is a fast flash variant, so the request is short.
+void Server::handleFocusBreakdown(const std::shared_ptr<ClientContext> &context, const std::string &body)
+{
+    try
+    {
+        if (!ai_client_ || !ai_client_->isEnabled())
+        {
+            sendErrorResponse(context->fd, 503, "AI breakdown is not configured");
+            return;
+        }
+
+        nlohmann::json request;
+        try
+        {
+            request = nlohmann::json::parse(body);
+        }
+        catch (const nlohmann::json::exception &)
+        {
+            sendErrorResponse(context->fd, 400, "Invalid JSON");
+            return;
+        }
+
+        const std::string text = request.value("text", "");
+        const std::string duration = request.value("duration", "");
+        const std::string lang = request.value("lang", "ru");
+
+        if (text.empty())
+        {
+            sendErrorResponse(context->fd, 400, "text is required");
+            return;
+        }
+
+        auto result = ai_client_->breakdownTask(text, duration, lang);
+        if (result.is_null())
+        {
+            // The client falls back to its local templates on 502.
+            sendErrorResponse(context->fd, 502, "AI breakdown unavailable");
+            return;
+        }
+
+        sendHttpResponse(context->fd, 200, "application/json", result.dump());
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Exception in focus breakdown: {}", e.what());
         sendErrorResponse(context->fd, 500, "Internal server error");
     }
 }

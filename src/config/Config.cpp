@@ -164,18 +164,15 @@ bool Config::loadFromFile(const std::string &config_path)
             new_data.storage.s3_use_ssl = storage["s3_use_ssl"].as<bool>(new_data.storage.s3_use_ssl);
         }
 
-        if (root["gigachat"])
+        if (root["ai"])
         {
-            const auto &gigachat = root["gigachat"];
-            new_data.gigachat.enabled = gigachat["enabled"].as<bool>(new_data.gigachat.enabled);
-            new_data.gigachat.auth_key = gigachat["auth_key"].as<std::string>(new_data.gigachat.auth_key);
-            new_data.gigachat.model = gigachat["model"].as<std::string>(new_data.gigachat.model);
-            new_data.gigachat.api_url = gigachat["api_url"].as<std::string>(new_data.gigachat.api_url);
-            new_data.gigachat.auth_url = gigachat["auth_url"].as<std::string>(new_data.gigachat.auth_url);
-            new_data.gigachat.verify_ssl = gigachat["verify_ssl"].as<bool>(new_data.gigachat.verify_ssl);
-            new_data.gigachat.min_confidence = gigachat["min_confidence"].as<float>(new_data.gigachat.min_confidence);
-            if (gigachat["prompt_template"])
-                new_data.gigachat.prompt_template = gigachat["prompt_template"].as<std::string>();
+            const auto &ai = root["ai"];
+            new_data.ai.enabled = ai["enabled"].as<bool>(new_data.ai.enabled);
+            new_data.ai.base_url = ai["base_url"].as<std::string>(new_data.ai.base_url);
+            new_data.ai.model = ai["model"].as<std::string>(new_data.ai.model);
+            new_data.ai.api_key = ai["api_key"].as<std::string>(new_data.ai.api_key);
+            new_data.ai.verify_ssl = ai["verify_ssl"].as<bool>(new_data.ai.verify_ssl);
+            new_data.ai.timeout_seconds = ai["timeout_seconds"].as<long>(new_data.ai.timeout_seconds);
         }
 
         if (root["external_influence"])
@@ -329,12 +326,12 @@ bool Config::loadFromFile(const std::string &config_path)
             spdlog::info("  S3 Use SSL: {}", data_.storage.s3_use_ssl);
         }
 
-        spdlog::info("GigaChat configuration:");
-        spdlog::info("  Enabled: {}", new_data.gigachat.enabled);
-        if (new_data.gigachat.enabled) 
+        spdlog::info("AI configuration:");
+        spdlog::info("  Enabled: {}", new_data.ai.enabled);
+        if (new_data.ai.enabled)
         {
-            spdlog::info("  Model: {}", new_data.gigachat.model);
-            spdlog::info("  Min Confidence: {}", new_data.gigachat.min_confidence);
+            spdlog::info("  Base URL: {}", new_data.ai.base_url);
+            spdlog::info("  Model: {}", new_data.ai.model);
         }
 
         return true;

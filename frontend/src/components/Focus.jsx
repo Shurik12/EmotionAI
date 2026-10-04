@@ -1,21 +1,27 @@
 import React, { useCallback, useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 import { breakdownTask } from '../utils/taskBreakdown';
+import { apiClient } from '../api/client';
 import { FocusSession } from './FocusSession';
 import { FocusCamera } from './FocusCamera';
 
-const makeSteps = (keys) =>
+const makeKeySteps = (keys) =>
   keys.map((key, index) => ({ id: `step-${Date.now()}-${index}`, key }));
+
+const makeTextSteps = (texts) =>
+  texts.map((text, index) => ({ id: `step-${Date.now()}-${index}`, text }));
 
 const PRESET_KEYS = ['focus.presets.presentation', 'focus.presets.letter', 'focus.presets.study'];
 
 export const Focus = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState('movement');
   const [task, setTask] = useState('');
   const [plan, setPlan] = useState([]);
   const [timeLimit, setTimeLimit] = useState(false);
   const [numaNearby, setNumaNearby] = useState(true);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planError, setPlanError] = useState('');
 
   // Session state shared by the timer and the camera offer card.
   const [stepIndex, setStepIndex] = useState(0);
@@ -30,10 +36,28 @@ export const Focus = () => {
     { id: 'how', label: t('focus.tabs.how') },
   ];
 
-  const generate = (text) => setPlan(makeSteps(breakdownTask(text)));
+  // Ask the AI model for the breakdown. On any failure fall back to the
+  // deterministic local templates so the page keeps working offline.
+  // Only the task text and the block duration are sent.
+  const generate = async (text) => {
+    setPlanLoading(true);
+    setPlanError('');
+    const duration = timeLimit ? t('focus.plan.blockDuration') : '';
+    try {
+      const data = await apiClient.breakdownFocusTask(text, duration, language);
+      const steps = Array.isArray(data?.steps) ? data.steps.filter(Boolean) : [];
+      if (!steps.length) throw new Error('empty breakdown');
+      setPlan(makeTextSteps(steps));
+    } catch (err) {
+      setPlan(makeKeySteps(breakdownTask(text)));
+      setPlanError(t('focus.ai.fallbackNotice'));
+    } finally {
+      setPlanLoading(false);
+    }
+  };
 
   const handleGenerate = () => {
-    if (!task.trim()) return;
+    if (!task.trim() || planLoading) return;
     generate(task);
   };
 
@@ -92,7 +116,7 @@ export const Focus = () => {
           {plan.map((step, index) => (
             <li key={step.id} className="focus-step">
               <span className="focus-step-index">{index + 1}</span>
-              <span className="focus-step-title">{t(step.key)}</span>
+              <span className="focus-step-title">{step.text ? step.text : t(step.key)}</span>
               <button
                 type="button"
                 className="focus-step-remove"
@@ -166,10 +190,16 @@ export const Focus = () => {
               />
 
               <div className="focus-actions">
-                <button type="button" className="focus-btn primary" onClick={handleGenerate}>
-                  {plan.length ? t('focus.movement.regenerate') : t('focus.movement.generate')}
+                <button type="button" className="focus-btn primary" onClick={handleGenerate} disabled={planLoading}>
+                  {planLoading
+                    ? t('focus.ai.generating')
+                    : plan.length
+                      ? t('focus.movement.regenerate')
+                      : t('focus.movement.generate')}
                 </button>
               </div>
+
+              {planError && <p className="focus-plan-note">{planError}</p>}
             </div>
 
             <div className="focus-card">

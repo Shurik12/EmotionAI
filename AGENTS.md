@@ -115,8 +115,18 @@ Missing step 2 or 3 fails silently as a 404 or a CORS error in the browser.
 
 The Focus camera uses an in-memory session (`src/focus/FocusSessionManager`) instead of one
 async task per frame: `POST /api/focus/session` creates it, `POST /api/focus/session/<id>/frame`
-scores a frame on the thread pool (no disk, no GigaChat), `GET /api/focus/session/<id>` returns
+scores a frame on the thread pool (no disk, no AI), `GET /api/focus/session/<id>` returns
 the accumulated observations, and `POST /api/focus/session/<id>/close` drops it.
+
+**Focus task breakdown is AI-backed (EMO-19).** `POST /api/focus/breakdown` takes
+`{text, duration, lang}` and returns `{steps: [...]}` from an OpenAI-compatible model
+(`src/ai/AIClient`, config section `ai:` — `base_url`, `model`, `api_key`, `verify_ssl`,
+`timeout_seconds`; default provider Multitool, model `deepseek-v4-flash`). The call is
+synchronous (inline in the epoll handler). **Privacy invariant:** only the task text and the
+block duration are sent to the model — never camera frames, emotions or personal data; a
+disabled/unavailable model returns 502/503 and the frontend falls back to the deterministic
+local templates in `frontend/src/utils/taskBreakdown.js`. The old GigaChat emotion analysis
+was removed entirely with EMO-19.
 
 **The emotion decision mirrors the supplied v6 spec** (`Razuma_Focus_Developer_v6_Emotion_Rules_*`,
 profile `emotion-pilot-v1`). The backend is only an adapter: `FocusSessionManager::classify` maps
@@ -171,7 +181,7 @@ The codebase is **inconsistent** — match the file you are editing rather than 
 
 - **Header guards:** `#pragma once` dominant (25 of 35 headers); a few use `#ifndef` guards.
 - **Member naming:** mixed. Trailing underscore (`epoll_fd_`, `post_routes_`, `host_`) in `server/`,
-  `config/`, `db/`; `m_` prefix (`m_config`, `m_accessToken`) in `gigachat/`, `emotionai/`, `client/`.
+  `config/`, `db/`; `m_` prefix (`m_config`, `m_accessToken`) in `ai/`, `emotionai/`, `client/`.
 - **Namespaces:** `audio`, `emotionai`, `db` are used; `server/` and `config/` classes are largely
   in the global namespace. `namespace fs = std::filesystem` is the standard alias.
 - **Logging:** use the `LOG_INFO` / `LOG_ERROR` / `LOG_WARN` / `LOG_DEBUG` macros (415 uses).
@@ -193,6 +203,7 @@ The codebase is **inconsistent** — match the file you are editing rather than 
 | `src/server/` | epoll HTTP server, routing, `ThreadPool` |
 | `src/emotionai/` | `Image`, `Audio`, `FileProcessor` — inference orchestration |
 | `src/focus/` | `FocusSessionManager` — in-memory Focus camera session (emotional dynamics); nothing persisted |
+| `src/ai/` | `AIClient` — OpenAI-compatible model client for the Focus task breakdown |
 | `src/mtcnn/` | face detection (pnet/rnet/onet) |
 | `src/audio/` | `LibrosaFeatureExtractor` (FFTW3-based), `BurnoutAnalyzer` |
 | `src/db/` | `RedisManager`, `DragonflyManager`, `TaskManager` |
@@ -224,7 +235,7 @@ previously at the repo root has been removed — OpenCode does not read that for
 
 - **Never commit** `config.yaml`, `models/`, `.venv/`, `build/`, `uploads/`, `results/`, `logs/`,
   `data/`, `frontend/dist/` — all gitignored, and `config.yaml` holds credentials
-  (`dragonfly.password`, `gigachat.auth_key`).
+  (`dragonfly.password`, `ai.api_key`).
 - **`contrib/emotiefflib` submodule is always dirty after `make install` — this is expected, not a
   problem.** The two modified files (`emotieffcpplib/CMakeLists.txt`,
   `models/prepare_models_for_emotieffcpplib.py`) are exactly the content of the tracked

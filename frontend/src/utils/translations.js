@@ -58,6 +58,7 @@ export const translations = {
         empty: 'Опишите задачу — и появится план по шагам.',
         manual: 'Новый шаг',
         timeLimit: 'Ограничить время',
+        blockDuration: '25 минут',
         numaNearby: 'Нума рядом',
         prepare: 'Подготовить сессию',
         steps: {
@@ -100,6 +101,10 @@ export const translations = {
         progress: 'Шаг {current} из {total}',
         done: 'Все шаги сделаны',
         doneText: 'Отличная работа. Можно отдохнуть.',
+      },
+      ai: {
+        generating: 'Разбиваю задачу…',
+        fallbackNotice: 'AI-разбивка недоступна — показан типовой план. Попробуйте ещё раз.',
       },
       camera: {
         title: 'Камера и эмоциональная динамика',
@@ -848,6 +853,7 @@ export const translations = {
         empty: 'Describe a task and a step-by-step plan will appear.',
         manual: 'New step',
         timeLimit: 'Limit the time',
+        blockDuration: '25 minutes',
         numaNearby: 'Numa is nearby',
         prepare: 'Prepare the session',
         steps: {
@@ -890,6 +896,10 @@ export const translations = {
         progress: 'Step {current} of {total}',
         done: 'All steps are done',
         doneText: 'Great job. Take a rest.',
+      },
+      ai: {
+        generating: 'Breaking down the task…',
+        fallbackNotice: 'AI breakdown is unavailable — showing a standard plan. Please try again.',
       },
       camera: {
         title: 'Camera and emotional dynamics',

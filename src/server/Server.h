@@ -32,6 +32,14 @@ class ClusterManager;
 class DistributedTaskManager;
 #endif
 
+namespace emotionai
+{
+    namespace ai
+    {
+        class AIClient;
+    }
+}
+
 class Server
 {
 public:
@@ -77,6 +85,7 @@ private:
     std::shared_ptr<DragonflyManager> dragonfly_manager_;
     std::unique_ptr<FileProcessor> file_processor_;
     std::unique_ptr<ThreadPool> thread_pool_;
+    std::unique_ptr<emotionai::ai::AIClient> ai_client_;
 
     // Cluster components
     std::string instance_id_;
@@ -144,6 +153,10 @@ private:
                           const std::string &session_id);
     void handleFocusSessionClose(const std::shared_ptr<ClientContext> &context, const std::string &session_id);
     void handleFocusSessionGet(const std::shared_ptr<ClientContext> &context, const std::string &session_id);
+
+    // Focus task breakdown (EMO-19): AI splits the task text into steps.
+    // Only the task text and block duration are ever sent to the model.
+    void handleFocusBreakdown(const std::shared_ptr<ClientContext> &context, const std::string &body);
 
     // Common handlers
     std::string handleUploadCommon(const std::string &file_content, const std::string &filename);
