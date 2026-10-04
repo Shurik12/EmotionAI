@@ -40,13 +40,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: contrib
-          key: ${{ runner.os }}-contrib-${{ hashFiles('install_deps.sh') }}
+          key: ${{ runner.os }}-contrib-${{ hashFiles('install_deps') }}
 
       - name: Install contrib (libtorch, onnxruntime, submodules)
         if: steps.cache-contrib.outputs.cache-hit != 'true'
         run: make install
 
-      - name: Apply emotiefflib patch
+      # install_deps already applies emotiefflib.patch on miss.
+      # On cache hit the submodule is fresh from checkout → apply separately.
+      - name: Apply emotiefflib patch (cache hit only)
+        if: steps.cache-contrib.outputs.cache-hit == 'true'
         run: git apply emotiefflib.patch
 
       # ---------- Config ----------
