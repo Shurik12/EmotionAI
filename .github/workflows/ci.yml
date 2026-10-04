@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'VM host to deploy to'
+        required: false
+        default: '84.201.164.227'
+
+env:
+  VM_USER: alex
+  VM_DIR: /home/alex/emotionai
+
+jobs:
+  build-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # ---------- System dependencies ----------
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build libeigen3-dev libfftw3-dev \
+            libgtest-dev libgmock-dev \
+            ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
+
+      # ---------- Cache contrib (libtorch + onnxruntime + emotiefflib, ~750 MB) ----------
+      - name: Cache contrib
+        id: cache-contrib
+        uses: actions/cache@v4
+        with:
+          path: contrib
+          key: ${{ runner.os }}-contrib-${{ hashFiles('install_deps.sh') }}
+
+      - name: Install contrib (libtorch, onnxruntime, submodules)
+        if: steps.cache-contrib.outputs.cache-hit != 'true'
+        run: make install
+
+      - name: Apply emotiefflib patch
+        run: git apply emotiefflib.patch
+
+      # ---------- Config ----------
+      - name: Prepare config
+        run: cp config_template.yaml config.yaml
+
+      # ---------- Build backend ----------
+      - name: Build backend
+        run: make build_backend
+
+      # ---------- Build frontend ----------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build frontend
+        run: make build_frontend
+
+      # ---------- Unit tests (no services needed) ----------
+      - name: Run unit tests
+        run: make test
+
+      # ---------- Upload deploy artifacts (only on main) ----------
+      - name: Upload artifacts
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: emotionai-${{ github.sha }}
+          path: |
+            build/emotionai
+            frontend/dist/
+          retention-days: 7
+
+  # ---------- Deploy to VM (push to main or manual trigger) ----------
+  deploy:
+    needs: build-test
+    if: |
+      github.event_name != 'pull_request'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: emotionai-${{ github.sha }}
+          path: deploy
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VM_SSH_KEY }}
+
+      - name: Add VM to known hosts
+        run: |
+          HOST="${{ secrets.VM_HOST || github.event.inputs.target || '84.201.164.227' }}"
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+          echo "VM_HOST=$HOST" >> $GITHUB_ENV
+
+      - name: Stop service on VM
+        run: |
+          ssh "${{ env.VM_USER }}@${{ env.VM_HOST }}" "sudo service emotion-ai stop"
+
+      - name: Deploy binary
+        run: |
+          scp deploy/build/emotionai "${{ env.VM_USER }}@${{ env.VM_HOST }}:${{ env.VM_DIR }}/emotionai"
+
+      - name: Deploy frontend
+        run: |
+          ssh "${{ env.VM_USER }}@${{ env.VM_HOST }}" "mkdir -p ${{ env.VM_DIR }}/frontend"
+          scp -r deploy/frontend/dist/* "${{ env.VM_USER }}@${{ env.VM_HOST }}:${{ env.VM_DIR }}/frontend/"
+
+      - name: Start service on VM
+        run: |
+          ssh "${{ env.VM_USER }}@${{ env.VM_HOST }}" "sudo service emotion-ai start"
