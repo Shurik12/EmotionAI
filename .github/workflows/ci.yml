@@ -26,14 +26,20 @@ jobs:
           submodules: recursive
 
       # ---------- System dependencies ----------
+      # Must be complete: on a contrib cache hit we skip `make install`, so the
+      # system libs are NOT installed by install_deps and have to be here.
       - name: Install system packages
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake ninja-build libeigen3-dev libfftw3-dev \
+            build-essential cmake ninja-build pkg-config \
+            libeigen3-dev libfftw3-dev \
             libgtest-dev libgmock-dev \
             ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev \
-            libspdlog-dev
+            libopencv-dev libyaml-cpp-dev libspdlog-dev libfmt-dev \
+            nlohmann-json3-dev libcurl4-openssl-dev libcurlpp-dev libssl-dev \
+            zlib1g-dev libpugixml-dev libhiredis-dev uuid-dev libmsgsl-dev \
+            libbrotli-dev libbenchmark-dev
 
       # ---------- Cache contrib (libtorch + onnxruntime + emotiefflib, ~750 MB) ----------
       - name: Cache contrib
