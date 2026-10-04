@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 import { breakdownTask } from '../utils/taskBreakdown';
 import { FocusSession } from './FocusSession';
@@ -16,6 +16,13 @@ export const Focus = () => {
   const [plan, setPlan] = useState([]);
   const [timeLimit, setTimeLimit] = useState(false);
   const [numaNearby, setNumaNearby] = useState(true);
+
+  // Session state shared by the timer and the camera offer card.
+  const [stepIndex, setStepIndex] = useState(0);
+  const [sessionRunning, setSessionRunning] = useState(false);
+  const [completedSteps, setCompletedSteps] = useState([]);
+  const [highlightStep, setHighlightStep] = useState(null);
+  const [planNote, setPlanNote] = useState('');
 
   const tabs = [
     { id: 'movement', label: t('focus.tabs.movement') },
@@ -45,6 +52,31 @@ export const Focus = () => {
   const handlePrepare = () => {
     if (plan.length) setActiveTab('session');
   };
+
+  const currentStep = plan[Math.min(stepIndex, Math.max(plan.length - 1, 0))];
+  const hasStep = plan.length > 0 && completedSteps.length < plan.length;
+
+  const scrollToStep = useCallback((id) => {
+    if (!id) return;
+    const el = document.getElementById(`focus-step-${id}`);
+    if (el) {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    }
+  }, []);
+
+  const handlePoint = useCallback(() => {
+    const id = currentStep?.id;
+    scrollToStep(id);
+    setHighlightStep(id);
+    window.setTimeout(() => setHighlightStep(null), 2400);
+  }, [currentStep, scrollToStep]);
+
+  const handleSmaller = useCallback(() => {
+    handlePoint();
+    setPlanNote(t('focus.emotion.smallerHint'));
+    window.setTimeout(() => setPlanNote(''), 6000);
+  }, [handlePoint, t]);
 
   const renderPlan = () => (
     <div className="focus-plan">
@@ -181,11 +213,30 @@ export const Focus = () => {
             <div className="focus-card">
               <h2>{t('focus.session.title')}</h2>
               <p>{t('focus.session.text')}</p>
-              <FocusSession plan={plan} />
+              {planNote && <p className="focus-plan-note">{planNote}</p>}
+              <FocusSession
+                plan={plan}
+                index={stepIndex}
+                onIndexChange={setStepIndex}
+                running={sessionRunning}
+                onRunningChange={setSessionRunning}
+                completed={completedSteps}
+                onCompletedChange={setCompletedSteps}
+                highlightId={highlightStep}
+              />
             </div>
 
             <div className="focus-card">
-              <FocusCamera numaNearby={numaNearby} />
+              <FocusCamera
+                numaNearby={numaNearby}
+                stepId={hasStep ? currentStep?.id ?? null : null}
+                hasStep={hasStep}
+                running={sessionRunning}
+                onPoint={handlePoint}
+                onSmaller={handleSmaller}
+                onPause={() => setSessionRunning(false)}
+                onResume={() => setSessionRunning(true)}
+              />
             </div>
           </>
         )}

@@ -120,8 +120,8 @@ export const translations = {
         autoHint: 'Пока камера включена, кадр уходит в ядро с выбранной частотой.',
         frequency: 'Частота замеров',
         seconds: 'каждые {n} с',
-        dynamic: 'Эмоциональная активация',
-        dynamicCount: 'Эмоциональная активация · замеров: {count}',
+        dynamic: 'Эмоциональная динамика',
+        dynamicCount: 'Эмоциональная динамика · ответов: {count}',
         dynamicEmpty: 'Проверьте кадр — и здесь появится динамика.',
         engineNote: 'Кадр уходит в существующее ядро Razuma: анализ эмоциональных показателей и их динамики.',
         previewAria: 'Предпросмотр фронтальной камеры',
@@ -136,22 +136,41 @@ export const translations = {
         sessionError: 'Не удалось открыть сессию анализа.',
         error: 'Не удалось проанализировать кадр. Попробуйте ещё раз.',
       },
-      reaction: {
+      emotion: {
         numa: 'Нума',
         core: 'Ответ ядра Razuma',
-        idle: 'Проверьте кадр — я подскажу следующий шаг. Это приглашение к разговору, а не оценка.',
-        noSignal: {
-          title: 'В этом кадре не хватает сигнала',
-          body: 'Если лицо вне кадра или слишком темно, вывод пропускается. Можно продолжить по собственному ощущению.',
+        offersLabel: 'Мягкие предложения',
+        offersHint: 'По устойчивому сочетанию эмоций. Включаете только вы; помощь по запросу работает всегда.',
+        baselineTitle: 'Исходный период',
+        baselineCollecting: 'Собираю ваш обычный уровень: валидных кадров — {valid}, {seconds} с.',
+        baselineReady: 'Исходный уровень можно подтвердить — он станет личным ориентиром этой сессии.',
+        baselineConfirm: 'Подтвердить исходный период',
+        baselineConfirmed: 'Исходный период подтверждён. Дальше сравниваю с ним.',
+        noSignal: 'Пока не хватает валидных кадров. Смотрите в камеру при обычном свете.',
+        idle: 'Наблюдаю динамику. Это приглашение к разговору, а не оценка концентрации.',
+        quiet: 'Устойчивого сочетания нет — Нума сохраняет тишину.',
+        patterns: {
+          'fear-high': {
+            title: 'Нужна небольшая передышка?',
+            body: 'Можно взять паузу, уменьшить шаг или спокойно продолжить.',
+          },
+          'friction-high': {
+            title: 'Сделаем этот шаг поменьше?',
+            body: 'Можно оставить только самое первое действие. Рабочий вариант подойдёт.',
+          },
+          'sadness-low': {
+            title: 'Показать одно ближайшее действие?',
+            body: 'Можно продолжить с небольшого шага, взять паузу или оставить всё как есть.',
+          },
         },
-        steady: {
-          title: 'Сигнал остаётся ровным',
-          body: 'Показатели меняются мало. Это не доказывает концентрацию: следующий шаг по-прежнему выбираете вы.',
+        action: {
+          point: 'Показать действие',
+          smaller: 'Упростить шаг',
+          pause: 'Сделать паузу',
+          continue: 'Продолжить',
         },
-        rising: {
-          title: 'Может быть, шаг сейчас слишком большой?',
-          body: 'Эмоциональная активация выросла. Это повод уточнить ваше ощущение, а не вывод о потере внимания.',
-        },
+        smallerHint: 'Оставьте только первое действие этого шага.',
+        note: 'Показатели приведены адаптером к единой шкале (валентность −1…1; активация, интенсивность и категории 0…1) относительно вашего подтверждённого исходного периода. Формулы — гипотеза для проверки, а не валидированный детектор внимания.',
       },
       how: {
         title: 'Как это работает',
@@ -891,8 +910,8 @@ export const translations = {
         autoHint: 'While the camera is on, a frame goes to the core at the chosen rate.',
         frequency: 'Measurement rate',
         seconds: 'every {n} s',
-        dynamic: 'Emotional activation',
-        dynamicCount: 'Emotional activation · samples: {count}',
+        dynamic: 'Emotional dynamics',
+        dynamicCount: 'Emotional dynamics · answers: {count}',
         dynamicEmpty: 'Check a frame and the dynamics will appear here.',
         engineNote: 'The frame goes to the existing Razuma core: analysis of emotional indicators and their dynamics.',
         previewAria: 'Front camera preview',
@@ -907,22 +926,41 @@ export const translations = {
         sessionError: 'Could not open the analysis session.',
         error: 'Could not analyze the frame. Please try again.',
       },
-      reaction: {
+      emotion: {
         numa: 'Numa',
         core: 'Razuma core response',
-        idle: 'Check a frame and I will suggest the next step. It is an invitation to talk, not a judgement.',
-        noSignal: {
-          title: 'There is not enough signal in this frame',
-          body: 'If the face is out of frame or too dark, the reading is skipped. You can continue by your own feeling.',
+        offersLabel: 'Gentle offers',
+        offersHint: 'Based on a sustained emotion combination. Only you enable it; help on request always works.',
+        baselineTitle: 'Baseline period',
+        baselineCollecting: 'Collecting your usual level: {valid} valid frames, {seconds} s.',
+        baselineReady: 'The baseline can be confirmed — it becomes this session’s personal reference.',
+        baselineConfirm: 'Confirm the baseline period',
+        baselineConfirmed: 'Baseline confirmed. I compare against it from here.',
+        noSignal: 'Not enough valid frames yet. Look at the camera in ordinary light.',
+        idle: 'Watching the dynamics. This is an invitation to talk, not a focus score.',
+        quiet: 'No sustained combination — Numa stays silent.',
+        patterns: {
+          'fear-high': {
+            title: 'Need a small breather?',
+            body: 'You can take a pause, make the step smaller, or calmly continue.',
+          },
+          'friction-high': {
+            title: 'Shall we make this step smaller?',
+            body: 'You can keep only the very first action. A workable version is fine.',
+          },
+          'sadness-low': {
+            title: 'Show one nearest action?',
+            body: 'You can continue with a small step, take a pause, or leave everything as it is.',
+          },
         },
-        steady: {
-          title: 'The signal stays steady',
-          body: 'Indicators change little. This does not prove concentration: you still choose the next step.',
+        action: {
+          point: 'Show the action',
+          smaller: 'Simplify the step',
+          pause: 'Take a pause',
+          continue: 'Continue',
         },
-        rising: {
-          title: 'Maybe the step is too big right now?',
-          body: 'Emotional activation went up. This is a reason to check how you feel, not a verdict about losing focus.',
-        },
+        smallerHint: 'Keep only the first action of this step.',
+        note: 'The adapter brings the readings to one scale (valence −1…1; activation, intensity and categories 0…1) relative to your confirmed baseline period. The formulas are a hypothesis for testing, not a validated attention detector.',
       },
       how: {
         title: 'How it works',
