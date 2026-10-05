@@ -81,6 +81,19 @@ void Server::loadConfiguration()
     static_files_root_ = config.paths().frontend;
     upload_folder_ = config.paths().uploads;
     results_folder_ = config.paths().results;
+
+    // Resolve the built SPA root. Two layouts are in use:
+    //   * local run: `paths.frontend` is the Vite source dir (./frontend) and
+    //     the built bundle lives in ./frontend/dist;
+    //   * Docker: `./frontend` is itself the mounted `frontend/dist`.
+    // Prefer the `dist/` subdirectory when present, otherwise use the configured
+    // path as-is. Without this, a local run serves the dev index.html (which
+    // loads /src/index.jsx) and renders a blank page.
+    if (fs::exists(static_files_root_ / "dist" / "index.html"))
+    {
+        static_files_root_ /= "dist";
+    }
+    LOG_INFO("Static files root: {}", static_files_root_.string());
 }
 
 void Server::ensureDirectoriesExist()

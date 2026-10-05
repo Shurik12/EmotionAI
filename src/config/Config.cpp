@@ -297,6 +297,7 @@ bool Config::loadFromFile(const std::string &config_path)
         spdlog::info("Model configuration:");
         spdlog::info("  Backend: {}", data_.model.backend);
         spdlog::info("  Emotion Model: {}", data_.model.emotion_model_path);
+        spdlog::info("  Audio Model: {}", data_.model.audio_model_path);
         spdlog::info("  Face Detection Models: {}", data_.model.face_detection_models_path);
 
         spdlog::info("Cluster configuration:");
@@ -327,11 +328,11 @@ bool Config::loadFromFile(const std::string &config_path)
         }
 
         spdlog::info("AI configuration:");
-        spdlog::info("  Enabled: {}", new_data.ai.enabled);
-        if (new_data.ai.enabled)
+        spdlog::info("  Enabled: {}", data_.ai.enabled);
+        if (data_.ai.enabled)
         {
-            spdlog::info("  Base URL: {}", new_data.ai.base_url);
-            spdlog::info("  Model: {}", new_data.ai.model);
+            spdlog::info("  Base URL: {}", data_.ai.base_url);
+            spdlog::info("  Model: {}", data_.ai.model);
         }
 
         return true;
