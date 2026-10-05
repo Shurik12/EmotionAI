@@ -169,7 +169,7 @@ export const Detector = () => {
 
           <img
             src="/static/demo.webp"
-            alt="RAZUMA"
+            alt="RÁZUMA"
             className="detector-visual"
           />
         </div>

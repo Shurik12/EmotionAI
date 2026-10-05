@@ -7,7 +7,9 @@ export const Footer = () => {
   return (
     <footer className="footer" id="about">
       <div className="footer__legal">
-        <div className="footer__copyright">{t('footer.copyright')}</div>
+        <div className="footer__copyright">
+          {t('footer.copyright')}
+        </div>
 
         <div className="footer__company">
           <strong>{t('contact.companyName')}</strong>
