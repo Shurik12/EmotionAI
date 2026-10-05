@@ -75,4 +75,5 @@ mtcnn:
 model:
   backend: "torch"
   emotion_model_path: "models/enet_b0_8_va_mtl.pt" # enet_b2_7.pt
+  audio_model_path: "models/audio_model.pt"
   face_detection_models_path: "models/"

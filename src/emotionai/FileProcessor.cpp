@@ -123,17 +123,21 @@ bool FileProcessor::load_audio_model(const std::string& model_path)
     };
 
     for (const auto& path : search_paths) {
-        if (fs::exists(path)) {
-            try {
-                LOG_INFO("Loading audio model: {} ({} bytes)", path, fs::file_size(path));
-                auto module = torch::jit::load(path);
-                audio_torch_model_ = std::make_unique<torch::jit::Module>(module);
-                audio_model_loaded_ = true;
-                LOG_INFO("Audio model loaded: {}", path);
-                return true;
-            } catch (const std::exception& e) {
-                LOG_WARN("Failed to load audio model from {}: {}", path, e.what());
-            }
+        // A configured path may be empty or point at a directory (e.g. if the
+        // key is missing from config.yaml the fallback becomes "./models/"),
+        // which torch::jit::load cannot read. Only try regular files.
+        if (path.empty() || !fs::is_regular_file(path)) {
+            continue;
+        }
+        try {
+            LOG_INFO("Loading audio model: {} ({} bytes)", path, fs::file_size(path));
+            auto module = torch::jit::load(path);
+            audio_torch_model_ = std::make_unique<torch::jit::Module>(module);
+            audio_model_loaded_ = true;
+            LOG_INFO("Audio model loaded: {}", path);
+            return true;
+        } catch (const std::exception& e) {
+            LOG_WARN("Failed to load audio model from {}: {}", path, e.what());
         }
     }
     LOG_ERROR("Audio model not found in any location");
