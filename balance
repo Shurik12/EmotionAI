@@ -21,7 +21,7 @@ RESPONSE=$(curl -sf \
 echo "─────────── Balance ───────────"
 echo "$RESPONSE" | jq -r '
   "User:       \(.user_info.user_id)",
-  "Total spend across all keys: $\(.user_info.spend | tostring) "
+  "Total spend across all keys: \(.user_info.spend | tostring) ₽"
 ' | column -t -s":"
 
 echo ""
@@ -29,9 +29,9 @@ echo "── Your key: ──"
 echo "$RESPONSE" | jq -r '
   .keys[] | select(.key_name | endswith("g8ng")) |
   "Alias:       \(.key_alias // "—")",
-  "Spent:       $\(.spend | tostring)",
-  "Max Budget:  $\(.max_budget // "∞" | tostring)",
-  "Remaining:   $\( ( ((.max_budget // 0) - .spend) | tostring) )"
+  "Spent:       \(.spend | tostring) ₽",
+  "Max Budget:  \(.max_budget // "∞" | tostring) ₽",
+  "Remaining:   \( ( ((.max_budget // 0) - .spend) | tostring) ) ₽"
 ' | column -t -s":"
 
 echo ""
@@ -39,5 +39,5 @@ echo "── Top spenders (all keys) ──"
 echo "$RESPONSE" | jq -r '
   [.keys[] | select(.max_budget != null)]
   | sort_by(.spend) | reverse[:5][]
-  | "\(.key_alias // .key_name)  spent=$\(.spend | tostring)  budget=$\(.max_budget | tostring)"
+  | "\(.key_alias // .key_name)  spent=\(.spend | tostring) ₽  budget=\(.max_budget | tostring) ₽"
 ' | column -t

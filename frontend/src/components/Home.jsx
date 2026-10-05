@@ -191,8 +191,8 @@ export const Home = () => {
       <section className="landing-cta" id="demo">
         <div className="landing-container landing-cta-grid">
           <div className="landing-cta-identity">
-            <div className="landing-cta-logos" aria-label="RAZUMA — участник Сколково">
-              <img className="landing-cta-r" src="/static/razuma.svg" alt="RAZUMA" />
+            <div className="landing-cta-logos" aria-label="RÁZUMA — участник Сколково">
+              <span className="landing-cta-r" style={{color: '#062b50'}}>RÁZUMA</span>
               <span className="landing-logo-divider" aria-hidden="true" />
               <img className="landing-cta-sk" src="/static/skolkovo.webp" alt="Участник Сколково" />
             </div>

@@ -21,14 +21,20 @@
 .brand-lockup {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.brand-lockup:hover {
   text-decoration: none;
 }
 
 .brand-mark {
-  width: 34px;
-  height: 42px;
-  object-fit: contain;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
 }
 
 .brand-divider {
@@ -38,9 +44,10 @@
 }
 
 .brand-skolkovo {
-  width: 122px;
+  width: 100px;
   height: auto;
   object-fit: contain;
+  opacity: 0.9;
 }
 
 .mobile-menu-btn {
