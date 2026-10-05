@@ -54,13 +54,9 @@ export const Header = ({ language, setLanguage }) => {
         href="/" 
         className="brand-lockup" 
         onClick={handleLogoClick}
-        aria-label="RAZUMA — участник Сколково"
+        aria-label="RÁZUMA — участник Сколково"
       >
-        <img 
-          src="/static/razuma.svg" 
-          alt="" 
-          className="brand-mark"
-        />
+        <span className="brand-mark" style={{color: '#062b50'}}>RÁZUMA</span>
         <span className="brand-divider" aria-hidden="true" />
         <img 
           src="/static/skolkovo.webp" 

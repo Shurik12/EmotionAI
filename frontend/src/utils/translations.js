@@ -204,7 +204,7 @@ export const translations = {
       discussPilot: 'Обсудить пилот: info@razuma.tech',
       industriesLabel: 'Отрасли',
       analysis: {
-        title: 'RAZUMA анализирует не только то, что человек говорит',
+        title: 'RÁZUMA анализирует не только то, что человек говорит',
         cards: [
           {
             title: 'Видео',
@@ -303,12 +303,12 @@ export const translations = {
           },
           {
             title: 'Интеграция в ваши процессы',
-            text: 'RAZUMA дополняет существующие процессы и не заменяет решения специалистов.',
+            text: 'RÁZUMA дополняет существующие процессы и не заменяет решения специалистов.',
           },
         ],
       },
-      decision: 'RAZUMA помогает принимать решения,\nа не принимает их вместо заказчика.',
-      contactsLabel: 'Контакты RAZUMA',
+      decision: 'RÁZUMA помогает принимать решения,\nа не принимает их вместо заказчика.',
+      contactsLabel: 'Контакты RÁZUMA',
       security: {
         title: 'Безопасность данных',
         cards: [
@@ -325,7 +325,7 @@ export const translations = {
           {
             icon: '🛡',
             title: 'Обезличивание',
-            text: 'RAZUMA анализирует паттерны поведения, а не идентифицирует личность. Биометрические данные не сохраняются и не передаются третьим лицам.',
+            text: 'RÁZUMA анализирует паттерны поведения, а не идентифицирует личность. Биометрические данные не сохраняются и не передаются третьим лицам.',
           },
           {
             icon: '📋',
@@ -348,7 +348,7 @@ export const translations = {
         demoTitle: 'Попробуйте технологию\nв действии',
         demoText: 'Загрузите пример видео или аудио и получите пример анализа.',
         demoBtn: 'Попробуйте демо',
-        contactTitle: 'Обсудим, как RAZUMA\nможет работать в вашей компании',
+        contactTitle: 'Обсудим, как RÁZUMA\nможет работать в вашей компании',
         contactText: 'Расскажите о вашей задаче — и мы предложим оптимальный сценарий внедрения.',
         contactBtn: 'Обсудить пилот: info@razuma.tech',
       },
@@ -441,7 +441,7 @@ export const translations = {
     },
     detector: {
       heroTagline: 'ТЕХНОЛОГИИ. ЛЮДИ. РЕШЕНИЯ.',
-      heroTitle: 'Попробуйте демо RAZUMA',
+      heroTitle: 'Попробуйте демо RÁZUMA',
       heroLead: 'Оцените возможности нашей платформы и узнайте, как ИИ помогает видеть больше в эмоциях, поведении и реакции человека.',
       panelInstruction: 'Загрузите ваш файл аудио, видео или фото и выберите режим обработки.',
       benefits: {
@@ -767,7 +767,7 @@ export const translations = {
       },
     },
     footer: {
-      copyright: '© 2026 RAZUMA',
+      copyright: '© 2026 RÁZUMA',
     },
     cookies: {
       text: 'Мы используем файлы cookie для улучшения работы сайта.',
@@ -999,7 +999,7 @@ export const translations = {
       discussPilot: 'Discuss a pilot',
       industriesLabel: 'Industries',
       analysis: {
-        title: 'RAZUMA analyzes more than just what a person says',
+        title: 'RÁZUMA analyzes more than just what a person says',
         cards: [
           {
             title: 'Video',
@@ -1098,12 +1098,12 @@ export const translations = {
           },
           {
             title: 'Integration into your processes',
-            text: 'RAZUMA complements existing processes and does not replace specialists’ decisions.',
+            text: 'RÁZUMA complements existing processes and does not replace specialists’ decisions.',
           },
         ],
       },
-      decision: 'RAZUMA helps make decisions,\nrather than making them instead of the customer.',
-      contactsLabel: 'RAZUMA Contacts',
+      decision: 'RÁZUMA helps make decisions,\nrather than making them instead of the customer.',
+      contactsLabel: 'RÁZUMA Contacts',
       security: {
         title: 'Data Security',
         cards: [
@@ -1120,7 +1120,7 @@ export const translations = {
           {
             icon: '🛡',
             title: 'Anonymization',
-            text: 'RAZUMA analyzes behavior patterns, not identities. Biometric data is not stored or shared with third parties.',
+            text: 'RÁZUMA analyzes behavior patterns, not identities. Biometric data is not stored or shared with third parties.',
           },
           {
             icon: '📋',
@@ -1143,7 +1143,7 @@ export const translations = {
         demoTitle: 'Try the technology\nin action',
         demoText: 'Upload a sample video or audio and get a sample analysis.',
         demoBtn: 'Try the demo',
-        contactTitle: 'Let’s discuss how RAZUMA\ncan work in your company',
+        contactTitle: 'Let’s discuss how RÁZUMA\ncan work in your company',
         contactText: 'Tell us about your task — and we will suggest the optimal implementation scenario.',
         contactBtn: 'Discuss a pilot',
       },
@@ -1236,7 +1236,7 @@ export const translations = {
     },
     detector: {
       heroTagline: 'TECHNOLOGY. PEOPLE. SOLUTIONS.',
-      heroTitle: 'Try the RAZUMA demo',
+      heroTitle: 'Try the RÁZUMA demo',
       heroLead: 'Explore the capabilities of our platform and learn how AI helps see more in human emotions, behavior, and reactions.',
       panelInstruction: 'Upload your photo, audio, or video file and choose a processing mode.',
       benefits: {
@@ -1539,7 +1539,7 @@ export const translations = {
       },
     },
     footer: {
-      copyright: '© 2026 RAZUMA',
+      copyright: '© 2026 RÁZUMA',
     },
     cookies: {
       text: 'We use cookies to improve website functionality.',
