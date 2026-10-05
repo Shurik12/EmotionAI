@@ -1,7 +1,7 @@
 MODELS_DIR := contrib/emotiefflib/models
 
 .PHONY: help install python_env models configure build_backend build_frontend build benchmark test \
-        test_integration test_frontend test_frontend_watch up up-build down restart clean clean-data
+        test_integration test_frontend test_frontend_watch up up-build down restart clean clean-data balance
 
 help: ## List targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F'## ' \
@@ -57,6 +57,9 @@ down: ## Stop containers
 	docker compose down
 
 re-up: down up ## Restart containers
+
+balance: ## Check Multitool API balance
+	@./balance
 
 clean: ## Remove build output, .venv, node_modules, caches
 	rm -rf build frontend/dist frontend/node_modules .venv

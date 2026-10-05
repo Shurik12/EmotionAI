@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TOKEN_FILE="${HOME}/.secrets/multitool-key"
+API_URL="https://shared1.multitool.works:4000/user/info"
+
+if [ ! -f "$TOKEN_FILE" ]; then
+  echo "❌ Token not found at $TOKEN_FILE" >&2
+  exit 1
+fi
+
+TOKEN="$(cat "$TOKEN_FILE" | tr -d '[:space:]')"
+
+RESPONSE=$(curl -sf \
+  -H "Authorization: Bearer ${TOKEN}" \
+  "$API_URL" 2>/dev/null) || {
+  echo "❌ API request failed (check your token or network)" >&2
+  exit 1
+}
+
+echo "─────────── Balance ───────────"
+echo "$RESPONSE" | jq -r '
+  "User:       \(.user_info.user_id)",
+  "Total spend across all keys: $\(.user_info.spend | tostring) "
+' | column -t -s":"
+
+echo ""
+echo "── Your key: ──"
+echo "$RESPONSE" | jq -r '
+  .keys[] | select(.key_name | endswith("g8ng")) |
+  "Alias:       \(.key_alias // "—")",
+  "Spent:       $\(.spend | tostring)",
+  "Max Budget:  $\(.max_budget // "∞" | tostring)",
+  "Remaining:   $\( ( ((.max_budget // 0) - .spend) | tostring) )"
+' | column -t -s":"
+
+echo ""
+echo "── Top spenders (all keys) ──"
+echo "$RESPONSE" | jq -r '
+  [.keys[] | select(.max_budget != null)]
+  | sort_by(.spend) | reverse[:5][]
+  | "\(.key_alias // .key_name)  spent=$\(.spend | tostring)  budget=$\(.max_budget | tostring)"
+' | column -t
