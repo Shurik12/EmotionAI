@@ -27,6 +27,14 @@
   color: #8a9caf;
 }
 
+.footer__brand {
+  font-size: 26px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
 .footer__company {
   display: flex;
   flex-direction: column;

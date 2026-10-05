@@ -423,9 +423,11 @@ a.landing-btn:hover {
 }
 
 .landing-cta-r {
-  width: 70px;
-  height: 78px;
-  object-fit: contain;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
 }
 
 .landing-logo-divider {
@@ -435,8 +437,9 @@ a.landing-btn:hover {
 }
 
 .landing-cta-sk {
-  width: 170px;
+  width: 100px;
   height: auto;
+  opacity: 0.9;
 }
 
 .landing-cta-divider {
@@ -586,12 +589,12 @@ a.landing-btn:hover {
   }
 
   .landing-cta-r {
-    width: 55px;
-    height: 62px;
+    font-size: 28px;
   }
 
   .landing-cta-sk {
-    width: 140px;
+    width: 100px;
+    opacity: 0.9;
   }
 
   .landing-security-grid {
