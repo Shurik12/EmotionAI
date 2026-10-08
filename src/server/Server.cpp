@@ -147,8 +147,8 @@ void Server::initializeComponents()
         task_manager.set_dragonfly_manager(dragonfly_manager_);
         LOG_INFO("TaskManager initialized successfully");
 
-        // Create FileProcessor with storage
-        file_processor_ = std::make_unique<FileProcessor>(dragonfly_manager_, file_storage_);
+        // Create FileProcessor with storage and thread pool
+        file_processor_ = std::make_unique<FileProcessor>(dragonfly_manager_, file_storage_, thread_pool_.get());
         LOG_INFO("FileProcessor initialized successfully with {} storage", file_storage_->getStorageType());
 
         // AI client (OpenAI-compatible) for the Focus task breakdown. Only the

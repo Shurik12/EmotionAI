@@ -183,6 +183,7 @@ private:
 	struct VideoConfig
 	{
 		double frame_interval_seconds = 5.0; // extract one frame every N seconds
+		int pool_size = 4;                    // number of parallel model instances
 	};
 
 	struct ConfigData

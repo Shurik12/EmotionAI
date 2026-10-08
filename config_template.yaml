@@ -69,6 +69,7 @@ model:
 # Video processing: extract frames at a fixed time interval
 video:
   frame_interval_seconds: 5.0  # extract one frame every N seconds
+  pool_size: 4                 # parallel model instances for multi-frame processing
 
 # AI Configuration (OpenAI-compatible provider, used for the Razuma Focus
 # task breakdown). The client posts to {base_url}/chat/completions with

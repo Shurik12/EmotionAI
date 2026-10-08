@@ -16,11 +16,14 @@
 #include <audio/BurnoutModels.h>
 #include <audio/BurnoutAnalyzer.h>
 
+class ThreadPool;
+
 class FileProcessor
 {
 public:
     explicit FileProcessor(std::shared_ptr<DragonflyManager> dragonfly_manager,
-                           std::shared_ptr<FileStorage> file_storage);
+                           std::shared_ptr<FileStorage> file_storage,
+                           ThreadPool* thread_pool = nullptr);
     ~FileProcessor() = default;
 
     // Delete copy/move constructors
@@ -85,7 +88,9 @@ public:
     // ===========================================
 
     // Getters
-    EmotiEffLib::EmotiEffLibRecognizer* get_emotion_recognizer() const { return fer_.get(); }
+    EmotiEffLib::EmotiEffLibRecognizer* get_emotion_recognizer() const { 
+        return model_pool_.empty() ? nullptr : model_pool_[0].get(); 
+    }
     torch::jit::Module* get_audio_torch_model() { return audio_torch_model_.get(); }
     bool is_model_loaded() const { return model_loaded_; }
     bool is_audio_model_loaded() const { return audio_model_loaded_; }
@@ -97,11 +102,13 @@ private:
     // Dependencies
     std::shared_ptr<DragonflyManager> dragonfly_manager_;
     std::shared_ptr<FileStorage> file_storage_;
+    ThreadPool* thread_pool_ = nullptr;
 
     // Models
-    std::unique_ptr<EmotiEffLib::EmotiEffLibRecognizer> fer_;
+    std::vector<std::unique_ptr<EmotiEffLib::EmotiEffLibRecognizer>> model_pool_;
     std::unique_ptr<torch::jit::Module> audio_torch_model_;
-    std::mutex model_mutex_;
+    std::mutex audio_mutex_;   // protects audio_torch_model_ (used by external influence path)
+    std::atomic<size_t> model_pool_idx_{0};
     
     bool model_loaded_ = false;
     bool audio_model_loaded_ = false;
@@ -110,6 +117,9 @@ private:
     void initialize_models();
     bool load_image_model(const std::string& model_path, const std::string& backend);
     bool load_audio_model(const std::string& model_path);
+
+    // Acquire next model instance from pool (round-robin, thread-safe)
+    EmotiEffLib::EmotiEffLibRecognizer* acquire_model();
 
     // File type detection
     static bool is_audio_file(const std::string& filename);
@@ -120,7 +130,7 @@ private:
     nlohmann::json process_audio_file(const std::string& task_id, const std::string& filepath, const std::string& filename);
     nlohmann::json process_image_file(const std::string& task_id, const std::string& filepath, const std::string& filename);
     nlohmann::json process_video_file(const std::string& task_id, const std::string& filepath, const std::string& filename);
-    std::pair<cv::Mat, nlohmann::json> process_image(const cv::Mat& image);
+    std::pair<cv::Mat, nlohmann::json> process_image(const cv::Mat& image, EmotiEffLib::EmotiEffLibRecognizer* model = nullptr);
 
     // Frame processing helpers
     struct FrameResult {

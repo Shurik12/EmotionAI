@@ -2,6 +2,7 @@
 #include <chrono>
 #include <thread>
 #include <numeric>
+#include <atomic>
 
 #include <fmt/format.h>
 #include <nlohmann/json.hpp>
@@ -13,6 +14,7 @@
 #include <config/Config.h>
 #include <logging/Logger.h>
 #include <db/TaskManager.h>
+#include <server/ThreadPool.h>
 #include <audio/LibrosaFeatureExtractor.h>
 #include <audio/BurnoutAnalyzer.h>
 #include <audio/ExternalInfluenceAnalyzer.h>
@@ -39,9 +41,11 @@ namespace {
 // Construction
 //=============================================================================
 FileProcessor::FileProcessor(std::shared_ptr<DragonflyManager> dragonfly_manager,
-                             std::shared_ptr<FileStorage> file_storage)
+                             std::shared_ptr<FileStorage> file_storage,
+                             ThreadPool* thread_pool)
     : dragonfly_manager_(std::move(dragonfly_manager))
     , file_storage_(std::move(file_storage))
+    , thread_pool_(thread_pool)
 {
     try {
         initialize_models();
@@ -102,9 +106,16 @@ bool FileProcessor::load_image_model(const std::string& model_path, const std::s
     for (const auto& path : search_paths) {
         if (fs::exists(path)) {
             try {
-                fer_ = EmotiEffLib::EmotiEffLibRecognizer::createInstance(backend, path);
+                int pool_size = Config::instance().video().pool_size;
+                if (pool_size < 1) pool_size = 1;
+                
+                model_pool_.reserve(pool_size);
+                for (int i = 0; i < pool_size; ++i) {
+                    auto instance = EmotiEffLib::EmotiEffLibRecognizer::createInstance(backend, path);
+                    model_pool_.push_back(std::move(instance));
+                }
                 model_loaded_ = true;
-                LOG_INFO("Image emotion model loaded: {}", path);
+                LOG_INFO("Image emotion model loaded: {} (pool of {})", path, pool_size);
                 return true;
             } catch (const std::exception& e) {
                 LOG_WARN("Failed to load model from {}: {}", path, e.what());
@@ -667,7 +678,7 @@ nlohmann::json FileProcessor::process_external_influence(
         std::vector<nlohmann::json> emotions(fragments.size());
         if (n_full >= 2) {
             try {
-                std::lock_guard<std::mutex> lock(model_mutex_);
+                std::lock_guard<std::mutex> lock(audio_mutex_);
                 for (size_t start = 0; start < n_full; start += EI_INFERENCE_BATCH_SIZE) {
                     const size_t end = std::min(n_full, start + EI_INFERENCE_BATCH_SIZE);
                     std::vector<const AudioFragment*> batch_windows;
@@ -703,7 +714,7 @@ nlohmann::json FileProcessor::process_external_influence(
             nlohmann::json emotion = emotions[i];
             if (emotion.empty()) {
                 ++sequential_windows;
-                std::lock_guard<std::mutex> lock(model_mutex_);
+                std::lock_guard<std::mutex> lock(audio_mutex_);
                 Audio fragment_audio(fragment.samples, EI_MODEL_SAMPLE_RATE);
                 emotion = fragment_audio.process_audio(audio_torch_model_.get());
             }
@@ -894,32 +905,75 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
     LOG_INFO("Target frames to process: {} (interval={} frames)", 
              target_frames.size(), frame_interval);
 
-    // Seek to each target frame and process it
-    int processed_count = 0;
-    nlohmann::json results = nlohmann::json::array();
+    // Process frames with pipelining: read sequentially, infer in parallel via ThreadPool
+    struct AsyncResult {
+        int frame_number;
+        double timestamp;
+        std::string storage_path;
+        nlohmann::json result;
+    };
 
-    for (int target : target_frames) {
+    std::vector<AsyncResult> async_results(target_frames.size());
+    std::atomic<int> tasks_pending{(int)target_frames.size()};
+    std::mutex collect_mutex;
+    std::condition_variable collect_cv;
+
+    for (size_t i = 0; i < target_frames.size(); ++i) {
+        int target = target_frames[i];
         cap.set(cv::CAP_PROP_POS_FRAMES, target);
         cv::Mat frame;
-        if (!cap.read(frame)) continue;
+        if (!cap.read(frame)) break;
 
-        try {
-            auto frame_result = process_video_frame(frame, target, fps, task_id);
-            results.push_back({
-                {"frame", target},
-                {"timestamp", frame_result.timestamp},
-                {"image_url", file_storage_->getFileUrl(frame_result.storage_path)},
-                {"result", frame_result.result}
-            });
-            processed_count++;
-        } catch (const std::exception& e) {
-            LOG_WARN("Frame {} failed: {}", target, e.what());
-        }
+        auto* result_ptr = &async_results[i];
+
+        thread_pool_->enqueue([this, frame = std::move(frame), fn = target, 
+                               ts = target / fps, &task_id, result_ptr,
+                               &tasks_pending, &collect_mutex, &collect_cv]() {
+            // Save frame to storage
+            auto image_data = mat_to_vector(frame);
+            std::string storage_path = fmt::format("results/frame_{}_{}.jpg", task_id, fn);
+            file_storage_->saveFile(image_data, storage_path);
+
+            // Process image with model from pool (no mutex needed)
+            auto* model = acquire_model();
+            auto [processed_frame, emotion_result] = process_image(frame, model);
+            (void)processed_frame;
+
+            result_ptr->frame_number = fn;
+            result_ptr->timestamp = ts;
+            result_ptr->storage_path = std::move(storage_path);
+            result_ptr->result = std::move(emotion_result);
+
+            if (--tasks_pending == 0) {
+                std::lock_guard<std::mutex> lock(collect_mutex);
+                collect_cv.notify_one();
+            }
+        });
     }
 
     cap.release();
 
-    LOG_INFO("Processed {} frames", processed_count);
+    // Wait for all tasks to complete
+    {
+        std::unique_lock<std::mutex> lock(collect_mutex);
+        collect_cv.wait(lock, [&tasks_pending]() { return tasks_pending == 0; });
+    }
+
+    // Build results in frame order
+    int processed_count = 0;
+    nlohmann::json results = nlohmann::json::array();
+
+    for (auto& ar : async_results) {
+        results.push_back({
+            {"frame", ar.frame_number},
+            {"timestamp", ar.timestamp},
+            {"image_url", file_storage_->getFileUrl(ar.storage_path)},
+            {"result", ar.result}
+        });
+        processed_count++;
+    }
+
+    LOG_INFO("Processed {} frames (parallel, pool={})", processed_count, model_pool_.size());
 
     if (results.empty()) {
         throw std::runtime_error("No frames processed");
@@ -1022,11 +1076,19 @@ nlohmann::json FileProcessor::calculate_average_emotions(const std::vector<nlohm
 //=============================================================================
 // Image Processing (Core)
 //=============================================================================
-std::pair<cv::Mat, nlohmann::json> FileProcessor::process_image(const cv::Mat& image)
+EmotiEffLib::EmotiEffLibRecognizer* FileProcessor::acquire_model()
 {
-    std::lock_guard<std::mutex> lock(model_mutex_);
+    if (model_pool_.empty()) return nullptr;
+    size_t idx = model_pool_idx_.fetch_add(1, std::memory_order_relaxed) % model_pool_.size();
+    return model_pool_[idx].get();
+}
 
-    if (!fer_ || !model_loaded_) {
+std::pair<cv::Mat, nlohmann::json> FileProcessor::process_image(const cv::Mat& image, EmotiEffLib::EmotiEffLibRecognizer* model)
+{
+    // Use provided model or acquire one from the pool
+    EmotiEffLib::EmotiEffLibRecognizer* active_model = model ? model : acquire_model();
+    
+    if (!active_model || !model_loaded_) {
         LOG_WARN("Emotion model not loaded");
         return {image.clone(), {
             {"emotion", "unknown"},
@@ -1037,7 +1099,7 @@ std::pair<cv::Mat, nlohmann::json> FileProcessor::process_image(const cv::Mat& i
 
     try {
         Image img(image);
-        return img.process_image(image, fer_.get());
+        return img.process_image(image, active_model);
     } catch (const std::exception& e) {
         LOG_ERROR("Image processing error: {}", e.what());
         return {image.clone(), {
