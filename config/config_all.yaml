@@ -77,3 +77,7 @@ model:
   emotion_model_path: "models/enet_b0_8_va_mtl.pt" # enet_b2_7.pt
   audio_model_path: "models/audio_model.pt"
   face_detection_models_path: "models/"
+
+# Video processing: extract frames at a fixed time interval
+video:
+  frame_interval_seconds: 5.0  # extract one frame every N seconds

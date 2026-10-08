@@ -72,6 +72,10 @@ model:
   audio_model_path: "models/audio_model.pt"
   face_detection_models_path: "models/"
 
+# Video processing: extract frames at a fixed time interval
+video:
+  frame_interval_seconds: 5.0  # extract one frame every N seconds
+
 # AI Configuration (OpenAI-compatible provider, used for the Razuma Focus
 # task breakdown). Only the task text and the block duration are sent.
 ai:

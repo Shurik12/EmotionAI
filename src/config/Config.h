@@ -49,6 +49,7 @@ public:
 	const auto &ai() const { return data_.ai; }
 	const auto &externalInfluence() const { return data_.external_influence; }
 	const auto &burnout() const { return data_.burnout; }
+	const auto &video() const { return data_.video; }
 
 	// Check if config is loaded
 	bool isLoaded() const { return loaded_.load(); }
@@ -179,6 +180,11 @@ private:
 		long timeout_seconds{30};
 	};
 
+	struct VideoConfig
+	{
+		double frame_interval_seconds = 5.0; // extract one frame every N seconds
+	};
+
 	struct ConfigData
 	{
 		ServerConfig server;
@@ -196,6 +202,7 @@ private:
 		AIConfig ai;
 		audio::ExternalInfluenceConfig external_influence;
 		audio::BurnoutConfig burnout;
+		VideoConfig video;
 	};
 
 	ConfigData data_;

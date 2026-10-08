@@ -92,10 +92,7 @@ public:
 
 private:
     // Constants
-    static constexpr int MAX_VIDEO_FRAMES = 60;
-    static constexpr int NUM_VIDEO_FRAMES = 15;       // target frames for batch video (10-20 range)
-    static constexpr int MIN_VIDEO_FRAMES = 10;
-    static constexpr int MAX_BATCH_VIDEO_FRAMES = 20;
+    static constexpr int MAX_VIDEO_FRAMES = 1000;     // safety cap: max frames to process per video
 
     // Dependencies
     std::shared_ptr<DragonflyManager> dragonfly_manager_;
