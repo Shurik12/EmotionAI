@@ -52,19 +52,12 @@ export const emotionPatterns = Object.freeze({
 
 export const emptyOfferMemory = () => ({ lastOfferAt: null, offeredStepIds: [], count: 0 });
 
-// Categories referenced by the nine-class policy. Missing ones disable the
-// dependent rows rather than being treated as 0.
-const NINE_CATEGORIES = [
-  'interest',
-  'joy',
-  'surprise',
-  'fear',
-  'anger',
-  'sadness',
-  'shame',
-  'contempt',
-  'disgust',
-];
+// Categories referenced by the policy. The spec lists nine, but the shipped
+// core model (`enet_b0_8_va_mtl.pt`) exposes only eight — `anger`, `contempt`,
+// `disgust`, `fear`, `joy`, `neutral`, `sadness`, `surprise`. `interest` and
+// `shame` are therefore treated as optional in row 1 (see `buildRules`): when
+// absent the clause is skipped and the row degrades to the spec's
+// "experimental check" instead of being disabled outright.
 
 const median = (values) => {
   const a = [...values].sort((x, y) => x - y);
@@ -178,8 +171,24 @@ function buildRules(z) {
       pattern: 'check',
       scenario: 1,
       windowMs: emotionPolicy.checkWindowMs,
-      keys: [...NINE_CATEGORIES, 'valence', 'arousal', 'intensity'],
+      // Row 1's mandatory channels. `interest` / `shame` are optional: the
+      // shipped eight-class core has no scale for them, so their clauses are
+      // skipped and the row becomes the spec's emotional-only experimental
+      // check rather than being permanently disabled.
+      keys: [
+        'joy',
+        'surprise',
+        'fear',
+        'anger',
+        'sadness',
+        'contempt',
+        'disgust',
+        'valence',
+        'arousal',
+        'intensity',
+      ],
       test: (f) => {
+        const interest = z(f, 'interest');
         const neg = maxFinite(
           z(f, 'fear'),
           z(f, 'anger'),
@@ -189,7 +198,7 @@ function buildRules(z) {
           z(f, 'disgust'),
         );
         return (
-          z(f, 'interest') <= -D &&
+          (!Number.isFinite(interest) || interest <= -D) &&
           z(f, 'joy') <= 0 &&
           z(f, 'surprise') <= 0 &&
           neg < D &&

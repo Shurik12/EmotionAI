@@ -82,6 +82,7 @@ export const FocusCamera = ({
   const dismissTimerRef = useRef(null);
   const interventionTimerRef = useRef(null);
   const lastDoneRef = useRef(0);
+  const lastReasonRef = useRef('');
 
   const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState('off'); // off | asking | on | error
@@ -393,6 +394,15 @@ export const FocusCamera = ({
     };
     const next = decideEmotionOffer(observation, context);
     setDecision(next);
+    // Lightweight observability: which row fired, or why Numa stayed still.
+    if (next.action === 'question') {
+      console.debug(
+        `[focus] offer #${next.scenario} (${next.pattern}) persistence=${Number(next.persistence).toFixed(2)}`,
+      );
+    } else if (next.reason !== lastReasonRef.current) {
+      lastReasonRef.current = next.reason;
+      console.debug(`[focus] quiet: ${next.reason}${next.passive ? ` (${next.passive})` : ''}`);
+    }
     if (next.action === 'question' && next.pattern && stepId) {
       offerMemoryRef.current = recordEmotionOffer(offerMemoryRef.current, stepId, nowMs);
       openIntervention(next.pattern, {}, { timeout: true });

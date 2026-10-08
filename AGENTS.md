@@ -134,7 +134,10 @@ prototypes in `focus-assets/`). The backend is only an adapter: `FocusSessionMan
 the core output to one normalized frame — `valid`, `valence` [-1,1], `arousal` rescaled to [0,1],
 `intensity` and category scores [0,1], with `happiness`→`joy`. A frame is `valid` only with a face
 AND both va_mtl heads, so the 7-class model never triggers an offer (a missing channel is not
-filled with 0 — a rule that depends on it is disabled, row 16). The decision itself lives in the
+filled with 0 — a rule that depends on it is disabled, row 16). The shipped core
+(`models/enet_b0_8_va_mtl.pt`) exposes **eight** categories — `anger, contempt, disgust, fear, joy,
+neutral, sadness, surprise` — with **no `interest` / `shame`**, so row 1 `check` runs in the spec's
+experimental form (those two clauses are skipped). The decision itself lives in the
 frontend (`frontend/src/utils/emotionPolicy.js`): a
 user-confirmed baseline (≥60 s, ≥16 frames, ≥80% coverage), robust per-channel z-scores
 (`1.4826·MAD`, floor 0.05), ≥80% persistence and ≥8 answers, and four automatic offers — row 1

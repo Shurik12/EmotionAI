@@ -694,7 +694,7 @@
 
 .focus-numa-visual {
   flex: 0 0 auto;
-  width: 132px;
+  width: 168px;
 }
 
 .focus-numa-body {
@@ -941,6 +941,6 @@
   }
 
   .focus-numa-visual {
-    width: 108px;
+    width: 128px;
   }
 }
