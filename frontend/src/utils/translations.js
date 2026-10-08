@@ -200,7 +200,8 @@ export const translations = {
         noStep: 'нет активного шага',
         notRunning: 'сессия не запущена (нажмите «Старт»)',
         offersOff: 'мягкие предложения выключены',
-        baseline: 'нужен подтверждённый исходный период (≥60 с)',
+        baseline: 'собираю исходный период: {seconds} с из 60',
+        baselineReady: 'исходный период готов — нажмите «Подтвердить исходный период»',
         ready: 'всё готово — жду устойчивого сочетания',
       },
       reason: {
@@ -1034,7 +1035,8 @@ export const translations = {
         noStep: 'no active step',
         notRunning: 'session not started (press “Start”)',
         offersOff: 'gentle offers are off',
-        baseline: 'a confirmed baseline is required (≥60 s)',
+        baseline: 'collecting the baseline: {seconds} s of 60',
+        baselineReady: 'baseline is ready — press “Confirm the baseline period”',
         ready: 'all set — waiting for a sustained combination',
       },
       reason: {

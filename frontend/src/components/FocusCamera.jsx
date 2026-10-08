@@ -490,9 +490,11 @@ export const FocusCamera = ({
           : !offersEnabled
             ? 'focus.diag.offersOff'
             : !baseline?.confirmedOnTask
-              ? 'focus.diag.baseline'
+              ? baselineReadyNow
+                ? 'focus.diag.baselineReady'
+                : 'focus.diag.baseline'
               : 'focus.diag.ready';
-  const gateText = t(gateKey);
+  const gateText = t(gateKey, { seconds: baselineSeconds });
   const reasonText = t(`focus.reason.${decision?.reason || 'waiting'}`);
 
   let cardMessage = '';
@@ -754,11 +756,9 @@ export const FocusCamera = ({
           ) : (
             <>
               <p className="focus-numa-idle">{statusText}</p>
-              {status === 'on' && (
-                <p className="focus-numa-gate">
-                  {t('focus.diag.gate')}: {gateText} · {reasonText}
-                </p>
-              )}
+              <p className="focus-numa-gate">
+                {t('focus.diag.gate')}: {gateText} · {reasonText}
+              </p>
             </>
           )}
         </div>
@@ -778,6 +778,13 @@ export const FocusCamera = ({
             {t('focus.diag.gate')}: {gateText} · {reasonText} · {baselineValid}/
             {baselineSeconds}s · {total}
           </p>
+          {decision?.progress && (
+            <p className="focus-numa-gate">
+              {Object.entries(decision.progress)
+                .map(([key, value]) => `${key} ${Number(value).toFixed(2)}`)
+                .join(' · ')}
+            </p>
+          )}
           <div className="focus-debug-actions">
             {['check', 'help', 'support', 'point', 'pause', 'done'].map((id) => (
               <button

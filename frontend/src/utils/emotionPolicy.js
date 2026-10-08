@@ -18,9 +18,10 @@
 // working baseline (robust z-score, `1.4826 · MAD` with a 0.05 floor), `V`
 // valence, `A` activation, `I` expression intensity. `z >= 2` is a rise and
 // `z <= -2` a drop. Within a row all conditions are ANDed unless marked OR,
-// must hold for at least 80% of the window and persist in the latest valid
-// frame. A missing channel disables any rule that depends on it — it is never
-// substituted with zero (scenario 16).
+// must hold for at least `patternPersistence` of the window (pilot: 60%, softer
+// than the spec's nominal 80% because per-frame estimates are noisy) and
+// persist in the latest valid frame. A missing channel disables any rule that
+// depends on it — it is never substituted with zero (scenario 16).
 //
 // Every threshold is a pilot hypothesis, not a validated attention classifier.
 
@@ -29,7 +30,10 @@ export const emotionPolicy = Object.freeze({
   baselineMs: 60000, // minimum confirmed working baseline
   windowMs: 15000, // default decision window (rows 2–4)
   checkWindowMs: 30000, // row 1 uses a longer window
-  persistence: 0.8, // 80% temporal persistence
+  persistence: 0.8, // 80% temporal persistence (baseline readiness)
+  patternPersistence: 0.6, // pilot: per-frame emotion estimates are noisy, so
+  // the offer window uses a softer threshold than the spec's nominal 80%.
+  // Keep the latest-frame requirement; tune against logged `progress` values.
   deviation: 2, // z-score deviation threshold
   scaleFloor: 0.05, // MAD floor
   maxGapMs: 5000,
@@ -324,8 +328,11 @@ export function decideEmotionOffer(observation, context) {
   }
 
   const rules = buildRules(z);
+  const progress = {};
+  let matched = null;
   for (const rule of rules) {
     const start = end - rule.windowMs;
+    progress[rule.pattern] = 0;
     if (
       observation.frames[0].timestampMs > start ||
       be >= start ||
@@ -336,20 +343,29 @@ export function decideEmotionOffer(observation, context) {
     }
     const windowFrames = observation.frames.filter((f) => f.timestampMs >= start);
     const predicate = (f) => usable(f) && ready(z, f, rule.keys) && rule.test(f);
-    if (durationRatio(windowFrames, start, end, predicate) < emotionPolicy.persistence) {
-      continue;
+    const persistence = durationRatio(windowFrames, start, end, predicate);
+    progress[rule.pattern] = persistence;
+    if (!matched && persistence >= emotionPolicy.patternPersistence && rule.test(latest)) {
+      matched = { rule, persistence };
     }
-    if (!rule.test(latest)) continue;
+  }
+  if (matched) {
     return {
       action: 'question',
       reason: 'emotion-pattern',
-      scenario: rule.scenario,
-      pattern: rule.pattern,
-      persistence: durationRatio(windowFrames, start, end, predicate),
+      scenario: matched.rule.scenario,
+      pattern: matched.rule.pattern,
+      persistence: matched.persistence,
+      progress,
     };
   }
 
-  return { action: 'quiet', reason: 'emotion-only', passive: passiveState(z, latest) };
+  return {
+    action: 'quiet',
+    reason: 'emotion-only',
+    passive: passiveState(z, latest),
+    progress,
+  };
 }
 
 // Record once when the offer was actually shown; dismissal never resets it.
