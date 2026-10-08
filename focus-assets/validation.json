@@ -1,0 +1,82 @@
+[
+  {
+    "file": "01_check.gif",
+    "frames": 15,
+    "duration_ms": 2600
+  },
+  {
+    "file": "02_help.gif",
+    "frames": 11,
+    "duration_ms": 2400
+  },
+  {
+    "file": "03_support.gif",
+    "frames": 15,
+    "duration_ms": 2600
+  },
+  {
+    "file": "04_point.gif",
+    "frames": 14,
+    "duration_ms": 2500
+  },
+  {
+    "file": "05_still.gif",
+    "frames": 1,
+    "duration_ms": 2000
+  },
+  {
+    "file": "06_still.gif",
+    "frames": 1,
+    "duration_ms": 2000
+  },
+  {
+    "file": "07_still.gif",
+    "frames": 1,
+    "duration_ms": 2000
+  },
+  {
+    "file": "08_still.gif",
+    "frames": 1,
+    "duration_ms": 2000
+  },
+  {
+    "file": "09_point.gif",
+    "frames": 14,
+    "duration_ms": 2500
+  },
+  {
+    "file": "10_dismiss.gif",
+    "frames": 4,
+    "duration_ms": 2300
+  },
+  {
+    "file": "11_replace.gif",
+    "frames": 2,
+    "duration_ms": 2300
+  },
+  {
+    "file": "12_steps.gif",
+    "frames": 2,
+    "duration_ms": 2300
+  },
+  {
+    "file": "13_pause.gif",
+    "frames": 13,
+    "duration_ms": 2300
+  },
+  {
+    "file": "14_done.gif",
+    "frames": 14,
+    "duration_ms": 2350
+  },
+  {
+    "file": "15_timeout.gif",
+    "frames": 5,
+    "duration_ms": 21550
+  },
+  {
+    "file": "16_unavailable.gif",
+    "frames": 1,
+    "duration_ms": 2000
+  }
+]
