@@ -255,5 +255,6 @@ previously at the repo root has been removed — OpenCode does not read that for
 - The systemd unit `config/service` will not start as written: `ExecStart` points at
   `build/EmotionAI` (actual binary is `build/emotionai`) and passes `--config`, which the binary
   does not parse.
-- Default bind is `0.0.0.0:80`, which needs root or a `cap_net_bind_service` capability.
+- Default bind is `0.0.0.0:8080`; `config_template.yaml`, `config_all.yaml` and `config_single_s3.yaml`
+  agree on it. Binding `80` would need root or a `cap_net_bind_service` capability.
 - A stray empty directory named `mkdir/` sits in the repo root — an artifact, not a real module.
