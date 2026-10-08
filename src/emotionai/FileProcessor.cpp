@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <chrono>
 #include <thread>
+#include <numeric>
 
 #include <fmt/format.h>
 #include <nlohmann/json.hpp>
@@ -871,40 +872,54 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
 
     LOG_INFO("Processing video: {}, Frames={}, FPS={:.2f}", filename, total_frames, fps);
 
-    // Target 10-20 frames evenly spaced across the whole video
-    int num_frames = std::clamp(total_frames, MIN_VIDEO_FRAMES, MAX_BATCH_VIDEO_FRAMES);
-    if (total_frames < MIN_VIDEO_FRAMES) {
-        num_frames = total_frames; // short video: use every frame
+    // Extract one frame every N seconds (configurable via video.frame_interval_seconds)
+    double interval_sec = Config::instance().video().frame_interval_seconds;
+    int frame_interval = std::max(1, static_cast<int>(fps * interval_sec));
+
+    LOG_INFO("Frame extraction: interval={} frames ({:.1f}s), total_frames={}", 
+             frame_interval, interval_sec, total_frames);
+
+    // Collect target frame numbers (seek directly, don't iterate all frames)
+    std::vector<int> target_frames;
+    for (int frame_num = 0; 
+         frame_num < total_frames && target_frames.size() < MAX_VIDEO_FRAMES; 
+         frame_num += frame_interval) {
+        target_frames.push_back(frame_num);
     }
-    int frame_interval = std::max(1, total_frames / num_frames);
-    
+    // Always include the last frame if not already selected
+    if (!target_frames.empty() && target_frames.back() != total_frames - 1) {
+        target_frames.push_back(total_frames - 1);
+    }
+
+    LOG_INFO("Target frames to process: {} (interval={} frames)", 
+             target_frames.size(), frame_interval);
+
+    // Seek to each target frame and process it
     int processed_count = 0;
     nlohmann::json results = nlohmann::json::array();
 
-    for (int frame_num = 0; frame_num < total_frames; ++frame_num) {
+    for (int target : target_frames) {
+        cap.set(cv::CAP_PROP_POS_FRAMES, target);
         cv::Mat frame;
-        if (!cap.read(frame)) break;
-
-        if (frame_num % frame_interval != 0 && frame_num != total_frames - 1) continue;
+        if (!cap.read(frame)) continue;
 
         try {
-            auto frame_result = process_video_frame(frame, frame_num, fps, task_id);
+            auto frame_result = process_video_frame(frame, target, fps, task_id);
             results.push_back({
-                {"frame", frame_num},
+                {"frame", target},
                 {"timestamp", frame_result.timestamp},
                 {"image_url", file_storage_->getFileUrl(frame_result.storage_path)},
                 {"result", frame_result.result}
             });
             processed_count++;
         } catch (const std::exception& e) {
-            LOG_WARN("Frame {} failed: {}", frame_num, e.what());
+            LOG_WARN("Frame {} failed: {}", target, e.what());
         }
-
-        // Stop once we have enough frames
-        if (processed_count >= MAX_BATCH_VIDEO_FRAMES) break;
     }
 
     cap.release();
+
+    LOG_INFO("Processed {} frames", processed_count);
 
     if (results.empty()) {
         throw std::runtime_error("No frames processed");

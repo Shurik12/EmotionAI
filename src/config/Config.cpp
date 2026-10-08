@@ -259,6 +259,12 @@ bool Config::loadFromFile(const std::string &config_path)
             cfg.base_disgust = bo["base_disgust"].as<double>(cfg.base_disgust);
         }
 
+        if (root["video"])
+        {
+            const auto &video = root["video"];
+            new_data.video.frame_interval_seconds = video["frame_interval_seconds"].as<double>(new_data.video.frame_interval_seconds);
+        }
+
         data_ = std::move(new_data);
         loaded_.store(true);
 
