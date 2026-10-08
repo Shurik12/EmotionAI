@@ -263,6 +263,7 @@ bool Config::loadFromFile(const std::string &config_path)
         {
             const auto &video = root["video"];
             new_data.video.frame_interval_seconds = video["frame_interval_seconds"].as<double>(new_data.video.frame_interval_seconds);
+            new_data.video.pool_size = video["pool_size"].as<int>(new_data.video.pool_size);
         }
 
         data_ = std::move(new_data);
