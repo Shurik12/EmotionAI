@@ -11,6 +11,7 @@ import {
 } from '../utils/emotionPolicy';
 import {
   DISMISS_MS,
+  TIMEOUT_DISMISS_MS,
   TIMEOUT_MS,
   answerRouting,
   resolveIntervention,
@@ -141,7 +142,8 @@ export const FocusCamera = ({
         interventionTimerRef.current = window.setTimeout(() => {
           interventionTimerRef.current = null;
           setAnswerLog((log) => [...log, { id, answer: null, at: Date.now() }]);
-          setIntervention(null);
+          // Row 15: the card disappears over 200 ms, no repeated gesture or sound.
+          closeIntervention(TIMEOUT_DISMISS_MS);
         }, TIMEOUT_MS);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
