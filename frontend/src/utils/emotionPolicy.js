@@ -1,46 +1,81 @@
-// Faithful JavaScript port of the Razuma Focus v6 emotion policy
-// (`source/lib/emotion-policy.ts`, profile `emotion-pilot-v1`) from
-// Razuma_Focus_Developer_v6_Emotion_Rules_2026-10-04.
+// Razuma Focus emotion policy — improved 16-scenario version (EMO-17).
 //
-// The supplied policy is a pure function over a normalized observation:
+// This is the JavaScript port of the intervention spec in
+// `docs/focus/FOCUS_INTERVENTION_SPEC.md` (source: ORI animation prototypes
+// in `focus-assets/`). It replaces the earlier 3-pattern
+// `emotion-pilot-v1` profile with four automatic offer rows (1–4) plus the
+// passive states (5–8) and the user-driven/edge scenarios (9–16) that the
+// component layer implements.
+//
+// The policy is a pure function over a normalized observation:
 //   - `EmotionFrame` = { timestampMs, valid, valence, arousal, intensity, emotions }
 //     with valence in [-1, 1] and arousal / intensity / category scores in [0, 1].
 //   - `EmotionObservation` = { source, normalizedScaleVerified, baseline:{confirmedOnTask,frames}, frames }.
 // The EmotionAI adapter (src/focus/FocusSessionManager) produces the normalized
 // frames from the core response; this module owns the decision logic.
 //
+// Notation (see the spec): `z` is the change relative to the user's confirmed
+// working baseline (robust z-score, `1.4826 · MAD` with a 0.05 floor), `V`
+// valence, `A` activation, `I` expression intensity. `z >= 2` is a rise and
+// `z <= -2` a drop. Within a row all conditions are ANDed unless marked OR,
+// must hold for at least 80% of the window and persist in the latest valid
+// frame. A missing channel disables any rule that depends on it — it is never
+// substituted with zero (scenario 16).
+//
 // Every threshold is a pilot hypothesis, not a validated attention classifier.
-// The review only motivates caution, a personal baseline and temporal
-// persistence; it does not validate these combinations or numbers.
 
 export const emotionPolicy = Object.freeze({
-  version: 'emotion-pilot-v1',
-  baselineMs: 60000,
-  windowMs: 15000,
-  persistence: 0.8,
-  deviation: 2,
-  scaleFloor: 0.05,
+  version: 'emotion-pilot-v2',
+  baselineMs: 60000, // minimum confirmed working baseline
+  windowMs: 15000, // default decision window (rows 2–4)
+  checkWindowMs: 30000, // row 1 uses a longer window
+  persistence: 0.8, // 80% temporal persistence
+  deviation: 2, // z-score deviation threshold
+  scaleFloor: 0.05, // MAD floor
   maxGapMs: 5000,
-  cooldownMs: 300000,
+  cooldownMs: 300000, // one automatic offer per 5 minutes
   maxOffersPerSession: 2,
-  offerLifetimeMs: 20000,
+  offerLifetimeMs: 20000, // scenario 15: card closes after 20 s
+  minFrames: 8, // ≥8 answers in the window
+  minBaselineFrames: 16,
+});
+
+// Automatic offers (rows 1–4). `pattern` is the stable id used by the UI and
+// the translation keys; `scenario` is the spec row number. `gesture` names the
+// Numa animation and `sound` the optional cue (only rows 1 and 14 have sound).
+export const emotionPatterns = Object.freeze({
+  check: { scenario: 1, mood: 'check', gesture: 'check', sound: 'tu', windowMs: 30000 },
+  help: { scenario: 2, mood: 'help', gesture: 'help', sound: null, windowMs: 15000 },
+  support: { scenario: 3, mood: 'support', gesture: 'support', sound: null, windowMs: 15000 },
+  point: { scenario: 4, mood: 'point', gesture: 'point', sound: null, windowMs: 15000 },
 });
 
 export const emptyOfferMemory = () => ({ lastOfferAt: null, offeredStepIds: [], count: 0 });
 
-// UI metadata for the three pilot patterns. The human-readable copy lives in
-// the translations under `focus.emotion.patterns.<pattern>`, keyed by the same
-// id, so the same algorithm serves RU and EN.
-export const emotionPatterns = Object.freeze({
-  'fear-high': { mood: 'support', primary: 'pause' },
-  'friction-high': { mood: 'support', primary: 'smaller' },
-  'sadness-low': { mood: 'point', primary: 'point' },
-});
+// Categories referenced by the nine-class policy. Missing ones disable the
+// dependent rows rather than being treated as 0.
+const NINE_CATEGORIES = [
+  'interest',
+  'joy',
+  'surprise',
+  'fear',
+  'anger',
+  'sadness',
+  'shame',
+  'contempt',
+  'disgust',
+];
 
 const median = (values) => {
   const a = [...values].sort((x, y) => x - y);
   const mid = Math.floor(a.length / 2);
   return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+};
+
+const finiteOr = (value) => (Number.isFinite(value) ? value : null);
+const maxFinite = (...values) => {
+  const finite = values.filter(Number.isFinite);
+  return finite.length ? Math.max(...finite) : -Infinity;
 };
 
 function usable(f) {
@@ -83,16 +118,142 @@ function durationRatio(frames, start, end, predicate) {
   return ms / (end - start);
 }
 
-// Mirrors the baseline checks in decideEmotionOffer (lines 42-44 of the spec)
-// so the UI can enable "confirm baseline" only when it will actually be accepted.
+// Mirrors the baseline checks in decideEmotionOffer so the UI can enable
+// "confirm baseline" only when it will actually be accepted.
 export function baselineReady(frames) {
-  if (!Array.isArray(frames) || frames.length < 16 || !ordered(frames)) return false;
+  if (!Array.isArray(frames) || frames.length < emotionPolicy.minBaselineFrames || !ordered(frames)) {
+    return false;
+  }
   const start = frames[0].timestampMs;
   const end = frames[frames.length - 1].timestampMs;
   return (
     end - start >= emotionPolicy.baselineMs &&
     durationRatio(frames, start, end, () => true) >= emotionPolicy.persistence
   );
+}
+
+// Build a robust z-score reader over the confirmed baseline. Returns NaN for a
+// channel that is not covered by the baseline, which disables dependent rules.
+function makeDeviation(baselineFrames) {
+  const validBaseline = baselineFrames.filter(usable);
+  const read = (f, k) =>
+    k === 'valence' || k === 'arousal' || k === 'intensity' ? f[k] : f.emotions[k];
+  const scales = new Map();
+  return (f, k) => {
+    const value = read(f, k);
+    if (value === undefined) return NaN;
+    let s = scales.get(k);
+    if (!s) {
+      const a = validBaseline.map((x) => read(x, k)).filter((x) => x !== undefined);
+      if (a.length < emotionPolicy.minBaselineFrames || a.length / validBaseline.length < emotionPolicy.persistence) {
+        return NaN;
+      }
+      const center = median(a);
+      s = {
+        center,
+        scale: Math.max(
+          1.4826 * median(a.map((x) => Math.abs(x - center))),
+          emotionPolicy.scaleFloor,
+        ),
+      };
+      scales.set(k, s);
+    }
+    if (!Number.isFinite(value)) return NaN;
+    return (value - s.center) / s.scale;
+  };
+}
+
+// All channels a row depends on must be present (and have a baseline scale).
+const ready = (z, f, keys) => keys.every((k) => Number.isFinite(finiteOr(z(f, k))));
+
+// Row definitions. Order matters: rows 2 and 3 are mutually exclusive on ties
+// (`>` vs `>=`), row 1 and row 4 cannot co-occur with rows 2–3.
+function buildRules(z) {
+  const D = emotionPolicy.deviation;
+  const zV = (f) => z(f, 'valence');
+  const zA = (f) => z(f, 'arousal');
+  const zI = (f) => z(f, 'intensity');
+  return [
+    {
+      pattern: 'check',
+      scenario: 1,
+      windowMs: emotionPolicy.checkWindowMs,
+      keys: [...NINE_CATEGORIES, 'valence', 'arousal', 'intensity'],
+      test: (f) => {
+        const neg = maxFinite(
+          z(f, 'fear'),
+          z(f, 'anger'),
+          z(f, 'sadness'),
+          z(f, 'shame'),
+          z(f, 'contempt'),
+          z(f, 'disgust'),
+        );
+        return (
+          z(f, 'interest') <= -D &&
+          z(f, 'joy') <= 0 &&
+          z(f, 'surprise') <= 0 &&
+          neg < D &&
+          Math.abs(zV(f)) < D &&
+          zA(f) <= -D &&
+          zI(f) <= -D
+        );
+      },
+    },
+    {
+      pattern: 'help',
+      scenario: 2,
+      windowMs: emotionPolicy.windowMs,
+      keys: ['anger', 'disgust', 'fear', 'valence', 'arousal', 'intensity'],
+      test: (f) => {
+        const rise = maxFinite(z(f, 'anger'), z(f, 'disgust'));
+        return (
+          rise >= D &&
+          rise > z(f, 'fear') &&
+          f.valence < 0 &&
+          zV(f) <= -D &&
+          zA(f) >= D &&
+          zI(f) >= D
+        );
+      },
+    },
+    {
+      pattern: 'support',
+      scenario: 3,
+      windowMs: emotionPolicy.windowMs,
+      keys: ['fear', 'anger', 'disgust', 'valence', 'arousal', 'intensity'],
+      test: (f) => {
+        const fear = z(f, 'fear');
+        return (
+          fear >= D &&
+          fear >= maxFinite(z(f, 'anger'), z(f, 'disgust')) &&
+          f.valence < 0 &&
+          zV(f) <= -D &&
+          zA(f) >= D &&
+          zI(f) >= D
+        );
+      },
+    },
+    {
+      pattern: 'point',
+      scenario: 4,
+      windowMs: emotionPolicy.windowMs,
+      // Row 4 does not use intensity.
+      keys: ['sadness', 'valence', 'arousal'],
+      test: (f) =>
+        z(f, 'sadness') >= D && f.valence < 0 && zV(f) <= -D && zA(f) <= -D,
+    },
+  ];
+}
+
+// Passive states (rows 5–8) never produce a reaction. They exist only so the UI
+// can explain why Numa stays still; they must not be shown as an offer.
+function passiveState(z, f) {
+  if (!f || !usable(f)) return 'working';
+  const D = emotionPolicy.deviation;
+  if (finiteOr(z(f, 'joy')) >= D || finiteOr(z(f, 'interest')) >= D) return 'joy-interest';
+  if (finiteOr(z(f, 'surprise')) >= D) return 'surprise';
+  if (finiteOr(z(f, 'shame')) >= D || finiteOr(z(f, 'contempt')) >= D) return 'shame-contempt';
+  return 'working';
 }
 
 export function decideEmotionOffer(observation, context) {
@@ -109,6 +270,7 @@ export function decideEmotionOffer(observation, context) {
   if (!Number.isFinite(context.nowMs) || !context.stepId || !context.memory) {
     return { action: 'quiet', reason: 'insufficient-signal' };
   }
+
   const memory = context.memory;
   if (
     memory.count >= emotionPolicy.maxOffersPerSession ||
@@ -117,11 +279,12 @@ export function decideEmotionOffer(observation, context) {
   ) {
     return { action: 'quiet', reason: 'repetition-limit' };
   }
+
   const baseline = observation.baseline;
   if (
     !baseline?.confirmedOnTask ||
     !Array.isArray(baseline.frames) ||
-    baseline.frames.length < 16 ||
+    baseline.frames.length < emotionPolicy.minBaselineFrames ||
     !ordered(baseline.frames)
   ) {
     return { action: 'quiet', reason: 'baseline-required' };
@@ -134,69 +297,50 @@ export function decideEmotionOffer(observation, context) {
   ) {
     return { action: 'quiet', reason: 'baseline-required' };
   }
-  if (!Array.isArray(observation.frames) || observation.frames.length < 8 || !ordered(observation.frames)) {
-    return { action: 'quiet', reason: 'insufficient-signal' };
-  }
-  const end = observation.frames[observation.frames.length - 1].timestampMs;
-  const start = end - emotionPolicy.windowMs;
   if (
-    end > context.nowMs ||
-    context.nowMs - end > emotionPolicy.maxGapMs ||
-    observation.frames[0].timestampMs > start ||
-    be >= start
+    !Array.isArray(observation.frames) ||
+    observation.frames.length < emotionPolicy.minFrames ||
+    !ordered(observation.frames)
   ) {
     return { action: 'quiet', reason: 'insufficient-signal' };
   }
-  if (durationRatio(observation.frames, start, end, () => true) < emotionPolicy.persistence) {
+
+  const z = makeDeviation(baseline.frames);
+  const end = observation.frames[observation.frames.length - 1].timestampMs;
+  const latest = observation.frames[observation.frames.length - 1];
+
+  // The observation must not overlap the baseline and must be current.
+  if (end > context.nowMs || context.nowMs - end > emotionPolicy.maxGapMs) {
     return { action: 'quiet', reason: 'insufficient-signal' };
   }
-  const validBaseline = baseline.frames.filter(usable);
-  const read = (f, k) => (k === 'valence' || k === 'arousal' || k === 'intensity' ? f[k] : f.emotions[k]);
-  const scales = new Map();
-  const z = (f, k) => {
-    const value = read(f, k);
-    if (value === undefined) return NaN;
-    let s = scales.get(k);
-    if (!s) {
-      const a = validBaseline.map((x) => read(x, k)).filter((x) => x !== undefined);
-      if (a.length < 16 || a.length / validBaseline.length < emotionPolicy.persistence) return NaN;
-      const center = median(a);
-      s = {
-        center,
-        scale: Math.max(
-          1.4826 * median(a.map((x) => Math.abs(x - center))),
-          emotionPolicy.scaleFloor,
-        ),
-      };
-      scales.set(k, s);
+
+  const rules = buildRules(z);
+  for (const rule of rules) {
+    const start = end - rule.windowMs;
+    if (
+      observation.frames[0].timestampMs > start ||
+      be >= start ||
+      !usable(latest) ||
+      !ready(z, latest, rule.keys)
+    ) {
+      continue;
     }
-    return (value - s.center) / s.scale;
-  };
-  const d = emotionPolicy.deviation;
-  const high = (f) => f.valence < 0 && z(f, 'valence') <= -d && z(f, 'arousal') >= d && z(f, 'intensity') >= d;
-  const rules = [
-    [
-      'fear-high',
-      (f) =>
-        high(f) &&
-        z(f, 'fear') >= d &&
-        z(f, 'fear') >=
-          Math.max(
-            Number.isFinite(z(f, 'anger')) ? z(f, 'anger') : -Infinity,
-            Number.isFinite(z(f, 'disgust')) ? z(f, 'disgust') : -Infinity,
-          ),
-    ],
-    ['friction-high', (f) => high(f) && (z(f, 'anger') >= d || z(f, 'disgust') >= d)],
-    ['sadness-low', (f) => f.valence < 0 && z(f, 'valence') <= -d && z(f, 'arousal') <= -d && z(f, 'sadness') >= d],
-  ];
-  const latest = observation.frames[observation.frames.length - 1];
-  for (const [pattern, test] of rules) {
-    const persistence = durationRatio(observation.frames, start, end, test);
-    if (usable(latest) && test(latest) && persistence >= emotionPolicy.persistence) {
-      return { action: 'question', reason: 'emotion-pattern', pattern, persistence };
+    const windowFrames = observation.frames.filter((f) => f.timestampMs >= start);
+    const predicate = (f) => usable(f) && ready(z, f, rule.keys) && rule.test(f);
+    if (durationRatio(windowFrames, start, end, predicate) < emotionPolicy.persistence) {
+      continue;
     }
+    if (!rule.test(latest)) continue;
+    return {
+      action: 'question',
+      reason: 'emotion-pattern',
+      scenario: rule.scenario,
+      pattern: rule.pattern,
+      persistence: durationRatio(windowFrames, start, end, predicate),
+    };
   }
-  return { action: 'quiet', reason: 'emotion-only' };
+
+  return { action: 'quiet', reason: 'emotion-only', passive: passiveState(z, latest) };
 }
 
 // Record once when the offer was actually shown; dismissal never resets it.

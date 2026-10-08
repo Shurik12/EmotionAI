@@ -128,19 +128,24 @@ disabled/unavailable model returns 502/503 and the frontend falls back to the de
 local templates in `frontend/src/utils/taskBreakdown.js`. The old GigaChat emotion analysis
 was removed entirely with EMO-19.
 
-**The emotion decision mirrors the supplied v6 spec** (`Razuma_Focus_Developer_v6_Emotion_Rules_*`,
-profile `emotion-pilot-v1`). The backend is only an adapter: `FocusSessionManager::classify` maps
+**The emotion decision mirrors the 16-scenario intervention spec** in
+`docs/focus/FOCUS_INTERVENTION_SPEC.md` (profile `emotion-pilot-v2`; source: the 16 ORI animation
+prototypes in `focus-assets/`). The backend is only an adapter: `FocusSessionManager::classify` maps
 the core output to one normalized frame — `valid`, `valence` [-1,1], `arousal` rescaled to [0,1],
 `intensity` and category scores [0,1], with `happiness`→`joy`. A frame is `valid` only with a face
 AND both va_mtl heads, so the 7-class model never triggers an offer (a missing channel is not
-filled with 0). The decision itself lives in the frontend
-(`frontend/src/utils/emotionPolicy.js`, a faithful port of `lib/emotion-policy.ts`): a
+filled with 0 — a rule that depends on it is disabled, row 16). The decision itself lives in the
+frontend (`frontend/src/utils/emotionPolicy.js`): a
 user-confirmed baseline (≥60 s, ≥16 frames, ≥80% coverage), robust per-channel z-scores
-(`1.4826·MAD`, floor 0.05), a 15 s window with ≥80% persistence and ≥8 answers, and three patterns
-(`fear-high` / `friction-high` / `sadness-low`). Offers are opt-in (default off), one per step,
-≥5 min apart, ≤2 per session, and vanish after 20 s. Every threshold is a pilot hypothesis, not a
-validated attention classifier — keep the port in sync with `INTERVENTION_RULES_RU.md` if the
-spec is re-issued.
+(`1.4826·MAD`, floor 0.05), ≥80% persistence and ≥8 answers, and four automatic offers — row 1
+`check` (30 s window, the only offer with sound), rows 2–4 `help` / `support` / `point` (15 s).
+Rows 5–8 (joy/interest, surprise, shame/contempt, steady work) never react. Offers are opt-in
+(default off), one per step, ≥5 min apart, ≤2 per session, and vanish after 20 s (row 15). The
+user-driven and edge rows 9–16 run in `frontend/src/components/FocusCamera.jsx` +
+`frontend/src/utils/focusScenarios.js`; cues are synthesized in `frontend/src/utils/focusSound.js`
+and the character is `frontend/src/components/NumaCharacter.jsx` (layers copied to
+`frontend/public/static/numa/`). Every threshold is a pilot hypothesis, not a
+validated attention classifier — keep the port in sync with the spec if it is re-issued.
 
 ## Frontend (SPA)
 

@@ -4,16 +4,23 @@ import { apiClient } from '../api/client';
 import {
   baselineReady,
   decideEmotionOffer,
-  emotionPatterns,
   emotionPolicy,
   emptyOfferMemory,
   recordEmotionOffer,
   sampleToFrame,
 } from '../utils/emotionPolicy';
+import {
+  DISMISS_MS,
+  TIMEOUT_MS,
+  answerRouting,
+  resolveIntervention,
+} from '../utils/focusScenarios';
+import { playFocusSound, previewFocusSound } from '../utils/focusSound';
+import { NumaCharacter } from './NumaCharacter';
 
 const FRAME_QUALITY = 0.85;
 const MAX_STRIP_SAMPLES = 40;
-// The policy needs at least 8 answers in the last 15 s window, so the rate is
+// The policy needs at least 8 answers in the decision window, so the rate is
 // kept at 1–2 s; a slower rate can never satisfy the window.
 const SAMPLE_INTERVAL_OPTIONS = [1, 2];
 const DEFAULT_SAMPLE_INTERVAL_SEC = 1;
@@ -36,20 +43,25 @@ const trailingRun = (frames) => {
   return frames.slice(start);
 };
 
-// Camera + emotional dynamics for the Focus session (EMO-17, phase 4).
+// Camera + emotional dynamics for the Focus session (EMO-17).
 //
 // The camera only starts after an explicit consent checkbox, stops as soon as
 // the tab is hidden, and never records. While it is on, frames are streamed
 // into a server-side session (POST /api/focus/session/<id>/frame) and the
 // normalized observations are polled back (GET /api/focus/session/<id>). The
-// server only adapts the core output; the `emotion-pilot-v1` decision runs here
-// against a user-confirmed personal baseline. Offers stay off until the user
-// enables them, and nothing is stored.
+// server only adapts the core output; the 16-scenario decision (emotion-pilot-v2)
+// runs here against a user-confirmed personal baseline. Offers stay off until
+// the user enables them, and nothing is stored.
 export const FocusCamera = ({
   numaNearby = true,
   stepId = null,
   hasStep = false,
   running = false,
+  stepLabel = '',
+  nextStepLabel = '',
+  steps = [],
+  allDone = false,
+  doneSignal = 0,
   onPoint,
   onSmaller,
   onPause,
@@ -67,6 +79,8 @@ export const FocusCamera = ({
   const frameUrlRef = useRef(null);
   const offerMemoryRef = useRef(emptyOfferMemory());
   const dismissTimerRef = useRef(null);
+  const interventionTimerRef = useRef(null);
+  const lastDoneRef = useRef(0);
 
   const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState('off'); // off | asking | on | error
@@ -79,8 +93,15 @@ export const FocusCamera = ({
   const [total, setTotal] = useState(0);
   const [offersEnabled, setOffersEnabled] = useState(false);
   const [baseline, setBaseline] = useState(null); // { confirmedOnTask, frames }
-  const [offer, setOffer] = useState(null); // { pattern, persistence }
+  const [intervention, setIntervention] = useState(null); // { id, payload }
+  const [gestureKey, setGestureKey] = useState(0);
   const [decision, setDecision] = useState(null);
+  const [answerLog, setAnswerLog] = useState([]);
+  // Sound and motion preferences (spec: adjustable volume, preview, no
+  // auto-amplification; a no-animation mode keeps static cards only).
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundVolume, setSoundVolume] = useState(0.7);
+  const [motionEnabled, setMotionEnabled] = useState(true);
 
   const intervalMs = intervalSec * 1000;
   const frames = useMemo(() => samples.map(sampleToFrame), [samples]);
@@ -93,13 +114,56 @@ export const FocusCamera = ({
       )
     : 0;
 
-  const dismissOffer = useCallback(() => {
+  const soundOptions = { enabled: soundEnabled, volume: soundVolume };
+
+  const clearInterventionTimers = useCallback(() => {
     if (dismissTimerRef.current) {
       clearTimeout(dismissTimerRef.current);
       dismissTimerRef.current = null;
     }
-    setOffer(null);
+    if (interventionTimerRef.current) {
+      clearTimeout(interventionTimerRef.current);
+      interventionTimerRef.current = null;
+    }
   }, []);
+
+  // Open a scenario card. `timeout` controls the row-15 auto-dismiss (only
+  // automatic offers wait 20 s before recording an unknown answer).
+  const openIntervention = useCallback(
+    (id, payload = {}, { timeout = false } = {}) => {
+      const def = resolveIntervention(id);
+      if (!def) return;
+      clearInterventionTimers();
+      setIntervention({ id, payload });
+      setGestureKey((k) => k + 1);
+      if (def.sound) playFocusSound(def.sound, soundOptions);
+      if (timeout) {
+        interventionTimerRef.current = window.setTimeout(() => {
+          interventionTimerRef.current = null;
+          setAnswerLog((log) => [...log, { id, answer: null, at: Date.now() }]);
+          setIntervention(null);
+        }, TIMEOUT_MS);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [clearInterventionTimers, soundEnabled, soundVolume],
+  );
+
+  const closeIntervention = useCallback(
+    (dismissMs = DISMISS_MS) => {
+      clearInterventionTimers();
+      if (dismissMs > 0) {
+        // Let the outgoing-card transition play before unmounting.
+        dismissTimerRef.current = window.setTimeout(() => {
+          dismissTimerRef.current = null;
+          setIntervention(null);
+        }, dismissMs);
+      } else {
+        setIntervention(null);
+      }
+    },
+    [clearInterventionTimers],
+  );
 
   const endSession = useCallback(() => {
     const id = sessionIdRef.current;
@@ -120,7 +184,7 @@ export const FocusCamera = ({
       offerMemoryRef.current = emptyOfferMemory();
       setSamples([]);
       setTotal(0);
-      setOffer(null);
+      setIntervention(null);
       setDecision(null);
       setBaseline(null);
     } catch (err) {
@@ -135,15 +199,16 @@ export const FocusCamera = ({
       streamRef.current = null;
     }
     if (videoRef.current) videoRef.current.srcObject = null;
-    dismissOffer();
+    clearInterventionTimers();
     offerMemoryRef.current = emptyOfferMemory();
     setSamples([]);
     setTotal(0);
     setBaseline(null);
     setDecision(null);
+    setIntervention(null);
     setStatus('off');
     endSession();
-  }, [dismissOffer, endSession]);
+  }, [clearInterventionTimers, endSession]);
 
   useEffect(() => {
     aliveRef.current = true;
@@ -156,7 +221,6 @@ export const FocusCamera = ({
       aliveRef.current = false;
       stopCamera();
       if (frameUrlRef.current) URL.revokeObjectURL(frameUrlRef.current);
-      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
     };
   }, [stopCamera]);
 
@@ -304,7 +368,7 @@ export const FocusCamera = ({
 
   // Run the emotion policy whenever the observation or the context changes.
   useEffect(() => {
-    if (status !== 'on' || offer) return;
+    if (status !== 'on' || intervention) return;
     const nowMs = frames.length ? frames[frames.length - 1].timestampMs : Date.now();
     const observation = {
       source: 'razuma-core',
@@ -329,14 +393,16 @@ export const FocusCamera = ({
     setDecision(next);
     if (next.action === 'question' && next.pattern && stepId) {
       offerMemoryRef.current = recordEmotionOffer(offerMemoryRef.current, stepId, nowMs);
-      setOffer({ pattern: next.pattern, persistence: next.persistence });
-      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
-      dismissTimerRef.current = window.setTimeout(() => {
-        dismissTimerRef.current = null;
-        setOffer(null);
-      }, emotionPolicy.offerLifetimeMs);
+      openIntervention(next.pattern, {}, { timeout: true });
     }
-  }, [status, frames, baseline, offersEnabled, running, hasStep, stepId, offer]);
+  }, [status, frames, baseline, offersEnabled, running, hasStep, stepId, intervention, openIntervention]);
+
+  // Scenario 14: a confirmed completion is a one-time reaction.
+  useEffect(() => {
+    if (!doneSignal || doneSignal === lastDoneRef.current) return;
+    lastDoneRef.current = doneSignal;
+    openIntervention('done', { allDone, action: nextStepLabel }, { timeout: false });
+  }, [doneSignal, allDone, nextStepLabel, openIntervention]);
 
   const confirmBaseline = () => {
     if (!baselineReadyNow) return;
@@ -357,26 +423,52 @@ export const FocusCamera = ({
     await pushFrame(shot.blob);
   };
 
-  const choose = (action) => {
-    dismissOffer();
-    if (action === 'point') onPoint?.();
-    else if (action === 'smaller') onSmaller?.();
-    else if (action === 'pause') onPause?.();
-    else if (action === 'continue') onResume?.();
+  // Explicit user choices always win over the automatic rules; the follow-up
+  // card comes from `answerRouting` (rows 9–13 of the spec).
+  const answer = (value) => {
+    setAnswerLog((log) => [...log, { id: intervention?.id ?? null, answer: value, at: Date.now() }]);
+    if (value === 'pause') onPause?.();
+    else if (value === 'resume') onResume?.();
+    else if (value === 'show_current_action' || value === 'help_return') onPoint?.();
+    else if (value === 'edit_steps') onSmaller?.();
+
+    const next = answerRouting[value];
+    if (value === 'continue' || value === 'use_steps' || value === 'edit_steps') {
+      closeIntervention(DISMISS_MS); // row 10
+      return;
+    }
+    if (next) openIntervention(next, { action: stepLabel });
+    else closeIntervention(DISMISS_MS);
   };
+
+  // A manually requested help card stays available even without an offer.
+  const requestHelp = () => openIntervention('helpMenu', { action: stepLabel });
 
   const toggleOffers = (value) => {
     setOffersEnabled(value);
-    if (!value) dismissOffer();
+    if (!value) closeIntervention(0);
   };
 
-  const primary = offer ? emotionPatterns[offer.pattern]?.primary : null;
+  const def = intervention ? resolveIntervention(intervention.id) : null;
+  const gesture = def?.gesture ?? null;
   const strip = samples.slice(-MAX_STRIP_SAMPLES);
+  const showUnavailable =
+    status === 'on' && !intervention && total > 0 && baselineValid === 0;
 
   let statusText = t('focus.emotion.idle');
   if (!total) statusText = t('focus.emotion.noSignal');
   else if (decision?.action === 'quiet' && decision.reason === 'emotion-only') {
     statusText = t('focus.emotion.quiet');
+  }
+
+  let cardMessage = '';
+  if (def) {
+    cardMessage = t(def.messageKey, {
+      action: intervention.payload?.action || stepLabel || '',
+    });
+    if (def.scenario === 14 && intervention.payload?.allDone) {
+      cardMessage = t('focus.intervention.done.allDone');
+    }
   }
 
   return (
@@ -459,6 +551,56 @@ export const FocusCamera = ({
       </label>
       <p className="focus-hint">{t('focus.emotion.offersHint')}</p>
 
+      <div className="focus-settings">
+        <label className="focus-option">
+          <input
+            type="checkbox"
+            checked={motionEnabled}
+            onChange={(e) => setMotionEnabled(e.target.checked)}
+          />
+          {t('focus.emotion.motionLabel')}
+        </label>
+        <label className="focus-option">
+          <input
+            type="checkbox"
+            checked={soundEnabled}
+            onChange={(e) => setSoundEnabled(e.target.checked)}
+          />
+          {t('focus.emotion.soundLabel')}
+        </label>
+        {soundEnabled && (
+          <div className="focus-sound">
+            <label className="focus-option focus-option-range">
+              <span>{t('focus.emotion.soundVolume')}</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={soundVolume}
+                onChange={(e) => setSoundVolume(Number(e.target.value))}
+              />
+            </label>
+            <div className="focus-sound-preview">
+              <button
+                type="button"
+                className="focus-btn ghost"
+                onClick={() => previewFocusSound('tu', soundVolume)}
+              >
+                {t('focus.emotion.previewTu')}
+              </button>
+              <button
+                type="button"
+                className="focus-btn ghost"
+                onClick={() => previewFocusSound('tu-du', soundVolume)}
+              >
+                {t('focus.emotion.previewTuDu')}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {status === 'on' && (
         <div className="focus-baseline">
           <div className="focus-baseline-head">
@@ -536,49 +678,58 @@ export const FocusCamera = ({
       )}
 
       <div
-        className={`focus-numa ${offer ? 'offer' : 'idle'}`}
+        className={`focus-numa ${def ? 'offer' : 'idle'} ${showUnavailable ? 'unavailable' : ''}`}
         aria-live="polite"
       >
-        <p className="focus-numa-label">{numaNearby ? t('focus.emotion.numa') : t('focus.emotion.core')}</p>
-        {offer ? (
-          <>
-            <h4>{t(`focus.emotion.patterns.${offer.pattern}.title`)}</h4>
-            <p>{t(`focus.emotion.patterns.${offer.pattern}.body`)}</p>
-            <div className="focus-offer-actions">
-              <button
-                type="button"
-                className={`focus-btn ${primary === 'point' ? 'primary' : 'ghost'}`}
-                onClick={() => choose('point')}
-              >
-                {t('focus.emotion.action.point')}
-              </button>
-              <button
-                type="button"
-                className={`focus-btn ${primary === 'smaller' ? 'primary' : 'ghost'}`}
-                onClick={() => choose('smaller')}
-              >
-                {t('focus.emotion.action.smaller')}
-              </button>
-              <button
-                type="button"
-                className={`focus-btn ${primary === 'pause' ? 'primary' : 'ghost'}`}
-                onClick={() => choose('pause')}
-              >
-                {t('focus.emotion.action.pause')}
-              </button>
-              <button
-                type="button"
-                className="focus-btn ghost"
-                onClick={() => choose('continue')}
-              >
-                {t('focus.emotion.action.continue')}
-              </button>
-            </div>
-          </>
-        ) : (
-          <p className="focus-numa-idle">{statusText}</p>
-        )}
+        <div className="focus-numa-visual">
+          <NumaCharacter gesture={gesture} gestureKey={gestureKey} animate={motionEnabled} />
+        </div>
+        <div className="focus-numa-body">
+          <p className="focus-numa-label">
+            {numaNearby ? t('focus.emotion.numa') : t('focus.emotion.core')}
+          </p>
+          {showUnavailable ? (
+            <p className="focus-numa-idle">{t('focus.intervention.unavailable.message')}</p>
+          ) : def ? (
+            <>
+              <p className="focus-numa-message">{cardMessage}</p>
+              {def.scenario === 12 && steps.length > 0 && (
+                <ol className="focus-numa-steps">
+                  {steps.map((step, index) => (
+                    <li key={step.id || index}>{step.text ? step.text : t(step.key)}</li>
+                  ))}
+                </ol>
+              )}
+              {def.buttons.length > 0 && (
+                <div className="focus-offer-actions">
+                  {def.buttons.map(({ answer: value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`focus-btn ${
+                        value === def.buttons[0].answer ? 'primary' : 'ghost'
+                      }`}
+                      onClick={() => answer(value)}
+                    >
+                      {t(label)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="focus-numa-idle">{statusText}</p>
+          )}
+        </div>
       </div>
+
+      {status === 'on' && !def && (
+        <div className="focus-help-request">
+          <button type="button" className="focus-btn ghost" onClick={requestHelp}>
+            {t('focus.emotion.requestHelp')}
+          </button>
+        </div>
+      )}
 
       <div className="focus-dynamics">
         <p className="focus-dynamics-title">
@@ -600,6 +751,12 @@ export const FocusCamera = ({
           <p className="focus-hint">{t('focus.camera.dynamicEmpty')}</p>
         )}
       </div>
+
+      {answerLog.length > 0 && (
+        <p className="focus-camera-note">
+          {t('focus.emotion.answerCount', { count: answerLog.length })}
+        </p>
+      )}
 
       <p className="focus-camera-note">{t('focus.emotion.note')}</p>
     </div>

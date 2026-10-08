@@ -679,3 +679,268 @@
     flex-direction: column;
   }
 }
+
+/* ============================================
+   Numa character (EMO-17)
+   Flat cutout layers from the ORI prototypes
+   (focus-assets/assets → public/static/numa).
+   Gestures follow docs/focus/FOCUS_INTERVENTION_SPEC.md.
+   ============================================ */
+.focus-numa {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+}
+
+.focus-numa-visual {
+  flex: 0 0 auto;
+  width: 132px;
+}
+
+.focus-numa-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.numa-character {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 760 / 480;
+}
+
+.numa-layer {
+  position: absolute;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.numa-body {
+  left: 16.84%;
+  top: 46.67%;
+  width: 16.32%;
+  height: 37.08%;
+  z-index: 1;
+}
+
+.numa-left {
+  left: 8.82%;
+  top: 51.46%;
+  width: 10.79%;
+  height: 22.5%;
+  z-index: 2;
+  transform-origin: 80% 12%;
+}
+
+.numa-right {
+  left: 30.39%;
+  top: 51.46%;
+  width: 10.79%;
+  height: 22.5%;
+  z-index: 2;
+  transform-origin: 20% 12%;
+}
+
+.numa-head {
+  left: 10.53%;
+  top: 23.75%;
+  width: 28.95%;
+  height: 33.13%;
+  z-index: 3;
+  transform-origin: 50% 92%;
+}
+
+.numa-happy {
+  left: 10.53%;
+  top: 23.75%;
+  width: 28.95%;
+  height: 33.13%;
+  z-index: 4;
+  opacity: 0;
+  transform-origin: 50% 92%;
+}
+
+/* Row 1 — check: raise head, tilt, paw to chest (900 ms). */
+@keyframes numa-check-head {
+  0% { transform: translateY(0) rotate(0deg); }
+  28% { transform: translateY(-12%) rotate(0deg); }
+  50% { transform: translateY(-12%) rotate(6deg); }
+  72% { transform: translateY(-12%) rotate(6deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+@keyframes numa-check-paw {
+  0%, 28% { transform: translateY(0) rotate(0deg); }
+  50%, 72% { transform: translateY(-45%) rotate(-18deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+.numa-character[data-gesture='check'] .numa-head { animation: numa-check-head 900ms ease-in-out both; }
+.numa-character[data-gesture='check'] .numa-left { animation: numa-check-paw 900ms ease-in-out both; }
+
+/* Row 2 — help: tilt the head toward the card (700 ms). */
+@keyframes numa-help-head {
+  0% { transform: rotate(0deg); }
+  36% { transform: rotate(5deg); }
+  64% { transform: rotate(5deg); }
+  100% { transform: rotate(0deg); }
+}
+.numa-character[data-gesture='help'] .numa-head { animation: numa-help-head 700ms ease-in-out both; }
+
+/* Row 3 — support: open both paws, palms up (900 ms). */
+@keyframes numa-support-left {
+  0% { transform: rotate(0deg) translateY(0); }
+  33% { transform: rotate(-32deg) translateY(-10%); }
+  55% { transform: rotate(-32deg) translateY(-10%); }
+  100% { transform: rotate(0deg) translateY(0); }
+}
+@keyframes numa-support-right {
+  0% { transform: rotate(0deg) translateY(0); }
+  33% { transform: rotate(32deg) translateY(-10%); }
+  55% { transform: rotate(32deg) translateY(-10%); }
+  100% { transform: rotate(0deg) translateY(0); }
+}
+.numa-character[data-gesture='support'] .numa-left { animation: numa-support-left 900ms ease-in-out both; }
+.numa-character[data-gesture='support'] .numa-right { animation: numa-support-right 900ms ease-in-out both; }
+
+/* Rows 4/9 — point: turn head and extend a paw to the card (800 ms). */
+@keyframes numa-point-head {
+  0% { transform: rotate(0deg); }
+  31% { transform: rotate(8deg); }
+  69% { transform: rotate(8deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes numa-point-right {
+  0% { transform: translateX(0) rotate(0deg); }
+  31% { transform: translateX(70%) rotate(-62deg); }
+  55% { transform: translateX(70%) rotate(-62deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+.numa-character[data-gesture='point'] .numa-head { animation: numa-point-head 800ms ease-in-out both; }
+.numa-character[data-gesture='point'] .numa-right { animation: numa-point-right 800ms ease-in-out both; }
+
+/* Row 13 — pause: lower paws and head by 3% of the character height (600 ms). */
+@keyframes numa-pause-head {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(6%); }
+}
+@keyframes numa-pause-paw {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(10%); }
+}
+.numa-character[data-gesture='pause'] .numa-head { animation: numa-pause-head 600ms ease-in-out both; }
+.numa-character[data-gesture='pause'] .numa-left,
+.numa-character[data-gesture='pause'] .numa-right { animation: numa-pause-paw 600ms ease-in-out both; }
+
+/* Row 14 — done: small nod down, then a faint smile (650 ms). */
+@keyframes numa-done-head {
+  0% { transform: rotate(0deg); }
+  31% { transform: rotate(7deg); }
+  69% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes numa-done-smile {
+  0%, 69% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.numa-character[data-gesture='done'] .numa-head { animation: numa-done-head 650ms ease-in-out both; }
+.numa-character[data-gesture='done'] .numa-happy { animation: numa-done-smile 650ms ease-in-out both; }
+
+/* Rows 5–8/10/11/12/16 — Numa stays completely still. */
+.numa-character[data-gesture='idle'] .numa-layer { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .numa-character .numa-layer {
+    animation: none !important;
+  }
+
+  .focus-numa,
+  .focus-offer-actions,
+  .focus-numa-message {
+    transition: none !important;
+  }
+}
+
+/* Cards */
+.focus-numa-message {
+  margin: 0 0 var(--spacing-xs) !important;
+  color: var(--rz-foreground);
+  font-size: var(--rz-text-base);
+  font-weight: 600;
+}
+
+.focus-numa-steps {
+  margin: var(--spacing-xs) 0 var(--spacing-sm);
+  padding-left: 1.2em;
+  color: var(--rz-muted-foreground);
+  font-size: var(--rz-text-sm);
+}
+
+.focus-numa-steps li + li {
+  margin-top: 2px;
+}
+
+.focus-numa.unavailable {
+  border-left-color: var(--rz-destructive);
+}
+
+.focus-help-request {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-xs);
+}
+
+/* Sound & motion settings */
+.focus-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--rz-field);
+  border: 1px solid var(--rz-border);
+  border-radius: var(--rz-radius-xl);
+}
+
+.focus-option-range {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.focus-option-range input[type='range'] {
+  flex: 1;
+  accent-color: var(--rz-primary);
+}
+
+.focus-sound {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.focus-sound-preview {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.focus-sound-preview .focus-btn {
+  padding: 6px 12px;
+  font-size: var(--rz-text-sm);
+}
+
+@media (max-width: 768px) {
+  .focus-numa {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .focus-numa-body {
+    width: 100%;
+  }
+
+  .focus-numa-visual {
+    width: 108px;
+  }
+}
