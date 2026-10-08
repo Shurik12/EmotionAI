@@ -929,6 +929,26 @@
   font-size: var(--rz-text-sm);
 }
 
+.focus-numa-gate {
+  margin: var(--spacing-xs) 0 0 !important;
+  color: var(--rz-muted-foreground);
+  font-size: var(--rz-text-xs) !important;
+}
+
+.focus-debug {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border: 1px dashed var(--rz-border);
+  border-radius: var(--rz-radius-xl);
+}
+
+.focus-debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
 @media (max-width: 768px) {
   .focus-numa {
     flex-direction: column;

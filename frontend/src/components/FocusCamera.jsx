@@ -117,6 +117,10 @@ export const FocusCamera = ({
     : 0;
 
   const soundOptions = { enabled: soundEnabled, volume: soundVolume };
+  // `?debug` reveals the gating state, the last policy reason and manual
+  // gesture previews (useful while validating the animations).
+  const debug =
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
 
   const clearInterventionTimers = useCallback(() => {
     if (dismissTimerRef.current) {
@@ -473,6 +477,24 @@ export const FocusCamera = ({
     statusText = t('focus.emotion.quiet');
   }
 
+  // Why is Numa quiet? Surface the first unmet gate so it is obvious which
+  // condition (session running / offers enabled / confirmed baseline) blocks
+  // the automatic offers, plus the last policy reason.
+  const gateKey =
+    status !== 'on'
+      ? 'focus.diag.cameraOff'
+      : !hasStep
+        ? 'focus.diag.noStep'
+        : !running
+          ? 'focus.diag.notRunning'
+          : !offersEnabled
+            ? 'focus.diag.offersOff'
+            : !baseline?.confirmedOnTask
+              ? 'focus.diag.baseline'
+              : 'focus.diag.ready';
+  const gateText = t(gateKey);
+  const reasonText = t(`focus.reason.${decision?.reason || 'waiting'}`);
+
   let cardMessage = '';
   if (def) {
     cardMessage = t(def.messageKey, {
@@ -730,7 +752,14 @@ export const FocusCamera = ({
               )}
             </>
           ) : (
-            <p className="focus-numa-idle">{statusText}</p>
+            <>
+              <p className="focus-numa-idle">{statusText}</p>
+              {status === 'on' && (
+                <p className="focus-numa-gate">
+                  {t('focus.diag.gate')}: {gateText} · {reasonText}
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -740,6 +769,27 @@ export const FocusCamera = ({
           <button type="button" className="focus-btn ghost" onClick={requestHelp}>
             {t('focus.emotion.requestHelp')}
           </button>
+        </div>
+      )}
+
+      {debug && (
+        <div className="focus-debug">
+          <p className="focus-numa-gate">
+            {t('focus.diag.gate')}: {gateText} · {reasonText} · {baselineValid}/
+            {baselineSeconds}s · {total}
+          </p>
+          <div className="focus-debug-actions">
+            {['check', 'help', 'support', 'point', 'pause', 'done'].map((id) => (
+              <button
+                key={id}
+                type="button"
+                className="focus-btn ghost"
+                onClick={() => openIntervention(id, { action: stepLabel })}
+              >
+                {id}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
