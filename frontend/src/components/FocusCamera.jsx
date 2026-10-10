@@ -497,6 +497,18 @@ export const FocusCamera = ({
   const gateText = t(gateKey, { seconds: baselineSeconds });
   const reasonText = t(`focus.reason.${decision?.reason || 'waiting'}`);
 
+  // Turn the first unmet gate into a one-click action where the camera card can
+  // perform it itself. "No active step" is resolved on the Movement tab, so it
+  // stays a plain hint.
+  const gateAction =
+    gateKey === 'focus.diag.notRunning'
+      ? { label: t('focus.session.start'), run: () => onResume?.() }
+      : gateKey === 'focus.diag.offersOff'
+        ? { label: t('focus.diag.enableOffers'), run: () => setOffersEnabled(true) }
+        : gateKey === 'focus.diag.baselineReady'
+          ? { label: t('focus.emotion.baselineConfirm'), run: confirmBaseline }
+          : null;
+
   let cardMessage = '';
   if (def) {
     cardMessage = t(def.messageKey, {
@@ -759,6 +771,13 @@ export const FocusCamera = ({
               <p className="focus-numa-gate">
                 {t('focus.diag.gate')}: {gateText} · {reasonText}
               </p>
+              {gateAction && (
+                <div className="focus-offer-actions">
+                  <button type="button" className="focus-btn primary" onClick={gateAction.run}>
+                    {gateAction.label}
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
