@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "task": "EMO-23",
+    "machine": "12 vCPU, 31 GiB RAM, NVIDIA RTX 3060 12GB, driver 580",
+    "video": "Светлана.mp4 (1280x720, 25 fps, 175 sampled frames @ 1 per 5 s)",
+    "note": "fps/ms measured end-to-end by tests/python/measure_video_speed.py; RAM/VRAM/CPU/GPU sampled every 1 s during processing"
+  },
+  "cpu_only_torch": [
+    {"cpus": 2,  "fps": 3.9,  "ms_per_frame": 256, "x_realtime": 19, "peak_ram_mib": 3215, "peak_cpu_pct": 205},
+    {"cpus": 4,  "fps": 8.3,  "ms_per_frame": 121, "x_realtime": 41, "peak_ram_mib": 3379, "peak_cpu_pct": 403},
+    {"cpus": 6,  "fps": 12.4, "ms_per_frame": 81,  "x_realtime": 62, "peak_ram_mib": 3436, "peak_cpu_pct": 606},
+    {"cpus": 8,  "fps": 15.8, "ms_per_frame": 63,  "x_realtime": 78, "peak_ram_mib": 3494, "peak_cpu_pct": 808},
+    {"cpus": 12, "fps": 19.3, "ms_per_frame": 52,  "x_realtime": 96, "peak_ram_mib": 3532, "peak_cpu_pct": 1082}
+  ],
+  "gpu_onnx_cuda": [
+    {"cpus": 2,  "fps": 9.7,  "ms_per_frame": 103, "x_realtime": 48,  "peak_vram_mib": 1416, "peak_gpu_util_pct": 6,  "peak_ram_mib": 3178},
+    {"cpus": 4,  "fps": 17.4, "ms_per_frame": 58,  "x_realtime": 86,  "peak_vram_mib": 1416, "peak_gpu_util_pct": 11, "peak_ram_mib": 3145},
+    {"cpus": 6,  "fps": 21.7, "ms_per_frame": 46,  "x_realtime": 108, "peak_vram_mib": 1416, "peak_gpu_util_pct": 11, "peak_ram_mib": 3136},
+    {"cpus": 8,  "fps": 24.9, "ms_per_frame": 40,  "x_realtime": 123, "peak_vram_mib": 1416, "peak_gpu_util_pct": 12, "peak_ram_mib": 3138},
+    {"cpus": 12, "fps": 24.8, "ms_per_frame": 40,  "x_realtime": 123, "peak_vram_mib": 1416, "peak_gpu_util_pct": 6,  "peak_ram_mib": 3153}
+  ]
+}
