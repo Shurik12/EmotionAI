@@ -107,6 +107,7 @@ export const FocusCamera = ({
   const [offersEnabled, setOffersEnabled] = useState(false);
   const [baseline, setBaseline] = useState(null); // { confirmedOnTask, frames }
   const [intervention, setIntervention] = useState(null); // { id, payload }
+  const [closing, setClosing] = useState(false); // card closing -> release gesture
   const [gestureKey, setGestureKey] = useState(0);
   const [decision, setDecision] = useState(null);
   const [answerLog, setAnswerLog] = useState([]);
@@ -157,6 +158,7 @@ export const FocusCamera = ({
       const def = resolveIntervention(id);
       if (!def) return;
       clearInterventionTimers();
+      setClosing(false);
       setIntervention({ id, payload });
       setGestureKey((k) => k + 1);
       if (def.sound) playFocusSound(def.sound, soundOptions);
@@ -176,14 +178,18 @@ export const FocusCamera = ({
   const closeIntervention = useCallback(
     (dismissMs = DISMISS_MS) => {
       clearInterventionTimers();
+      // Release the held gesture first, then unmount the card.
+      setClosing(true);
       if (dismissMs > 0) {
         // Let the outgoing-card transition play before unmounting.
         dismissTimerRef.current = window.setTimeout(() => {
           dismissTimerRef.current = null;
           setIntervention(null);
+          setClosing(false);
         }, dismissMs);
       } else {
         setIntervention(null);
+        setClosing(false);
       }
     },
     [clearInterventionTimers],
@@ -762,7 +768,12 @@ export const FocusCamera = ({
         aria-live="polite"
       >
         <div className="focus-numa-visual">
-          <NumaCharacter gesture={gesture} gestureKey={gestureKey} animate={motionEnabled} />
+          <NumaCharacter
+            gesture={gesture}
+            gestureKey={gestureKey}
+            animate={motionEnabled}
+            returning={closing}
+          />
         </div>
         <div className="focus-numa-body">
           <p className="focus-numa-label">
