@@ -38,14 +38,33 @@ Before EMO-23: 209.8 ms/frame, 4.8 fps, 24× → now ~**3.3× faster**.
 On this CPU the ONNX Runtime build is ~10% **slower** than libtorch for this
 model, so the backend switch is not a CPU win here.
 
+## ONNX Runtime GPU (RTX 3060)
+
+Ran on the host (12 cores) with `onnxruntime-linux-x64-gpu-1.21.0` + CUDA 12 +
+cuDNN 9 and the **CUDAExecutionProvider** appended (the shipped EmotiEffLib ONNX
+backend uses default/CPU providers, so the provider must be appended explicitly).
+
+| Backend | host | ms/frame | × realtime |
+|---|---|---:|---:|
+| torch CPU | container, 8 CPUs | 63.2 | 78× |
+| onnx CPU | host, 12 cores | 57.5 | 86× |
+| **onnx CUDA** | host, 12 cores + RTX 3060 | **39.7** | **125×** |
+
+Average over all 4 videos with CUDA: **39.7 ms/frame, 25.2 fps, 125.5×**, stable
+across repeats (±1%). GPU utilisation was only **~5–11 %** and VRAM ~1.2 GB, so
+inference is no longer the bottleneck — **CPU decode + MTCNN detection now
+dominate**. The GPU still needs a CUDA build of ORT/libtorch and a Docker runtime
+with GPU access (the current Compose setup has none).
+
 ## Resource requirements for a target speed
 
-| Target | CPU | RAM | Notes |
+| Target | CPU | RAM | GPU |
 |---|---|---|---|
-| ~20× realtime | ~2 cores | ~3.5 GiB | |
-| ~40× realtime | ~4 cores | ~3.5 GiB | |
-| ~80× realtime | ~8 cores | ~3.5 GiB | current config |
-| ~160× realtime | ~16 cores, or GPU | | scales linearly on CPU |
+| ~20× realtime | ~2 cores | ~3.5 GiB | — |
+| ~40× realtime | ~4 cores | ~3.5 GiB | — |
+| ~80× realtime | ~8 cores | ~3.5 GiB | — (current container config) |
+| ~125× realtime | ~8–12 cores | ~3.5 GiB | RTX 3060, ~1.2 GB VRAM (onnx CUDA) |
+| ~160×+ | ~16 cores | ~3.5 GiB | — or a bigger GPU (decode-limited above ~125×) |
 
 - **CPU:** the bottleneck (H.264 decode + MTCNN + ENet inference). ~1 core per
   ~10× realtime for 720p/25fps at 1 frame / 5 s.
@@ -61,7 +80,8 @@ model, so the backend switch is not a CPU win here.
 1. **More CPU cores** — near-linear (see table).
 2. **Horizontal replicas** — `docker/docker-compose-replicas.yml` runs several
    servers behind nginx.
-3. **GPU build** — CUDA libtorch (`WITH_TORCH` → CUDA build) or
-   `onnxruntime-gpu`; would accelerate inference.
+3. **GPU (validated)** — `onnxruntime-gpu` + CUDA 12 + cuDNN 9 with the
+   CUDAExecutionProvider appended measured **125×** on the RTX 3060. Needs a
+   Docker runtime with GPU access; above ~125× the CPU decoder becomes the limit.
 4. **Reduce work** — larger `frame_interval_seconds`, lower capture resolution,
    or a cheaper face detector.
