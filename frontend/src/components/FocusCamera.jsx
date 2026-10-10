@@ -6,6 +6,7 @@ import {
   baselineLooksExpressive,
   baselineReady,
   baselineSummary,
+  calmBaselineFrames,
   decideEmotionOffer,
   emotionPolicy,
   emptyOfferMemory,
@@ -445,7 +446,13 @@ export const FocusCamera = ({
 
   const confirmBaseline = () => {
     if (!baselineReadyNow) return;
-    setBaseline({ confirmedOnTask: true, frames: baselineRun });
+    // Store the calmest frames as the reference so an expressive collection does
+    // not become the yardstick (auto-neutral baseline).
+    setBaseline({
+      confirmedOnTask: true,
+      frames: baselineRun,
+      calmFrames: calmBaselineFrames(baselineRun),
+    });
   };
 
   const handleManualCheck = async () => {

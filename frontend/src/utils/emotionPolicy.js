@@ -181,6 +181,30 @@ export function baselineLooksExpressive(summary) {
   );
 }
 
+// Pick the calmest usable frames of a collected run to serve as the reference
+// ("auto-neutral baseline"). The user often confirms while still showing an
+// expression, which makes the same expression invisible; taking the least
+// expressive frames makes the reference a plausible calm state so a later
+// expression is a real deviation. Returns the frames in their original order.
+export function calmBaselineFrames(frames, minCount = emotionPolicy.minBaselineFrames) {
+  const valid = (Array.isArray(frames) ? frames : []).filter(usable);
+  if (valid.length <= minCount) return valid;
+  const score = (f) =>
+    Math.abs(f.valence) +
+    Math.max(
+      f.emotions.sadness ?? 0,
+      f.emotions.fear ?? 0,
+      f.emotions.anger ?? 0,
+      f.emotions.joy ?? 0,
+      f.emotions.disgust ?? 0,
+      f.emotions.contempt ?? 0,
+      f.emotions.surprise ?? 0,
+    );
+  const take = Math.max(minCount, Math.round(valid.length * 0.4));
+  const chosen = new Set([...valid].sort((a, b) => score(a) - score(b)).slice(0, take));
+  return valid.filter((f) => chosen.has(f));
+}
+
 // Build a robust z-score reader over the confirmed baseline. Returns NaN for a
 // channel that is not covered by the baseline, which disables dependent rules.
 function makeDeviation(baselineFrames) {
@@ -403,8 +427,15 @@ export function decideEmotionOffer(observation, context) {
     return { action: 'quiet', reason: 'insufficient-signal' };
   }
 
+  // The reference is the auto-neutral (calmest) subset when present, so an
+  // expressive baseline does not hide the very expression the user is showing.
+  const referenceFrames =
+    Array.isArray(baseline.calmFrames) &&
+    baseline.calmFrames.length >= emotionPolicy.minBaselineFrames
+      ? baseline.calmFrames
+      : baseline.frames;
   const z = makeSmoothedReader(
-    makeDeviation(baseline.frames),
+    makeDeviation(referenceFrames),
     observation.frames,
     emotionPolicy.smoothFrames,
   );
