@@ -20,8 +20,12 @@
 // `z <= -2` a drop. Within a row all conditions are ANDed unless marked OR,
 // must hold for at least `patternPersistence` of the window (pilot: 60%, softer
 // than the spec's nominal 80% because per-frame estimates are noisy) and
-// persist in the latest valid frame. A missing channel disables any rule that
-// depends on it — it is never substituted with zero (scenario 16).
+// persist in the latest valid frame. To tolerate live per-frame noise the
+// z-scores are median-smoothed over `smoothFrames` and the window is scored by
+// the fraction of usable frames that match (not by requiring both endpoints of
+// each interval), so a single bad frame cannot cancel an otherwise sustained
+// pattern. A missing channel disables any rule that depends on it — it is never
+// substituted with zero (scenario 16).
 //
 // Every threshold is a pilot hypothesis, not a validated attention classifier.
 
@@ -34,6 +38,8 @@ export const emotionPolicy = Object.freeze({
   patternPersistence: 0.6, // pilot: per-frame emotion estimates are noisy, so
   // the offer window uses a softer threshold than the spec's nominal 80%.
   // Keep the latest-frame requirement; tune against logged `progress` values.
+  smoothFrames: 3, // median-of-window smoothing of the z-scores; a single
+  // noisy frame must not break a rule (pilot noise tolerance).
   deviation: 2, // z-score deviation threshold
   scaleFloor: 0.05, // MAD floor
   maxGapMs: 5000,
@@ -115,6 +121,21 @@ function durationRatio(frames, start, end, predicate) {
   return ms / (end - start);
 }
 
+// Fraction of the window's usable frames that satisfy the predicate. Unlike
+// `durationRatio`, a rule does not need both endpoints of an interval to match,
+// so independent per-frame noise does not square the miss rate. Used for the
+// offer windows; the (stricter) baseline readiness keeps `durationRatio`.
+function frameRatio(frames, predicate) {
+  let total = 0;
+  let pass = 0;
+  for (const f of frames) {
+    if (!usable(f)) continue;
+    total += 1;
+    if (predicate(f)) pass += 1;
+  }
+  return total ? pass / total : 0;
+}
+
 // Mirrors the baseline checks in decideEmotionOffer so the UI can enable
 // "confirm baseline" only when it will actually be accepted.
 export function baselineReady(frames) {
@@ -157,6 +178,37 @@ function makeDeviation(baselineFrames) {
     }
     if (!Number.isFinite(value)) return NaN;
     return (value - s.center) / s.scale;
+  };
+}
+
+// Median-of-window smoothing of the z-scores (pilot noise tolerance). A single
+// noisy frame should not break a rule, so each frame reads the median z of the
+// last `windowSize` frames. Because z is a linear transform of the raw value,
+// the median of z equals the transform of the median raw value, so this is the
+// same as smoothing the signal before standardizing. A channel with no baseline
+// scale stays NaN (missing channels never get filled with zero, scenario 16).
+function makeSmoothedReader(zRaw, frames, windowSize) {
+  const index = new Map();
+  frames.forEach((f, i) => index.set(f, i));
+  const cache = new Map();
+  const series = (k) => {
+    let s = cache.get(k);
+    if (!s) {
+      const raw = frames.map((f) => finiteOr(zRaw(f, k)));
+      s = raw.map((_, i) => {
+        const values = [];
+        for (let j = Math.max(0, i - windowSize + 1); j <= i; j += 1) {
+          if (Number.isFinite(raw[j])) values.push(raw[j]);
+        }
+        return values.length ? median(values) : NaN;
+      });
+      cache.set(k, s);
+    }
+    return s;
+  };
+  return (f, k) => {
+    const i = index.get(f);
+    return i === undefined ? NaN : series(k)[i];
   };
 }
 
@@ -318,7 +370,11 @@ export function decideEmotionOffer(observation, context) {
     return { action: 'quiet', reason: 'insufficient-signal' };
   }
 
-  const z = makeDeviation(baseline.frames);
+  const z = makeSmoothedReader(
+    makeDeviation(baseline.frames),
+    observation.frames,
+    emotionPolicy.smoothFrames,
+  );
   const end = observation.frames[observation.frames.length - 1].timestampMs;
   const latest = observation.frames[observation.frames.length - 1];
 
@@ -343,7 +399,7 @@ export function decideEmotionOffer(observation, context) {
     }
     const windowFrames = observation.frames.filter((f) => f.timestampMs >= start);
     const predicate = (f) => usable(f) && ready(z, f, rule.keys) && rule.test(f);
-    const persistence = durationRatio(windowFrames, start, end, predicate);
+    const persistence = frameRatio(windowFrames, predicate);
     progress[rule.pattern] = persistence;
     if (!matched && persistence >= emotionPolicy.patternPersistence && rule.test(latest)) {
       matched = { rule, persistence };
