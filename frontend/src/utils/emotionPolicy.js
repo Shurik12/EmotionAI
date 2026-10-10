@@ -154,6 +154,33 @@ export function baselineReady(frames) {
   );
 }
 
+// Aggregate of the usable baseline frames, for the UI. The baseline represents
+// the user's "normal" state, so a strongly signed valence or a dominant emotion
+// means it was captured mid-expression and should be re-collected — otherwise
+// the user is compared against that expression and nothing ever deviates.
+export function baselineSummary(frames) {
+  const valid = (Array.isArray(frames) ? frames : []).filter(usable);
+  if (!valid.length) return null;
+  const mean = (sel) => valid.reduce((sum, f) => sum + sel(f), 0) / valid.length;
+  return {
+    count: valid.length,
+    coverage: baselineCoverage(frames),
+    valence: mean((f) => f.valence),
+    arousal: mean((f) => f.arousal),
+    sadness: mean((f) => f.emotions.sadness ?? 0),
+    anger: mean((f) => f.emotions.anger ?? 0),
+    joy: mean((f) => f.emotions.joy ?? 0),
+  };
+}
+
+export function baselineLooksExpressive(summary) {
+  if (!summary) return false;
+  return (
+    Math.abs(summary.valence) > 0.35 ||
+    Math.max(summary.sadness, summary.anger, summary.joy) > 0.4
+  );
+}
+
 // Build a robust z-score reader over the confirmed baseline. Returns NaN for a
 // channel that is not covered by the baseline, which disables dependent rules.
 function makeDeviation(baselineFrames) {

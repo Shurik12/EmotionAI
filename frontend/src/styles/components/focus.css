@@ -610,6 +610,15 @@
   color: var(--rz-on-mint);
 }
 
+.focus-baseline-warning {
+  margin: var(--spacing-xs) 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-left: 3px solid var(--rz-destructive);
+  background: var(--rz-muted);
+  color: var(--rz-foreground);
+  font-size: var(--rz-text-sm);
+}
+
 /* Emotional dynamics */
 .focus-dynamics {
   margin-top: var(--spacing-md);

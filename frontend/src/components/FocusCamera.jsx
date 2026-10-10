@@ -3,7 +3,9 @@ import { useLanguage } from '../hooks/useLanguage';
 import { apiClient } from '../api/client';
 import {
   baselineCoverage,
+  baselineLooksExpressive,
   baselineReady,
+  baselineSummary,
   decideEmotionOffer,
   emotionPolicy,
   emptyOfferMemory,
@@ -125,6 +127,11 @@ export const FocusCamera = ({
       )
     : 0;
   const baselineCoveragePct = Math.round(baselineCoverage(baselineRun) * 100);
+  const baselineInfo = useMemo(() => baselineSummary(baselineRun), [baselineRun]);
+  // The baseline must be a neutral reference; a strongly signed valence or a
+  // dominant emotion means it was captured mid-expression and would hide any
+  // later reaction, so surface a re-collect prompt.
+  const baselineExpressive = baselineReadyNow && baselineLooksExpressive(baselineInfo);
 
   const soundOptions = { enabled: soundEnabled, volume: soundVolume };
   // `?debug` reveals the gating state, the last policy reason and manual
@@ -688,6 +695,11 @@ export const FocusCamera = ({
                       coverage: baselineCoveragePct,
                     })}
               </p>
+              {baselineExpressive && (
+                <p className="focus-baseline-warning" role="alert">
+                  {t('focus.emotion.baselineExpressive')}
+                </p>
+              )}
               <button
                 type="button"
                 className="focus-btn ghost"
@@ -697,6 +709,11 @@ export const FocusCamera = ({
                 {t('focus.emotion.baselineConfirm')}
               </button>
             </>
+          )}
+          {baseline?.confirmedOnTask && (
+            <button type="button" className="focus-btn ghost" onClick={() => setBaseline(null)}>
+              {t('focus.emotion.baselineReset')}
+            </button>
           )}
         </div>
       )}
