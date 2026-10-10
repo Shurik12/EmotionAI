@@ -38,12 +38,14 @@ export const emotionPolicy = Object.freeze({
   baselineCoverage: 0.25, // pilot: real webcams drop frames (no face / motion),
   // so a strict 80% coverage of the wall-clock window is unreachable. Readiness
   // is judged on enough valid frames spanning ≥60 s at ≥25% coverage.
-  patternPersistence: 0.6, // pilot: per-frame emotion estimates are noisy, so
+  patternPersistence: 0.5, // pilot: per-frame emotion estimates are noisy, so
   // the offer window uses a softer threshold than the spec's nominal 80%.
   // Keep the latest-frame requirement; tune against logged `progress` values.
   smoothFrames: 3, // median-of-window smoothing of the z-scores; a single
   // noisy frame must not break a rule (pilot noise tolerance).
-  deviation: 2, // z-score deviation threshold
+  deviation: 1.5, // pilot: spec says z≥2; softened to 1.5 so a natural,
+  // moderate expression shift can trigger. Bounded by the 5-min cooldown and the
+  // 2-offers-per-session cap, so a false positive cannot spam the user.
   scaleFloor: 0.05, // MAD floor
   maxGapMs: 5000,
   maxStaleMs: 10000, // pilot: the decision window is anchored to the last valid

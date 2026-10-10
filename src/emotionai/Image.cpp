@@ -140,20 +140,23 @@ std::vector<cv::Mat> Image::recognizeFaces(const cv::Mat &frame, int downscaleWi
 	// Get MTCNN configuration from config
 	std::string models_dir = config.model().face_detection_models_path;
 
+	// Recall-leaning thresholds (pilot): webcam frames are small/dim and the
+	// Focus path tolerates occasional false positives far better than dropped
+	// faces (a dropped frame invalidates the whole decision window).
 	ProposalNetwork::Config pConfig;
 	pConfig.protoText = (fs::path(models_dir) / "det1.prototxt").string();
 	pConfig.caffeModel = (fs::path(models_dir) / "det1.caffemodel").string();
-	pConfig.threshold = 0.6f;
+	pConfig.threshold = 0.5f;
 
 	RefineNetwork::Config rConfig;
 	rConfig.protoText = (fs::path(models_dir) / "det2.prototxt").string();
 	rConfig.caffeModel = (fs::path(models_dir) / "det2.caffemodel").string();
-	rConfig.threshold = 0.7f;
+	rConfig.threshold = 0.6f;
 
 	OutputNetwork::Config oConfig;
 	oConfig.protoText = (fs::path(models_dir) / "det3.prototxt").string();
 	oConfig.caffeModel = (fs::path(models_dir) / "det3.caffemodel").string();
-	oConfig.threshold = 0.7f;
+	oConfig.threshold = 0.6f;
 
 	MTCNNDetector detector(pConfig, rConfig, oConfig);
 
@@ -166,7 +169,9 @@ std::vector<cv::Mat> Image::recognizeFaces(const cv::Mat &frame, int downscaleWi
 	double downcastRatioW = static_cast<double>(frame.cols) / scaledFrame.cols;
 	double downcastRatioH = static_cast<double>(frame.rows) / scaledFrame.rows;
 
-	std::vector<Face> faces = detector.detect(scaledFrame, 20.f, 0.709f);
+	// 15 px minimum (was 20) and a denser pyramid (0.65 vs 0.709) to catch
+	// smaller/off-centre webcam faces.
+	std::vector<Face> faces = detector.detect(scaledFrame, 15.f, 0.65f);
 	std::vector<cv::Mat> cvFaces;
 	cvFaces.reserve(faces.size());
 
