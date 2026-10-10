@@ -46,6 +46,11 @@ export const emotionPolicy = Object.freeze({
   deviation: 1.5, // pilot: spec says z≥2; softened to 1.5 so a natural,
   // moderate expression shift can trigger. Bounded by the 5-min cooldown and the
   // 2-offers-per-session cap, so a false positive cannot spam the user.
+  requireActivation: false, // pilot: the spec's rows 2–4 also require a z-score
+  // shift in activation (A) and intensity (I). I is only a proxy (max category
+  // probability) and real webcam expressions often show a strong emotion at
+  // ordinary activation, so those clauses are optional: emotion + valence alone
+  // can trigger. Set true to restore the literal spec.
   scaleFloor: 0.05, // MAD floor
   maxGapMs: 5000,
   maxStaleMs: 10000, // pilot: the decision window is anchored to the last valid
@@ -328,14 +333,9 @@ function buildRules(z) {
       keys: ['anger', 'disgust', 'fear', 'valence', 'arousal', 'intensity'],
       test: (f) => {
         const rise = maxFinite(z(f, 'anger'), z(f, 'disgust'));
-        return (
-          rise >= D &&
-          rise > z(f, 'fear') &&
-          f.valence < 0 &&
-          zV(f) <= -D &&
-          zA(f) >= D &&
-          zI(f) >= D
-        );
+        const core = rise >= D && rise > z(f, 'fear') && f.valence < 0 && zV(f) <= -D;
+        if (!core) return false;
+        return !emotionPolicy.requireActivation || (zA(f) >= D && zI(f) >= D);
       },
     },
     {
@@ -345,24 +345,26 @@ function buildRules(z) {
       keys: ['fear', 'anger', 'disgust', 'valence', 'arousal', 'intensity'],
       test: (f) => {
         const fear = z(f, 'fear');
-        return (
+        const core =
           fear >= D &&
           fear >= maxFinite(z(f, 'anger'), z(f, 'disgust')) &&
           f.valence < 0 &&
-          zV(f) <= -D &&
-          zA(f) >= D &&
-          zI(f) >= D
-        );
+          zV(f) <= -D;
+        if (!core) return false;
+        return !emotionPolicy.requireActivation || (zA(f) >= D && zI(f) >= D);
       },
     },
     {
       pattern: 'point',
       scenario: 4,
       windowMs: emotionPolicy.windowMs,
-      // Row 4 does not use intensity.
+      // Row 4 does not use intensity. Activation is optional in the pilot too.
       keys: ['sadness', 'valence', 'arousal'],
-      test: (f) =>
-        z(f, 'sadness') >= D && f.valence < 0 && zV(f) <= -D && zA(f) <= -D,
+      test: (f) => {
+        const core = z(f, 'sadness') >= D && f.valence < 0 && zV(f) <= -D;
+        if (!core) return false;
+        return !emotionPolicy.requireActivation || zA(f) <= -D;
+      },
     },
   ];
 }
