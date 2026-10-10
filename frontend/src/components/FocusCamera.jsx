@@ -29,6 +29,14 @@ const DEFAULT_SAMPLE_INTERVAL_SEC = 1;
 const SESSION_POLL_MS = 1000;
 // Keep about a minute of recent frames so the 15 s window is fully covered.
 const RECENT_FRAMES = 60;
+// On-demand gesture previews so the character can be verified without having to
+// produce a specific sustained expression (the automatic offers need one).
+const GESTURE_PREVIEWS = [
+  { id: 'check', key: 'focus.emotion.gestureCheck' },
+  { id: 'help', key: 'focus.emotion.gestureHelp' },
+  { id: 'support', key: 'focus.emotion.gestureSupport' },
+  { id: 'point', key: 'focus.emotion.gesturePoint' },
+];
 
 // Walk backwards from the newest frame while consecutive samples are close
 // enough for the policy's `ordered` (max gap 5 s). A camera pause starts a new
@@ -796,6 +804,24 @@ export const FocusCamera = ({
             {t('focus.emotion.requestHelp')}
           </button>
         </div>
+      )}
+
+      {status === 'on' && !def && (
+        <details className="focus-gesture-preview">
+          <summary>{t('focus.emotion.previewGestures')}</summary>
+          <div className="focus-debug-actions">
+            {GESTURE_PREVIEWS.map(({ id, key }) => (
+              <button
+                key={id}
+                type="button"
+                className="focus-btn ghost"
+                onClick={() => openIntervention(id, { action: stepLabel })}
+              >
+                {t(key)}
+              </button>
+            ))}
+          </div>
+        </details>
       )}
 
       {debug && (

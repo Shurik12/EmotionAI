@@ -46,6 +46,9 @@ export const emotionPolicy = Object.freeze({
   deviation: 2, // z-score deviation threshold
   scaleFloor: 0.05, // MAD floor
   maxGapMs: 5000,
+  maxStaleMs: 10000, // pilot: the decision window is anchored to the last valid
+  // frame; if no face has been seen for longer than this, stay quiet. Detection
+  // is sparse (~1 valid frame per 3 s), so this is looser than maxGapMs.
   cooldownMs: 300000, // one automatic offer per 5 minutes
   maxOffersPerSession: 2,
   offerLifetimeMs: 20000, // scenario 15: card closes after 20 s
@@ -376,11 +379,11 @@ export function decideEmotionOffer(observation, context) {
     observation.frames,
     emotionPolicy.smoothFrames,
   );
-  const end = observation.frames[observation.frames.length - 1].timestampMs;
   // The spec requires the pattern to persist in the last VALID measurement, not
   // the literal last frame — with a webcam most frames can have no detected
-  // face, and using the literal latest frame would skip every rule ~2/3 of the
-  // time. Fall back to the most recent usable frame.
+  // face. Anchor the decision window to the most recent usable frame and only
+  // evaluate it while it is still reasonably fresh (a long no-face gap means the
+  // user left the frame, so we stay quiet instead of firing on stale data).
   let latest = null;
   for (let i = observation.frames.length - 1; i >= 0; i -= 1) {
     if (usable(observation.frames[i])) {
@@ -391,9 +394,10 @@ export function decideEmotionOffer(observation, context) {
   if (!latest) {
     return { action: 'quiet', reason: 'insufficient-signal' };
   }
+  const end = latest.timestampMs;
 
-  // The observation must not overlap the baseline and must be current.
-  if (end > context.nowMs || context.nowMs - end > emotionPolicy.maxGapMs) {
+  // The last valid measurement must not be in the future and must be fresh.
+  if (end > context.nowMs || context.nowMs - end > emotionPolicy.maxStaleMs) {
     return { action: 'quiet', reason: 'insufficient-signal' };
   }
 

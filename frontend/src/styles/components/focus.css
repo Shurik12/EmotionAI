@@ -889,6 +889,20 @@
   margin-top: var(--spacing-xs);
 }
 
+.focus-gesture-preview {
+  margin-top: var(--spacing-xs);
+}
+
+.focus-gesture-preview summary {
+  cursor: pointer;
+  color: var(--rz-muted-foreground);
+  font-size: var(--rz-text-sm);
+}
+
+.focus-gesture-preview .focus-debug-actions {
+  margin-top: var(--spacing-xs);
+}
+
 /* Sound & motion settings */
 .focus-settings {
   display: flex;
