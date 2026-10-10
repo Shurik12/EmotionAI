@@ -71,15 +71,9 @@ cd contrib/emotiefflib
 git submodule update --init --recursive
 cd ../..
 
-# Install onnx
-echo "Installing onnx..."
-wget https://github.com/microsoft/onnxruntime/releases/download/v1.21.0/onnxruntime-linux-x64-1.21.0.tgz -P contrib/
-tar zxvf contrib/onnxruntime-linux-x64-1.21.0.tgz -C contrib/
-mv contrib/onnxruntime-linux-x64-1.21.0 contrib/onnxruntime
-rm contrib/onnxruntime-linux-x64-1.21.0.tgz
-mkdir contrib/onnxruntime/lib64
-mv contrib/onnxruntime/lib/*.so* contrib/onnxruntime/lib64/
-cp contrib/onnxruntime/lib/cmake/onnxruntime/onnxruntimeConfig.cmake contrib/onnxruntime/lib/cmake/onnxruntime/ONNXRuntimeConfig.cmake
+# Install onnx runtime (CPU or GPU build; ONNX_VARIANT=cpu|gpu, default cpu)
+echo "Installing onnx runtime (ONNX_VARIANT=${ONNX_VARIANT:-cpu})..."
+ONNX_VARIANT="${ONNX_VARIANT:-cpu}" bash scripts/install_onnxruntime.sh "${ONNX_VARIANT}" "${ONNX_VERSION:-1.21.0}"
 
 # Install torch
 echo "Installing libtorch..."

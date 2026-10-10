@@ -239,6 +239,34 @@ This means the server is only available when working inside the EmotionAI projec
 Both variables must be present in `.env` (see `.env.example`). The `.mcp.json` file
 previously at the repo root has been removed — OpenCode does not read that format.
 
+## Video processing: CPU vs GPU (EMO-23)
+
+Video decoding + emotion inference are **CPU-bound**. Two config knobs pick the path:
+
+- `model.backend`: `torch` (CPU) or `onnx`.
+- `model.device`: `cpu` (default) or `cuda` (ONNX backend only).
+
+`device: "cuda"` appends the ONNX Runtime CUDAExecutionProvider. The EmotiEffLib
+ONNX backend is patched (via `emotiefflib.patch`) to read `EMOTIEFF_ONNX_DEVICE`,
+which `FileProcessor` sets from `model.device`; **if CUDA is unavailable the session
+falls back to CPU**, so the same `config.yaml` is safe on GPU-less hosts. GPU needs
+an `onnxruntime-gpu` build plus CUDA 12 + cuDNN 9 on the loader path.
+
+Install either ONNX Runtime variant with one command (identical layout for both,
+`contrib/onnxruntime` is gitignored):
+
+```bash
+make install_onnx                 # CPU (default)
+make install_onnx ONNX_VARIANT=gpu
+make install                      # also honours ONNX_VARIANT=cpu|gpu
+```
+
+GPU deployment: `make up-gpu` (uses `Dockerfile.gpu` + `docker-compose.gpu.yml`;
+requires the NVIDIA driver + nvidia-container-toolkit).
+
+Measured (RTX 3060, 720p/25 fps, 1 frame / 5 s): CPU ≈ 80× realtime, GPU ≈ 125×;
+GPU utilisation is low, decode stays on CPU. Details: `tests/python/video_speed_results.md`.
+
 ## Guardrails
 
 - **Never commit** `config.yaml`, `models/`, `.venv/`, `build/`, `uploads/`, `results/`, `logs/`,

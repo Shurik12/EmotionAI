@@ -1,0 +1,23 @@
+# GPU overlay for docker-compose.yml.
+#
+# Builds the CUDA image (Dockerfile.gpu) and gives the container GPU access.
+# Requires: NVIDIA driver + nvidia-container-toolkit, and the GPU ONNX Runtime
+# installed with `make install_onnx ONNX_VARIANT=gpu`.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+#
+# Then set `model.backend: "onnx"` and `model.device: "cuda"` in config.yaml.
+services:
+  emotionai-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    image: emotionai-server:gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

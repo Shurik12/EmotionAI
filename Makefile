@@ -1,14 +1,21 @@
 MODELS_DIR := contrib/emotiefflib/models
 
-.PHONY: help install python_env models configure build_backend build_frontend build benchmark test \
-        test_integration test_frontend test_frontend_watch up up-build down restart clean clean-data balance
+.PHONY: help install install_onnx python_env models configure build_backend build_frontend build benchmark test \
+        test_integration test_frontend test_frontend_watch up up-build up-gpu down restart clean clean-data balance
 
 help: ## List targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F'## ' \
 		'{split($$1,a,":"); printf "  \033[36m%-15s\033[0m %s\n", a[1], $$2}'
 
-install: ## System deps, submodules, libtorch/onnxruntime
-	bash install_deps
+# ONNX Runtime build to install into contrib/onnxruntime: cpu (default) or gpu.
+ONNX_VARIANT ?= cpu
+ONNX_VERSION ?= 1.21.0
+
+install: ## System deps, submodules, libtorch/onnxruntime (ONNX_VARIANT=cpu|gpu)
+	ONNX_VARIANT=$(ONNX_VARIANT) bash install_deps
+
+install_onnx: ## Install ONNX Runtime into contrib/onnxruntime (ONNX_VARIANT=cpu|gpu)
+	bash scripts/install_onnxruntime.sh $(ONNX_VARIANT) $(ONNX_VERSION)
 
 python_env: ## Create .venv and install Python deps (uses uv, pyproject.toml)
 	uv sync
@@ -52,6 +59,9 @@ up: ## Start containers
 
 up-build: ## Start containers, rebuilding images
 	docker compose up -d --build
+
+up-gpu: ## Start containers on GPU (needs nvidia-container-toolkit + ONNX_VARIANT=gpu)
+	docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
 
 down: ## Stop containers
 	docker compose down

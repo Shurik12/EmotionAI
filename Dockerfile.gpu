@@ -1,0 +1,63 @@
+# GPU variant of the runtime image: CUDA 12 + cuDNN 9 runtime with the ONNX
+# Runtime GPU build, for hosts where the server should run on a GPU.
+#
+# Prerequisites:
+#   1. Install the GPU ONNX Runtime into contrib/onnxruntime:
+#         make install_onnx ONNX_VARIANT=gpu
+#   2. Host must have the NVIDIA driver + nvidia-container-toolkit.
+#
+# Run with the GPU overlay:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Runtime dependencies (same set as the CPU Dockerfile)
+RUN apt update -y && apt install -y \
+    libyaml-cpp0.8 \
+    libspdlog1.12 \
+    libopencv-videoio406t64 \
+    libopencv-dnn406t64 \
+    libopencv-core406t64 \
+    libopencv-imgproc406t64 \
+    libopencv-imgcodecs406t64 \
+    libfmt9 \
+    libhiredis1.1.0 \
+    libssl3 \
+    libcurl4 \
+    libpugixml1v5 \
+    curl \
+    ca-certificates \
+    libcurlpp0t64 \
+    libopencv-stitching406t64 \
+    libopencv-contrib406t64 \
+    libopencv-shape406t64 \
+    libopencv-superres406t64 \
+    libopencv-videostab406t64 \
+    libopencv-viz406t64 \
+    libfftw3-double3 \
+    libeigen3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# LibTorch (CPU) — the binary links it even when the ONNX backend is used.
+COPY ./contrib/libtorch/lib/libtorch.so /usr/lib/x86_64-linux-gnu/
+COPY ./contrib/libtorch/lib/libtorch_cpu.so /usr/lib/x86_64-linux-gnu/
+COPY ./contrib/libtorch/lib/libc10.so /usr/lib/x86_64-linux-gnu/
+COPY ./contrib/libtorch/lib/libgomp-52f2fd74.so.1 /usr/lib/x86_64-linux-gnu/
+
+# ONNX Runtime GPU build (installed by `make install_onnx ONNX_VARIANT=gpu`).
+COPY ./contrib/onnxruntime/lib64/libonnxruntime.so.1.21.0 /usr/lib/x86_64-linux-gnu/
+COPY ./contrib/onnxruntime/lib64/libonnxruntime_providers_cuda.so /usr/lib/x86_64-linux-gnu/
+COPY ./contrib/onnxruntime/lib64/libonnxruntime_providers_shared.so /usr/lib/x86_64-linux-gnu/
+RUN ln -sf libonnxruntime.so.1.21.0 /usr/lib/x86_64-linux-gnu/libonnxruntime.so.1 \
+    && ldconfig
+
+WORKDIR /emotionai
+
+# Directories that will be mounted
+RUN mkdir -p /emotionai/logs /emotionai/uploads /emotionai/results /emotionai/storage
+
+EXPOSE 8080
+
+# The binary, config, models and frontend are mounted via volumes.
+CMD [ "./emotionai" ]
