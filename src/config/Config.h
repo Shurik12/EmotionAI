@@ -126,6 +126,10 @@ private:
 		std::string emotion_model_path = "";
 		std::string audio_model_path = "models/audio_model.pt";
 		std::string face_detection_models_path = "";
+		// Execution device for the ONNX backend: "cpu" (default) or "cuda".
+		// "cuda" enables the CUDA execution provider and needs an
+		// onnxruntime-gpu build; if unavailable it falls back to CPU.
+		std::string device = "cpu";
 	};
 
 	struct ClusterConfig

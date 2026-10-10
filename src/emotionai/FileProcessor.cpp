@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <chrono>
+#include <cstdlib>
 #include <thread>
 #include <numeric>
 #include <atomic>
@@ -101,6 +102,19 @@ std::vector<uint8_t> FileProcessor::mat_to_vector(const cv::Mat& mat)
 //=============================================================================
 bool FileProcessor::load_image_model(const std::string& model_path, const std::string& backend)
 {
+#ifdef HAVE_ONNX
+    // Tell the EmotiEffLib ONNX backend which execution provider to use. "cuda"
+    // enables the CUDA provider (needs an onnxruntime-gpu build); anything else
+    // keeps the CPU provider. The backend falls back to CPU if CUDA is missing.
+    const std::string& device = Config::instance().model().device;
+    if (backend == "onnx" && device == "cuda") {
+        setenv("EMOTIEFF_ONNX_DEVICE", "cuda", 1);
+        LOG_INFO("ONNX execution device: CUDA");
+    } else {
+        unsetenv("EMOTIEFF_ONNX_DEVICE");
+    }
+#endif
+
     std::vector<std::string> search_paths = {
         model_path,
         "./models/" + fs::path(model_path).filename().string(),

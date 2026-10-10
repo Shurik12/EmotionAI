@@ -75,6 +75,27 @@ with GPU access (the current Compose setup has none).
   currently unused. A CUDA build would likely give a large speedup for the
   inference stage; decode stays CPU unless a hardware decoder is used.
 
+## Selecting CPU or GPU (config)
+
+`model.device` chooses the execution device for the ONNX backend:
+
+```yaml
+model:
+  backend: "onnx"                # "torch" | "onnx"
+  emotion_model_path: "models/enet_b0_8_va_mtl.onnx"
+  device: "cuda"                 # "cpu" (default) | "cuda"
+```
+
+- `backend: "torch"` (or `device: "cpu"`): CPU only.
+- `device: "cuda"`: the ONNX backend appends the CUDAExecutionProvider (patched
+  EmotiEffLib reads `EMOTIEFF_ONNX_DEVICE`, set from `model.device`). Needs an
+  **onnxruntime-gpu** build plus CUDA/cuDNN on the loader path; if CUDA is
+  unavailable the session silently falls back to CPU, so the same config is safe
+  on GPU-less hosts.
+
+Measured on this host with the same config: CPU ~66–86×, GPU (RTX 3060)
+~108–125×.
+
 ## Scaling options
 
 1. **More CPU cores** — near-linear (see table).

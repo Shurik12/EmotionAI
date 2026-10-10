@@ -116,6 +116,7 @@ bool Config::loadFromFile(const std::string &config_path)
             const auto &model = root["model"];
             new_data.model.backend = model["backend"].as<std::string>(new_data.model.backend);
             new_data.model.emotion_model_path = model["emotion_model_path"].as<std::string>(new_data.model.emotion_model_path);
+            new_data.model.device = model["device"].as<std::string>(new_data.model.device);
             new_data.model.audio_model_path = model["audio_model_path"].as<std::string>(new_data.model.audio_model_path);
             new_data.model.face_detection_models_path = model["face_detection_models_path"].as<std::string>(new_data.model.face_detection_models_path);
         }
@@ -305,6 +306,7 @@ bool Config::loadFromFile(const std::string &config_path)
 
         spdlog::info("Model configuration:");
         spdlog::info("  Backend: {}", data_.model.backend);
+        spdlog::info("  Device: {}", data_.model.device);
         spdlog::info("  Emotion Model: {}", data_.model.emotion_model_path);
         spdlog::info("  Audio Model: {}", data_.model.audio_model_path);
         spdlog::info("  Face Detection Models: {}", data_.model.face_detection_models_path);

@@ -71,6 +71,9 @@ model:
   emotion_model_path: "models/enet_b0_8_va_mtl.pt" # enet_b2_7.pt
   audio_model_path: "models/audio_model.pt"
   face_detection_models_path: "models/"
+  # ONNX backend execution device: "cpu" (default) or "cuda" (needs an
+  # onnxruntime-gpu build; falls back to CPU when unavailable).
+  device: "cpu"
 
 # Video processing: extract frames at a fixed time interval
 video:
