@@ -6,6 +6,7 @@ models/
 results/
 uploads/
 build/
+videos/
 config.yaml
 contrib/emotiefflib/
 contrib/libtorch/

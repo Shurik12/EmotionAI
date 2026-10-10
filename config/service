@@ -7,11 +7,11 @@ After=network.target
 Type=simple
 #User=emotionai
 #Group=emotionai
-WorkingDirectory=/home/alex/emotion-ai
-Environment=LD_LIBRARY_PATH=/opt/emotion-ai/lib:/usr/local/lib
+WorkingDirectory=/home/alex/emotionai
+Environment=LD_LIBRARY_PATH=/home/alex/emotionai/so:/usr/local/lib
 
-# C++ binary execution
-ExecStart=/home/alex/emotion-ai/build/EmotionAI --config /home/alex/emotion-ai/config.yaml
+# C++ binary execution (config.yaml is resolved from WorkingDirectory)
+ExecStart=/home/alex/emotionai/emotionai
 
 # Restart policy
 Restart=always

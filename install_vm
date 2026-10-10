@@ -58,6 +58,7 @@ ssh -t "${VM_SSH}" "sudo apt-get update && sudo apt-get install -y \
     libavutil-dev \
     libbrotli-dev \
     libcurl4-openssl-dev \
+    libcurlpp-dev \
     libfftw3-dev \
     libfmt-dev \
     libhiredis-dev \
@@ -69,6 +70,7 @@ ssh -t "${VM_SSH}" "sudo apt-get update && sudo apt-get install -y \
     libyaml-cpp-dev \
     nginx \
     python3-certbot-nginx \
+    redis-server \
     uuid-dev \
     zlib1g-dev"
 

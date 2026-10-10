@@ -1,4 +1,6 @@
 #!/bin/bash
 
+# Run from the deployment directory regardless of caller's cwd (cron uses $HOME).
+cd "$(dirname "$0")" || exit 1
 sudo rm -rf uploads/* storage/* results/* 
 

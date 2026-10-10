@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TOKEN_FILE="${HOME}/.secrets/multitool-key"
+API_URL="https://shared1.multitool.works:4000/v1/models"
+
+if [ ! -f "$TOKEN_FILE" ]; then
+  echo "❌ Token not found at $TOKEN_FILE" >&2
+  exit 1
+fi
+
+TOKEN="$(cat "$TOKEN_FILE" | tr -d '[:space:]')"
+
+RESPONSE=$(curl -sf \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Accept: application/json" \
+  "$API_URL" 2>/dev/null) || {
+  echo "❌ API request failed (check your token or network)" >&2
+  exit 1
+}
+
+COUNT=$(echo "$RESPONSE" | jq -r '.data | length')
+
+echo "─────────── Available Models ───────────"
+echo "Count:     $COUNT"
+echo ""
+echo "── Models ──"
+echo "$RESPONSE" | jq -r '.data[].id' | sort
