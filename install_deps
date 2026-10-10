@@ -1,124 +1,143 @@
 #!/bin/bash
+#
+# install_deps - install build/runtime dependencies for EmotionAI.
+#
+# Usage:
+#   ./install_deps                              # build deps + submodules + libtorch + onnxruntime
+#   ONNX_VARIANT=gpu ./install_deps             # GPU ONNX Runtime instead of CPU
+#   INSTALL_DEPLOY_SERVICES=1 ./install_deps    # also nginx + redis-server + certbot
+#
+# Re-running is safe: the emotiefflib patch and the downloaded archives are
+# applied/installed at most once.
+set -euo pipefail
 
-# install_deps.sh - Install dependencies for EmotionAI project
-# Usage: sudo ./install_deps.sh
-
-set -e
+ONNX_VARIANT="${ONNX_VARIANT:-cpu}"
+ONNX_VERSION="${ONNX_VERSION:-1.21.0}"
+LIBTORCH_VERSION="${LIBTORCH_VERSION:-2.1.0}"
+# nginx binds :80 and redis-server binds :6379, both of which can conflict with
+# the app (0.0.0.0:8080) and Dragonfly, so they are opt-in.
+INSTALL_DEPLOY_SERVICES="${INSTALL_DEPLOY_SERVICES:-0}"
 
 echo "=========================================="
-echo "Installing dependencies for EmotionAI project"
+echo "Installing dependencies for EmotionAI"
+echo "  ONNX Runtime : ${ONNX_VARIANT} ${ONNX_VERSION}"
+echo "  LibTorch     : ${LIBTORCH_VERSION} (cpu)"
+echo "  Deploy svcs  : ${INSTALL_DEPLOY_SERVICES} (nginx/redis/certbot)"
 echo "=========================================="
 
-# Install core dependencies
-# NOTE: 'npm' is intentionally NOT installed here. NodeSource's 'nodejs' package
-# declares "Conflicts: npm" and already bundles npm, so apt cannot install the
-# Ubuntu 'npm' package alongside it ("held broken packages").
-echo "Installing core dependencies..."
-sudo apt-get install -y \
-    build-essential \
-    certbot \
-    cmake \
-    ffmpeg \
-    gdb \
-    libavcodec-dev \
-    libavformat-dev \
-    libavutil-dev \
-    libbenchmark-dev \
-    libbrotli-dev \
-    libcurl4-openssl-dev \
-    libcurlpp-dev \
-    libeigen3-dev \
-    libfftw3-dev \
-    libfmt-dev \
-    libgmock-dev \
-    libgtest-dev \
-    libhiredis-dev \
-    libmsgsl-dev \
-    libopencv-dev \
-    libpugixml-dev \
-    libspdlog-dev \
-    libswresample-dev \
-    uuid-dev \
-    libyaml-cpp-dev \
-    nginx \
-    ninja-build \
-    nlohmann-json3-dev \
-    pkg-config \
-    python3-certbot-nginx \
-    redis-server \
-    unzip
+# ---------------------------------------------------------------------------
+# 1. apt packages (refresh indexes first)
+# ---------------------------------------------------------------------------
+sudo apt-get update -y
 
-# Install uv (Python package manager)
-echo "Installing uv..."
-if ! command -v uv &>/dev/null; then
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    # Add uv to PATH for the remainder of this script
-    export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+# NOTE: 'npm' is intentionally NOT installed here. NodeSource's 'nodejs'
+# package declares "Conflicts: npm" and already bundles npm, so apt cannot
+# install Ubuntu's 'npm' alongside it ("held broken packages").
+CORE_PACKAGES=(
+    build-essential cmake ninja-build pkg-config git curl wget ca-certificates unzip
+    ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
+    libopencv-dev libeigen3-dev libfftw3-dev
+    libfmt-dev libspdlog-dev libyaml-cpp-dev nlohmann-json3-dev libmsgsl-dev
+    libhiredis-dev libcurl4-openssl-dev libcurlpp-dev libpugixml-dev libbrotli-dev
+    uuid-dev libbenchmark-dev libgtest-dev libgmock-dev
+)
+echo "Installing core build dependencies..."
+sudo apt-get install -y "${CORE_PACKAGES[@]}"
+
+if [[ "${INSTALL_DEPLOY_SERVICES}" == "1" ]]; then
+    echo "Installing deployment services (nginx, redis-server, certbot)..."
+    sudo apt-get install -y nginx redis-server certbot python3-certbot-nginx
 fi
+
+# ---------------------------------------------------------------------------
+# 2. uv (Python package manager; training/export only)
+# ---------------------------------------------------------------------------
+if ! command -v uv >/dev/null 2>&1; then
+    echo "Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+export PATH="${HOME}/.cargo/bin:${HOME}/.local/bin:${PATH}"
 echo "uv version: $(uv --version 2>/dev/null || echo 'not found')"
 
-# Install submodules
-echo "Installing git submodules..."
-git submodule update --init --recursive
+# ---------------------------------------------------------------------------
+# 3. submodules + emotiefflib patch (idempotent)
+# ---------------------------------------------------------------------------
+echo "Initializing git submodules..."
+git submodule update --init --recursive --force
 
-# Apply patch to emotiefflib
 echo "Applying emotiefflib patch..."
-git apply emotiefflib.patch
+if git apply --reverse --check emotiefflib.patch >/dev/null 2>&1; then
+    echo "  already applied - skipping"
+elif git apply --check emotiefflib.patch >/dev/null 2>&1; then
+    git apply emotiefflib.patch
+else
+    echo "  ERROR: emotiefflib.patch does not apply cleanly" >&2
+    exit 1
+fi
 
-# Handle nested submodules in emotiefflib
 echo "Initializing emotiefflib submodules..."
-cd contrib/emotiefflib
-git submodule update --init --recursive
-cd ../..
+git -C contrib/emotiefflib submodule update --init --recursive
 
-# Install onnx runtime (CPU or GPU build; ONNX_VARIANT=cpu|gpu, default cpu)
-echo "Installing onnx runtime (ONNX_VARIANT=${ONNX_VARIANT:-cpu})..."
-ONNX_VARIANT="${ONNX_VARIANT:-cpu}" bash scripts/install_onnxruntime.sh "${ONNX_VARIANT}" "${ONNX_VERSION:-1.21.0}"
+# ---------------------------------------------------------------------------
+# 4. ONNX Runtime (cpu or gpu) + LibTorch (cpu)
+# ---------------------------------------------------------------------------
+bash scripts/install_onnxruntime.sh "${ONNX_VARIANT}" "${ONNX_VERSION}"
 
-# Install torch
-echo "Installing libtorch..."
-wget https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcpu.zip
-unzip libtorch-cxx11-abi-shared-with-deps-2.1.0+cpu.zip -d contrib/
-rm libtorch-cxx11-abi-shared-with-deps-2.1.0+cpu.zip
+if [[ -d contrib/libtorch ]]; then
+    echo "LibTorch already present (contrib/libtorch) - skipping download"
+else
+    echo "Installing LibTorch ${LIBTORCH_VERSION} (cpu)..."
+    tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "${tmp_dir}"' EXIT
+    wget -q "https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-${LIBTORCH_VERSION}%2Bcpu.zip" \
+        -O "${tmp_dir}/libtorch.zip"
+    unzip -q "${tmp_dir}/libtorch.zip" -d contrib/
+fi
 
-# Update package list
-echo "Updating package list..."
-sudo apt-get update
-
+# ---------------------------------------------------------------------------
+# 5. Verify what actually matters
+# ---------------------------------------------------------------------------
 echo "=========================================="
 echo "Verifying installations"
 echo "=========================================="
+missing=0
+check_pkgconfig() {
+    if pkg-config --exists "$1"; then
+        echo "  OK   $1 $(pkg-config --modversion "$1")"
+    else
+        echo "  MISS $1"
+        missing=1
+    fi
+}
 
-# Verify installations
-echo "Verifying OpenCV:"
-pkg-config --modversion opencv4 || pkg-config --modversion opencv
+for pkg in opencv4 spdlog fmt yaml-cpp nlohmann_json; do
+    check_pkgconfig "$pkg"
+done
+if ! pkg-config --exists opencv4; then
+    check_pkgconfig opencv
+fi
+pkg-config --exists fftw3 \
+    && echo "  OK   fftw3" \
+    || echo "  note fftw3 (CMake checks headers/libs directly)"
 
-echo "Verifying FFTW3:"
-pkg-config --modversion fftw3 || echo "  (fftw3 not found via pkg-config; CMake checks headers/libs directly)"
-
-echo "Verifying yaml-cpp:"
-pkg-config --modversion yaml-cpp
-
-echo "Verifying spdlog:"
-pkg-config --modversion spdlog
-
-echo "Verifying fmt:"
-pkg-config --modversion fmt
-
-echo "Verifying nlohmann-json:"
-pkg-config --modversion nlohmann_json
+if [[ -f contrib/libtorch/lib/libtorch.so ]]; then
+    echo "  OK   libtorch (contrib/libtorch)"
+else
+    echo "  MISS libtorch (contrib/libtorch)" >&2
+    missing=1
+fi
+if [[ -f contrib/onnxruntime/lib64/libonnxruntime.so.1.21.0 || -f contrib/onnxruntime/lib64/libonnxruntime.so ]]; then
+    echo "  OK   onnxruntime (${ONNX_VARIANT})"
+else
+    echo "  MISS onnxruntime (contrib/onnxruntime)" >&2
+    missing=1
+fi
 
 echo "=========================================="
-echo "Installation complete!"
+if [[ "${missing}" == "1" ]]; then
+    echo "Installation finished with missing dependencies (see above)." >&2
+    exit 1
+fi
+echo "Installation complete."
+echo "Next:  make models && make build"
 echo "=========================================="
-
-echo "Dependencies installed:"
-echo "✓ OpenCV"
-echo "✓ yaml-cpp"
-echo "✓ spdlog"
-echo "✓ fmt"
-echo "✓ nlohmann-json"
-echo "✓ PostgreSQL client"
-echo "✓ hiredis"
-echo "✓ httplib (header-only)"
-echo "✓ redis-plus-plus (headers)"

@@ -35,6 +35,21 @@ case "${VARIANT}" in
 esac
 
 URL="https://github.com/microsoft/onnxruntime/releases/download/v${VERSION}/${PKG}.tgz"
+
+# Skip when the requested variant is already installed (ONNX_FORCE=1 to force).
+installed_variant="none"
+if [ -f "${DEST}/lib64/libonnxruntime.so.1.21.0" ] || [ -f "${DEST}/lib64/libonnxruntime.so" ]; then
+  if [ -f "${DEST}/lib64/libonnxruntime_providers_cuda.so" ]; then
+    installed_variant="gpu"
+  else
+    installed_variant="cpu"
+  fi
+fi
+if [ "${installed_variant}" = "${VARIANT}" ] && [ "${ONNX_FORCE:-0}" != "1" ]; then
+  echo "[install_onnxruntime] ONNX Runtime (${VARIANT}) already installed at ${DEST} - skipping (ONNX_FORCE=1 to reinstall)"
+  exit 0
+fi
+
 echo "[install_onnxruntime] installing ONNX Runtime ${VERSION} (${VARIANT}) -> ${DEST}"
 
 TMP_DIR="$(mktemp -d)"

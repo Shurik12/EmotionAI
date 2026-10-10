@@ -32,14 +32,14 @@ make up               # docker compose: dragonfly + server
 | Command | Why it fails |
 |---|---|
 | `make run` | **No such target.** Use `make up` or run `./build/emotionai` from the repo root. |
-| `install_deps.sh` | Installs all required apt packages (including `libfftw3-dev`, FFmpeg dev, `libgtest-dev`/`libgmock-dev`, `libbenchmark-dev`). Its "Verifying installations" output claims to check PostgreSQL client, httplib and redis-plus-plus, none of which it installs. |
 
-Install the missing deps manually:
-
-```bash
-sudo apt-get install -y libeigen3-dev libfftw3-dev libgtest-dev libgmock-dev \
-  ffmpeg libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
-```
+`make install` (runs `install_deps`) installs the full apt set and is now
+**idempotent**: the emotiefflib patch is applied once (skipped if already
+applied), existing `contrib/libtorch` and ONNX Runtime installs are skipped, and
+the verification checks what is actually installed. Flags:
+`ONNX_VARIANT=cpu|gpu` (default `cpu`) and `INSTALL_DEPLOY_SERVICES=1` for
+nginx/redis-server/certbot (off by default — they bind :80/:6379 and can
+conflict with the app and Dragonfly).
 
 ### Shell permissions (agent command hygiene)
 
