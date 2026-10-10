@@ -193,7 +193,9 @@ function makeSmoothedReader(zRaw, frames, windowSize) {
   const series = (k) => {
     let s = cache.get(k);
     if (!s) {
-      const raw = frames.map((f) => finiteOr(zRaw(f, k)));
+      // Only usable frames carry a real measurement; an invalid (no-face) frame
+      // still has numeric zeros, so it must not enter the median.
+      const raw = frames.map((f) => (usable(f) ? finiteOr(zRaw(f, k)) : null));
       s = raw.map((_, i) => {
         const values = [];
         for (let j = Math.max(0, i - windowSize + 1); j <= i; j += 1) {
@@ -375,7 +377,20 @@ export function decideEmotionOffer(observation, context) {
     emotionPolicy.smoothFrames,
   );
   const end = observation.frames[observation.frames.length - 1].timestampMs;
-  const latest = observation.frames[observation.frames.length - 1];
+  // The spec requires the pattern to persist in the last VALID measurement, not
+  // the literal last frame — with a webcam most frames can have no detected
+  // face, and using the literal latest frame would skip every rule ~2/3 of the
+  // time. Fall back to the most recent usable frame.
+  let latest = null;
+  for (let i = observation.frames.length - 1; i >= 0; i -= 1) {
+    if (usable(observation.frames[i])) {
+      latest = observation.frames[i];
+      break;
+    }
+  }
+  if (!latest) {
+    return { action: 'quiet', reason: 'insufficient-signal' };
+  }
 
   // The observation must not overlap the baseline and must be current.
   if (end > context.nowMs || context.nowMs - end > emotionPolicy.maxGapMs) {
@@ -391,7 +406,6 @@ export function decideEmotionOffer(observation, context) {
     if (
       observation.frames[0].timestampMs > start ||
       be >= start ||
-      !usable(latest) ||
       !ready(z, latest, rule.keys)
     ) {
       continue;
