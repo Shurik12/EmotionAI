@@ -15,7 +15,7 @@ install: ## System deps, submodules, libtorch/onnxruntime (ONNX_VARIANT=cpu|gpu)
 	ONNX_VARIANT=$(ONNX_VARIANT) bash install_deps
 
 install_onnx: ## Install ONNX Runtime into contrib/onnxruntime (ONNX_VARIANT=cpu|gpu)
-	bash scripts/install_onnxruntime.sh $(ONNX_VARIANT) $(ONNX_VERSION)
+	ONNX_VARIANT=$(ONNX_VARIANT) ONNX_VERSION=$(ONNX_VERSION) bash install_deps onnx
 
 python_env: ## Create .venv and install Python deps (uses uv, pyproject.toml)
 	uv sync

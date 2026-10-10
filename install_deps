@@ -1,22 +1,106 @@
 #!/bin/bash
 #
-# install_deps - install build/runtime dependencies for EmotionAI.
+# install_deps - install dependencies for EmotionAI (single entry point).
 #
 # Usage:
-#   ./install_deps                              # build deps + submodules + libtorch + onnxruntime
-#   ONNX_VARIANT=gpu ./install_deps             # GPU ONNX Runtime instead of CPU
-#   INSTALL_DEPLOY_SERVICES=1 ./install_deps    # also nginx + redis-server + certbot
+#   ./install_deps                 # full install: apt deps + submodules + libtorch + onnxruntime
+#   ./install_deps onnx            # only (re)install the ONNX Runtime into contrib/
 #
-# Re-running is safe: the emotiefflib patch and the downloaded archives are
-# applied/installed at most once.
+# Environment:
+#   ONNX_VARIANT=cpu|gpu           ONNX Runtime build (default cpu)
+#   ONNX_VERSION=1.21.0            ONNX Runtime version
+#   ONNX_FORCE=1                   reinstall ONNX Runtime even if present
+#   LIBTORCH_VERSION=2.1.0         LibTorch (cpu) version
+#   INSTALL_DEPLOY_SERVICES=1      also install nginx/redis-server/certbot
+#
+# Re-running is safe: the emotiefflib patch is applied once and downloaded
+# archives are skipped when already present.
 set -euo pipefail
 
+MODE="${1:-all}"
 ONNX_VARIANT="${ONNX_VARIANT:-cpu}"
 ONNX_VERSION="${ONNX_VERSION:-1.21.0}"
 LIBTORCH_VERSION="${LIBTORCH_VERSION:-2.1.0}"
 # nginx binds :80 and redis-server binds :6379, both of which can conflict with
 # the app (0.0.0.0:8080) and Dragonfly, so they are opt-in.
 INSTALL_DEPLOY_SERVICES="${INSTALL_DEPLOY_SERVICES:-0}"
+
+# ---------------------------------------------------------------------------
+# ONNX Runtime installer (cpu or gpu) — same layout for both, so the build,
+# loader path and the emotiefflib CMake patch are identical.
+# ---------------------------------------------------------------------------
+install_onnxruntime() {
+    local variant="${ONNX_VARIANT}"
+    local version="${ONNX_VERSION}"
+    local dest="contrib/onnxruntime"
+    local pkg url
+    case "${variant}" in
+        cpu) pkg="onnxruntime-linux-x64-${version}" ;;
+        gpu) pkg="onnxruntime-linux-x64-gpu-${version}" ;;
+        *)   echo "[onnx] unknown ONNX_VARIANT '${variant}' (expected cpu|gpu)" >&2; exit 1 ;;
+    esac
+    url="https://github.com/microsoft/onnxruntime/releases/download/v${version}/${pkg}.tgz"
+
+    # Skip when the requested variant is already installed (ONNX_FORCE=1 forces).
+    local installed="none"
+    if [ -f "${dest}/lib64/libonnxruntime.so.1.21.0" ] || [ -f "${dest}/lib64/libonnxruntime.so" ]; then
+        if [ -f "${dest}/lib64/libonnxruntime_providers_cuda.so" ]; then
+            installed="gpu"
+        else
+            installed="cpu"
+        fi
+    fi
+    if [ "${installed}" = "${variant}" ] && [ "${ONNX_FORCE:-0}" != "1" ]; then
+        echo "[onnx] ONNX Runtime (${variant}) already installed at ${dest} - skipping (ONNX_FORCE=1 to reinstall)"
+        return 0
+    fi
+
+    echo "[onnx] installing ONNX Runtime ${version} (${variant}) -> ${dest}"
+    local tmp
+    tmp="$(mktemp -d)"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fSL "${url}" -o "${tmp}/ort.tgz"
+    else
+        wget -q "${url}" -O "${tmp}/ort.tgz"
+    fi
+    tar -xzf "${tmp}/ort.tgz" -C "${tmp}"
+
+    rm -rf "${dest}"
+    mv "${tmp}/${pkg}" "${dest}"
+
+    # The C++ build and the emotiefflib patch expect the shared libraries in lib64.
+    mkdir -p "${dest}/lib64"
+    if compgen -G "${dest}/lib/*.so*" >/dev/null; then
+        mv "${dest}"/lib/*.so* "${dest}/lib64/"
+    fi
+
+    # find_package(onnxruntime) looks for ONNXRuntimeConfig.cmake; the release
+    # ships only the lowercase name.
+    local cmake_dir="${dest}/lib/cmake/onnxruntime"
+    if [ -f "${cmake_dir}/onnxruntimeConfig.cmake" ] && [ ! -f "${cmake_dir}/ONNXRuntimeConfig.cmake" ]; then
+        cp "${cmake_dir}/onnxruntimeConfig.cmake" "${cmake_dir}/ONNXRuntimeConfig.cmake"
+    fi
+
+    if [ "${variant}" = "gpu" ]; then
+        if [ ! -f "${dest}/lib64/libonnxruntime_providers_cuda.so" ]; then
+            echo "[onnx] ERROR: GPU build has no libonnxruntime_providers_cuda.so" >&2
+            exit 1
+        fi
+        echo "[onnx] GPU variant also needs CUDA 12 + cuDNN 9 on the loader path"
+    fi
+
+    rm -rf "${tmp}"
+    echo "[onnx] done: ${dest}"
+}
+
+if [[ "${MODE}" == "onnx" ]]; then
+    install_onnxruntime
+    exit 0
+fi
+if [[ "${MODE}" != "all" ]]; then
+    echo "usage: install_deps [all|onnx]" >&2
+    exit 1
+fi
 
 echo "=========================================="
 echo "Installing dependencies for EmotionAI"
@@ -81,7 +165,7 @@ git -C contrib/emotiefflib submodule update --init --recursive
 # ---------------------------------------------------------------------------
 # 4. ONNX Runtime (cpu or gpu) + LibTorch (cpu)
 # ---------------------------------------------------------------------------
-bash scripts/install_onnxruntime.sh "${ONNX_VARIANT}" "${ONNX_VERSION}"
+install_onnxruntime
 
 if [[ -d contrib/libtorch ]]; then
     echo "LibTorch already present (contrib/libtorch) - skipping download"
