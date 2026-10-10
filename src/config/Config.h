@@ -192,7 +192,11 @@ private:
 		                                      // (0 = leave torch default). With a
 		                                      // pool of N instances the default of
 		                                      // "all cores" oversubscribes the CPU.
-		int decode_threads = 4;               // parallel H.264 readers (segments)
+		int decode_threads = 1;               // number of parallel H.264 readers.
+		                                      // OpenCV's single VideoCapture already
+		                                      // decodes multi-threaded, so >1 readers
+		                                      // oversubscribe the CPU (measured
+		                                      // slower: 4 readers 72x vs 1 reader 86x).
 	};
 
 	struct ConfigData

@@ -38,6 +38,30 @@ Before EMO-23: 209.8 ms/frame, 4.8 fps, 24× → now ~**3.3× faster**.
 On this CPU the ONNX Runtime build is ~10% **slower** than libtorch for this
 model, so the backend switch is not a CPU win here.
 
+## Decoding (H.264)
+
+Decoding dominates the CPU-bound path, but the decoder itself is *not* slow:
+
+- OpenCV `VideoCapture` is **already multi-threaded** (≈688% CPU): it decodes all
+  21,698 frames of the 14.5-min video in **5.4 s** (~4,000 fps) on 8+ cores, and
+  in 24.5 s pinned to a single core (near-linear scaling).
+- `ffmpeg -hwaccel cuda` (NVDEC) is **slower** for this stream — 8.1 s vs 5.4 s —
+  and `h264_cuvid` with CPU output is 19.6 s, because the ~0.5 Mbps 720p stream
+  is cheap to decode and the GPU→CPU transfer dominates. Hardware decode only
+  pays off for high-resolution/high-bitrate inputs.
+- Therefore the earlier "parallel decode" (`video.decode_threads=4`, 4 readers)
+  **oversubscribed** the CPU (each reader already spawns ~7 threads). Controlled
+  A/B on `Светлана.mp4` at 8 CPUs:
+
+  | decode_threads | fps |
+  |---:|---:|
+  | **1** | **17.4** |
+  | 4 | 14.5 |
+
+  Default is now **`decode_threads: 1`** (+20%). In the pipeline, decode still
+  competes with inference for cores; offloading inference to the GPU frees CPU
+  for decode, which is why the GPU path is faster.
+
 ## ONNX Runtime GPU (RTX 3060)
 
 Ran on the host (12 cores) with `onnxruntime-linux-x64-gpu-1.21.0` + CUDA 12 +
