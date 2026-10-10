@@ -38,9 +38,12 @@ export const emotionPolicy = Object.freeze({
   baselineCoverage: 0.25, // pilot: real webcams drop frames (no face / motion),
   // so a strict 80% coverage of the wall-clock window is unreachable. Readiness
   // is judged on enough valid frames spanning ≥60 s at ≥25% coverage.
-  patternPersistence: 0.5, // pilot: per-frame emotion estimates are noisy, so
+  patternPersistence: 0.4, // pilot: per-frame emotion estimates are noisy, so
   // the offer window uses a softer threshold than the spec's nominal 80%.
   // Keep the latest-frame requirement; tune against logged `progress` values.
+  requireLatest: false, // pilot: the spec also requires the pattern in the last
+  // valid measurement. People often cycle expressions every couple of seconds, so
+  // that clause could veto an otherwise sustained window. Set true to restore it.
   smoothFrames: 3, // median-of-window smoothing of the z-scores; a single
   // noisy frame must not break a rule (pilot noise tolerance).
   deviation: 1.5, // pilot: spec says z≥2; softened to 1.5 so a natural,
@@ -52,6 +55,10 @@ export const emotionPolicy = Object.freeze({
   // ordinary activation, so those clauses are optional: emotion + valence alone
   // can trigger. Set true to restore the literal spec.
   scaleFloor: 0.05, // MAD floor
+  scaleCap: 0.25, // pilot: cap the robust scale. The core's frame-to-frame
+  // output is very noisy, so a large baseline MAD would swallow real deviations
+  // (a clear frown scored zValence -1.4). Capping keeps z meaningful; set to
+  // Infinity to disable.
   maxGapMs: 5000,
   maxStaleMs: 10000, // pilot: the decision window is anchored to the last valid
   // frame; if no face has been seen for longer than this, stay quiet. Detection
@@ -229,9 +236,12 @@ function makeDeviation(baselineFrames) {
       const center = median(a);
       s = {
         center,
-        scale: Math.max(
-          1.4826 * median(a.map((x) => Math.abs(x - center))),
-          emotionPolicy.scaleFloor,
+        scale: Math.min(
+          Math.max(
+            1.4826 * median(a.map((x) => Math.abs(x - center))),
+            emotionPolicy.scaleFloor,
+          ),
+          emotionPolicy.scaleCap,
         ),
       };
       scales.set(k, s);
@@ -480,7 +490,8 @@ export function decideEmotionOffer(observation, context) {
     const predicate = (f) => usable(f) && ready(z, f, rule.keys) && rule.test(f);
     const persistence = frameRatio(windowFrames, predicate);
     progress[rule.pattern] = persistence;
-    if (!matched && persistence >= emotionPolicy.patternPersistence && rule.test(latest)) {
+    const latestOk = !emotionPolicy.requireLatest || rule.test(latest);
+    if (!matched && persistence >= emotionPolicy.patternPersistence && latestOk) {
       matched = { rule, persistence };
     }
   }
