@@ -1,0 +1,146 @@
+[
+  {
+    "id": 1,
+    "title": "Проверка состояния",
+    "kind": "check",
+    "duration_ms": 900,
+    "file": "gifs/01_check.gif",
+    "loop": "preview only; production play once",
+    "sound": true
+  },
+  {
+    "id": 2,
+    "title": "Предложить помощь",
+    "kind": "help",
+    "duration_ms": 700,
+    "file": "gifs/02_help.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 3,
+    "title": "Поддержать",
+    "kind": "support",
+    "duration_ms": 900,
+    "file": "gifs/03_support.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 4,
+    "title": "Напомнить действие",
+    "kind": "point",
+    "duration_ms": 800,
+    "file": "gifs/04_point.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 5,
+    "title": "Радость / интерес",
+    "kind": "still",
+    "duration_ms": 0,
+    "file": "gifs/05_still.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 6,
+    "title": "Удивление",
+    "kind": "still",
+    "duration_ms": 0,
+    "file": "gifs/06_still.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 7,
+    "title": "Стыд / презрение",
+    "kind": "still",
+    "duration_ms": 0,
+    "file": "gifs/07_still.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 8,
+    "title": "Обычная работа",
+    "kind": "still",
+    "duration_ms": 0,
+    "file": "gifs/08_still.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 9,
+    "title": "Вернуться к действию",
+    "kind": "point",
+    "duration_ms": 800,
+    "file": "gifs/09_point.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 10,
+    "title": "Продолжить без помощи",
+    "kind": "dismiss",
+    "duration_ms": 150,
+    "file": "gifs/10_dismiss.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 11,
+    "title": "Запросить помощь",
+    "kind": "replace",
+    "duration_ms": 0,
+    "file": "gifs/11_replace.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 12,
+    "title": "Разбить на шаги",
+    "kind": "steps",
+    "duration_ms": 0,
+    "file": "gifs/12_steps.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 13,
+    "title": "Пауза",
+    "kind": "pause",
+    "duration_ms": 600,
+    "file": "gifs/13_pause.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 14,
+    "title": "Действие завершено",
+    "kind": "done",
+    "duration_ms": 650,
+    "file": "gifs/14_done.gif",
+    "loop": "preview only; production play once",
+    "sound": true
+  },
+  {
+    "id": 15,
+    "title": "Нет ответа",
+    "kind": "timeout",
+    "duration_ms": 200,
+    "file": "gifs/15_timeout.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  },
+  {
+    "id": 16,
+    "title": "Анализ недоступен",
+    "kind": "unavailable",
+    "duration_ms": 0,
+    "file": "gifs/16_unavailable.gif",
+    "loop": "preview only; production play once",
+    "sound": false
+  }
+]

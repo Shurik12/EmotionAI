@@ -610,6 +610,15 @@
   color: var(--rz-on-mint);
 }
 
+.focus-baseline-warning {
+  margin: var(--spacing-xs) 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-left: 3px solid var(--rz-destructive);
+  background: var(--rz-muted);
+  color: var(--rz-foreground);
+  font-size: var(--rz-text-sm);
+}
+
 /* Emotional dynamics */
 .focus-dynamics {
   margin-top: var(--spacing-md);
@@ -677,5 +686,347 @@
 
   .focus-tabs {
     flex-direction: column;
+  }
+}
+
+/* ============================================
+   Numa character (EMO-17)
+   Flat cutout layers from the ORI prototypes
+   (focus-assets/assets → public/static/numa).
+   Gestures follow docs/focus/FOCUS_INTERVENTION_SPEC.md.
+   ============================================ */
+.focus-numa {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+}
+
+.focus-numa-visual {
+  flex: 0 0 auto;
+  width: 168px;
+}
+
+.focus-numa-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.numa-character {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 760 / 480;
+}
+
+.numa-layer {
+  position: absolute;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.numa-body {
+  left: 16.84%;
+  top: 46.67%;
+  width: 16.32%;
+  height: 37.08%;
+  z-index: 1;
+}
+
+.numa-left {
+  left: 8.82%;
+  top: 51.46%;
+  width: 10.79%;
+  height: 22.5%;
+  z-index: 2;
+  transform-origin: 80% 12%;
+}
+
+.numa-right {
+  left: 30.39%;
+  top: 51.46%;
+  width: 10.79%;
+  height: 22.5%;
+  z-index: 2;
+  transform-origin: 20% 12%;
+}
+
+.numa-head {
+  left: 10.53%;
+  top: 23.75%;
+  width: 28.95%;
+  height: 33.13%;
+  z-index: 3;
+  transform-origin: 50% 92%;
+}
+
+.numa-happy {
+  left: 10.53%;
+  top: 23.75%;
+  width: 28.95%;
+  height: 33.13%;
+  z-index: 4;
+  opacity: 0;
+  transform-origin: 50% 92%;
+}
+
+/* Numa gesture animations (EMO-17).
+   Each forward animation stops at its "held" pose and keeps it for as long as
+   the card is open (`animation-fill-mode: forwards`). The short
+   `[data-phase='return']` variants release the pose when the card closes, so the
+   gesture stays visible for the whole offer instead of a <1 s flash. */
+
+/* Row 1 — check: raise head, tilt, paw to chest. */
+@keyframes numa-check-head {
+  0% { transform: translateY(0) rotate(0deg); }
+  28% { transform: translateY(-12%) rotate(0deg); }
+  50%, 100% { transform: translateY(-12%) rotate(6deg); }
+}
+@keyframes numa-check-paw {
+  0%, 28% { transform: translateY(0) rotate(0deg); }
+  50%, 100% { transform: translateY(-45%) rotate(-18deg); }
+}
+@keyframes numa-check-head-back {
+  from { transform: translateY(-12%) rotate(6deg); }
+  to { transform: translateY(0) rotate(0deg); }
+}
+@keyframes numa-check-paw-back {
+  from { transform: translateY(-45%) rotate(-18deg); }
+  to { transform: translateY(0) rotate(0deg); }
+}
+.numa-character[data-gesture='check'] .numa-head { animation: numa-check-head 900ms ease-in-out both; }
+.numa-character[data-gesture='check'] .numa-left { animation: numa-check-paw 900ms ease-in-out both; }
+.numa-character[data-gesture='check'][data-phase='return'] .numa-head { animation: numa-check-head-back 150ms ease-in-out both; }
+.numa-character[data-gesture='check'][data-phase='return'] .numa-left { animation: numa-check-paw-back 150ms ease-in-out both; }
+
+/* Row 2 — help: tilt the head toward the card. */
+@keyframes numa-help-head {
+  0% { transform: rotate(0deg); }
+  36%, 100% { transform: rotate(5deg); }
+}
+@keyframes numa-help-head-back {
+  from { transform: rotate(5deg); }
+  to { transform: rotate(0deg); }
+}
+.numa-character[data-gesture='help'] .numa-head { animation: numa-help-head 700ms ease-in-out both; }
+.numa-character[data-gesture='help'][data-phase='return'] .numa-head { animation: numa-help-head-back 150ms ease-in-out both; }
+
+/* Row 3 — support: open both paws, palms up. */
+@keyframes numa-support-left {
+  0% { transform: rotate(0deg) translateY(0); }
+  33%, 100% { transform: rotate(-32deg) translateY(-10%); }
+}
+@keyframes numa-support-right {
+  0% { transform: rotate(0deg) translateY(0); }
+  33%, 100% { transform: rotate(32deg) translateY(-10%); }
+}
+@keyframes numa-support-left-back {
+  from { transform: rotate(-32deg) translateY(-10%); }
+  to { transform: rotate(0deg) translateY(0); }
+}
+@keyframes numa-support-right-back {
+  from { transform: rotate(32deg) translateY(-10%); }
+  to { transform: rotate(0deg) translateY(0); }
+}
+.numa-character[data-gesture='support'] .numa-left { animation: numa-support-left 900ms ease-in-out both; }
+.numa-character[data-gesture='support'] .numa-right { animation: numa-support-right 900ms ease-in-out both; }
+.numa-character[data-gesture='support'][data-phase='return'] .numa-left { animation: numa-support-left-back 150ms ease-in-out both; }
+.numa-character[data-gesture='support'][data-phase='return'] .numa-right { animation: numa-support-right-back 150ms ease-in-out both; }
+
+/* Rows 4/9 — point: turn head and extend a paw to the card. */
+@keyframes numa-point-head {
+  0% { transform: rotate(0deg); }
+  31%, 100% { transform: rotate(8deg); }
+}
+@keyframes numa-point-right {
+  0% { transform: translateX(0) rotate(0deg); }
+  31%, 100% { transform: translateX(70%) rotate(-62deg); }
+}
+@keyframes numa-point-head-back {
+  from { transform: rotate(8deg); }
+  to { transform: rotate(0deg); }
+}
+@keyframes numa-point-right-back {
+  from { transform: translateX(70%) rotate(-62deg); }
+  to { transform: translateX(0) rotate(0deg); }
+}
+.numa-character[data-gesture='point'] .numa-head { animation: numa-point-head 800ms ease-in-out both; }
+.numa-character[data-gesture='point'] .numa-right { animation: numa-point-right 800ms ease-in-out both; }
+.numa-character[data-gesture='point'][data-phase='return'] .numa-head { animation: numa-point-head-back 150ms ease-in-out both; }
+.numa-character[data-gesture='point'][data-phase='return'] .numa-right { animation: numa-point-right-back 150ms ease-in-out both; }
+
+/* Row 13 — pause: lower paws and head, and stay lowered. */
+@keyframes numa-pause-head {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(6%); }
+}
+@keyframes numa-pause-paw {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(10%); }
+}
+@keyframes numa-pause-head-back {
+  from { transform: translateY(6%); }
+  to { transform: translateY(0); }
+}
+@keyframes numa-pause-paw-back {
+  from { transform: translateY(10%); }
+  to { transform: translateY(0); }
+}
+.numa-character[data-gesture='pause'] .numa-head { animation: numa-pause-head 600ms ease-in-out both; }
+.numa-character[data-gesture='pause'] .numa-left,
+.numa-character[data-gesture='pause'] .numa-right { animation: numa-pause-paw 600ms ease-in-out both; }
+.numa-character[data-gesture='pause'][data-phase='return'] .numa-head { animation: numa-pause-head-back 150ms ease-in-out both; }
+.numa-character[data-gesture='pause'][data-phase='return'] .numa-left,
+.numa-character[data-gesture='pause'][data-phase='return'] .numa-right { animation: numa-pause-paw-back 150ms ease-in-out both; }
+
+/* Row 14 — done: a small nod, then the smile stays visible while the card is up. */
+@keyframes numa-done-head {
+  0% { transform: rotate(0deg); }
+  31% { transform: rotate(7deg); }
+  69%, 100% { transform: rotate(0deg); }
+}
+@keyframes numa-done-smile {
+  0%, 40% { opacity: 0; }
+  69%, 100% { opacity: 1; }
+}
+@keyframes numa-done-smile-back {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.numa-character[data-gesture='done'] .numa-head { animation: numa-done-head 650ms ease-in-out both; }
+.numa-character[data-gesture='done'] .numa-happy { animation: numa-done-smile 650ms ease-in-out both; }
+.numa-character[data-gesture='done'][data-phase='return'] .numa-happy { animation: numa-done-smile-back 150ms ease-in-out both; }
+
+/* Rows 5–8/10/11/12/16 — Numa stays completely still. */
+.numa-character[data-gesture='idle'] .numa-layer { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .numa-character .numa-layer {
+    animation: none !important;
+  }
+
+  .focus-numa,
+  .focus-offer-actions,
+  .focus-numa-message {
+    transition: none !important;
+  }
+}
+
+/* Cards */
+.focus-numa-message {
+  margin: 0 0 var(--spacing-xs) !important;
+  color: var(--rz-foreground);
+  font-size: var(--rz-text-base);
+  font-weight: 600;
+}
+
+.focus-numa-steps {
+  margin: var(--spacing-xs) 0 var(--spacing-sm);
+  padding-left: 1.2em;
+  color: var(--rz-muted-foreground);
+  font-size: var(--rz-text-sm);
+}
+
+.focus-numa-steps li + li {
+  margin-top: 2px;
+}
+
+.focus-numa.unavailable {
+  border-left-color: var(--rz-destructive);
+}
+
+.focus-help-request {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-xs);
+}
+
+.focus-gesture-preview {
+  margin-top: var(--spacing-xs);
+}
+
+.focus-gesture-preview summary {
+  cursor: pointer;
+  color: var(--rz-muted-foreground);
+  font-size: var(--rz-text-sm);
+}
+
+.focus-gesture-preview .focus-debug-actions {
+  margin-top: var(--spacing-xs);
+}
+
+/* Sound & motion settings */
+.focus-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--rz-field);
+  border: 1px solid var(--rz-border);
+  border-radius: var(--rz-radius-xl);
+}
+
+.focus-option-range {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.focus-option-range input[type='range'] {
+  flex: 1;
+  accent-color: var(--rz-primary);
+}
+
+.focus-sound {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.focus-sound-preview {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.focus-sound-preview .focus-btn {
+  padding: 6px 12px;
+  font-size: var(--rz-text-sm);
+}
+
+.focus-numa-gate {
+  margin: var(--spacing-xs) 0 0 !important;
+  color: var(--rz-muted-foreground);
+  font-size: var(--rz-text-xs) !important;
+}
+
+.focus-debug {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border: 1px dashed var(--rz-border);
+  border-radius: var(--rz-radius-xl);
+}
+
+.focus-debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
+@media (max-width: 768px) {
+  .focus-numa {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .focus-numa-body {
+    width: 100%;
+  }
+
+  .focus-numa-visual {
+    width: 128px;
   }
 }

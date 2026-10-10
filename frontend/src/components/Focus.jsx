@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 import { breakdownTask } from '../utils/taskBreakdown';
 import { apiClient } from '../api/client';
@@ -29,6 +29,10 @@ export const Focus = () => {
   const [completedSteps, setCompletedSteps] = useState([]);
   const [highlightStep, setHighlightStep] = useState(null);
   const [planNote, setPlanNote] = useState('');
+  // Bumped whenever a step is completed so the camera card can play the
+  // one-time "action done" reaction (scenario 14).
+  const [doneSignal, setDoneSignal] = useState(0);
+  const prevCompletedRef = useRef(0);
 
   const tabs = [
     { id: 'movement', label: t('focus.tabs.movement') },
@@ -79,6 +83,20 @@ export const Focus = () => {
 
   const currentStep = plan[Math.min(stepIndex, Math.max(plan.length - 1, 0))];
   const hasStep = plan.length > 0 && completedSteps.length < plan.length;
+
+  const stepTitle = useCallback((step) => (!step ? '' : step.text ? step.text : t(step.key)), [t]);
+  const currentStepLabel = stepTitle(currentStep);
+  const nextStep = plan.find((step) => !completedSteps.includes(step.id));
+  const nextStepLabel = stepTitle(nextStep);
+  const allDone = plan.length > 0 && !nextStep;
+
+  // Scenario 14 fires once per completed step.
+  useEffect(() => {
+    if (completedSteps.length > prevCompletedRef.current) {
+      setDoneSignal((n) => n + 1);
+    }
+    prevCompletedRef.current = completedSteps.length;
+  }, [completedSteps]);
 
   const scrollToStep = useCallback((id) => {
     if (!id) return;
@@ -262,6 +280,11 @@ export const Focus = () => {
                 stepId={hasStep ? currentStep?.id ?? null : null}
                 hasStep={hasStep}
                 running={sessionRunning}
+                stepLabel={currentStepLabel}
+                nextStepLabel={nextStepLabel}
+                steps={plan}
+                allDone={allDone}
+                doneSignal={doneSignal}
                 onPoint={handlePoint}
                 onSmaller={handleSmaller}
                 onPause={() => setSessionRunning(false)}

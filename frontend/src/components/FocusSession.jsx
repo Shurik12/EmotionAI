@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 
 const DURATIONS = [5, 15, 25];
@@ -25,9 +25,14 @@ export const FocusSession = ({
   const { t } = useLanguage();
   const [durationMin, setDurationMin] = useState(DURATIONS[0]);
   const [secondsLeft, setSecondsLeft] = useState(DURATIONS[0] * 60);
+  const planRef = useRef(plan);
 
-  // A new plan (e.g. regenerated) starts the session from scratch.
+  // A new plan (e.g. regenerated) starts the session from scratch. Guard
+  // against the mount run: this panel is unmounted when the user switches tabs,
+  // and re-running would silently pause the session and drop completed steps.
   useEffect(() => {
+    if (planRef.current === plan) return;
+    planRef.current = plan;
     onIndexChange(0);
     onRunningChange(false);
     onCompletedChange([]);
