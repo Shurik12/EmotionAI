@@ -53,7 +53,10 @@ services:
       resources:
         limits:
           memory: 8G
-          cpus: '2.0'
+          # Video decoding + emotion inference are CPU-bound. A 2-core cap
+          # throttled throughput to ~4 fps; raising it to 8 measured ~16 fps
+          # (EMO-23). Tune down only if the host is shared.
+          cpus: '8.0'
         reservations:
           memory: 1G
           cpus: '1.0'

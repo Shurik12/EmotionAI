@@ -264,6 +264,8 @@ bool Config::loadFromFile(const std::string &config_path)
             const auto &video = root["video"];
             new_data.video.frame_interval_seconds = video["frame_interval_seconds"].as<double>(new_data.video.frame_interval_seconds);
             new_data.video.pool_size = video["pool_size"].as<int>(new_data.video.pool_size);
+            new_data.video.torch_threads = video["torch_threads"].as<int>(new_data.video.torch_threads);
+            new_data.video.decode_threads = video["decode_threads"].as<int>(new_data.video.decode_threads);
         }
 
         data_ = std::move(new_data);

@@ -184,6 +184,11 @@ private:
 	{
 		double frame_interval_seconds = 5.0; // extract one frame every N seconds
 		int pool_size = 4;                    // number of parallel model instances
+		int torch_threads = 1;                // torch intra-op threads per instance
+		                                      // (0 = leave torch default). With a
+		                                      // pool of N instances the default of
+		                                      // "all cores" oversubscribes the CPU.
+		int decode_threads = 4;               // parallel H.264 readers (segments)
 	};
 
 	struct ConfigData

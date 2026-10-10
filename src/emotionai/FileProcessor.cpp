@@ -15,6 +15,10 @@
 #include <logging/Logger.h>
 #include <db/TaskManager.h>
 #include <server/ThreadPool.h>
+
+#ifdef HAVE_TORCH
+#include <torch/torch.h>
+#endif
 #include <audio/LibrosaFeatureExtractor.h>
 #include <audio/BurnoutAnalyzer.h>
 #include <audio/ExternalInfluenceAnalyzer.h>
@@ -108,7 +112,22 @@ bool FileProcessor::load_image_model(const std::string& model_path, const std::s
             try {
                 int pool_size = Config::instance().video().pool_size;
                 if (pool_size < 1) pool_size = 1;
-                
+
+#ifdef HAVE_TORCH
+                // Cap torch's intra-op parallelism. With several pool instances
+                // the default ("all cores" per instance) oversubscribes the CPU
+                // and each forward pass gets slower; one thread per instance lets
+                // the pool use the cores instead.
+                int torch_threads = Config::instance().video().torch_threads;
+                if (torch_threads > 0) {
+                    torch::set_num_threads(torch_threads);
+                    LOG_INFO("Torch intra-op threads set to {}", torch_threads);
+                }
+#endif
+                // OpenCV (dnn for MTCNN, resize, ...) also defaults to all cores
+                // per call, which multiplies with the pool. One thread per task.
+                cv::setNumThreads(1);
+
                 model_pool_.reserve(pool_size);
                 for (int i = 0; i < pool_size; ++i) {
                     auto instance = EmotiEffLib::EmotiEffLibRecognizer::createInstance(backend, path);
@@ -905,10 +924,13 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
     LOG_INFO("Target frames to process: {} (interval={} frames)", 
              target_frames.size(), frame_interval);
 
-    // Process frames with pipelining: read sequentially, infer in parallel via ThreadPool
-    // Uses grab() for skipped frames (fast, no decode) and read() only for targets.
-    // Avoids expensive cap.set() seeks (~114ms per seek → 21.7s for 175 targets).
-    // Sequential grab+decode: ~6.2s for the full video → ~3.5× faster frame extraction.
+    // Decode the video in parallel. The video has ~36 s GOPs, so seeking per
+    // target is useless (EMO-21 found the same) and a single sequential pass has
+    // to decode every frame — it dominated processing (~54 s of ~55 s here).
+    // Split the target list into contiguous segments; each segment opens its own
+    // VideoCapture, seeks once to its first target (OpenCV lands exactly on the
+    // requested frame), then decodes that segment sequentially. Inference is
+    // still enqueued to the shared ThreadPool.
     struct AsyncResult {
         int frame_number;
         double timestamp;
@@ -921,53 +943,72 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
     std::mutex collect_mutex;
     std::condition_variable collect_cv;
 
-    size_t next_target_idx = 0;
-    for (int frame_num = 0; 
-         frame_num < total_frames && next_target_idx < target_frames.size(); 
-         ++frame_num) {
-        if (frame_num == target_frames[next_target_idx]) {
-            cv::Mat frame;
-            if (!cap.read(frame)) {
-                LOG_WARN("Failed to read target frame {} (sequential read)", frame_num);
-                break;
-            }
-
-            auto* result_ptr = &async_results[next_target_idx];
-
-            thread_pool_->enqueue([this, frame = std::move(frame), fn = frame_num, 
-                                   ts = frame_num / fps, &task_id, result_ptr,
-                                   &tasks_pending, &collect_mutex, &collect_cv]() {
-                // Save frame to storage
-                auto image_data = mat_to_vector(frame);
-                std::string storage_path = fmt::format("results/frame_{}_{}.jpg", task_id, fn);
-                file_storage_->saveFile(image_data, storage_path);
-
-                // Process image with model from pool (no mutex needed)
-                auto* model = acquire_model();
-                auto [processed_frame, emotion_result] = process_image(frame, model);
-                (void)processed_frame;
-
-                result_ptr->frame_number = fn;
-                result_ptr->timestamp = ts;
-                result_ptr->storage_path = std::move(storage_path);
-                result_ptr->result = std::move(emotion_result);
-
-                if (--tasks_pending == 0) {
-                    std::lock_guard<std::mutex> lock(collect_mutex);
-                    collect_cv.notify_one();
-                }
-            });
-
-            next_target_idx++;
-        } else {
-            if (!cap.grab()) {
-                LOG_WARN("Failed to grab frame {} (sequential read)", frame_num);
-                break;
-            }
-        }
-    }
+    int decode_threads = Config::instance().video().decode_threads;
+    if (decode_threads < 1) decode_threads = 1;
+    const int n_targets = static_cast<int>(target_frames.size());
+    if (decode_threads > n_targets) decode_threads = n_targets;
 
     cap.release();
+
+    auto t_extract0 = std::chrono::steady_clock::now();
+    std::vector<std::thread> readers;
+    readers.reserve(decode_threads);
+    for (int s = 0; s < decode_threads; ++s) {
+        const size_t a = static_cast<size_t>(n_targets) * s / decode_threads;
+        const size_t b = static_cast<size_t>(n_targets) * (s + 1) / decode_threads;
+        if (a >= b) continue;
+        readers.emplace_back([this, &filepath, &target_frames, &async_results, &task_id,
+                              &tasks_pending, &collect_mutex, &collect_cv, fps, a, b]() {
+            cv::VideoCapture seg_cap(filepath);
+            if (!seg_cap.isOpened()) {
+                LOG_WARN("Segment reader {}: cannot open video", a);
+                return;
+            }
+            seg_cap.set(cv::CAP_PROP_POS_FRAMES, target_frames[a]);
+            for (size_t j = a; j < b; ++j) {
+                const int frame_num = target_frames[j];
+                // Skip the frames between the previous target and this one.
+                while (static_cast<int>(seg_cap.get(cv::CAP_PROP_POS_FRAMES)) < frame_num) {
+                    if (!seg_cap.grab()) break;
+                }
+                cv::Mat frame;
+                if (!seg_cap.read(frame) || frame.empty()) {
+                    LOG_WARN("Segment reader failed at frame {}", frame_num);
+                    break;
+                }
+                auto* result_ptr = &async_results[j];
+                thread_pool_->enqueue([this, frame = std::move(frame), frame_num,
+                                       ts = frame_num / fps, &task_id, result_ptr,
+                                       &tasks_pending, &collect_mutex, &collect_cv]() {
+                    // Save frame to storage
+                    auto image_data = mat_to_vector(frame);
+                    std::string storage_path = fmt::format("results/frame_{}_{}.jpg", task_id, frame_num);
+                    file_storage_->saveFile(image_data, storage_path);
+
+                    // Process image with model from pool (no mutex needed)
+                    auto* model = acquire_model();
+                    auto [processed_frame, emotion_result] = process_image(frame, model);
+                    (void)processed_frame;
+
+                    result_ptr->frame_number = frame_num;
+                    result_ptr->timestamp = ts;
+                    result_ptr->storage_path = std::move(storage_path);
+                    result_ptr->result = std::move(emotion_result);
+
+                    if (--tasks_pending == 0) {
+                        std::lock_guard<std::mutex> lock(collect_mutex);
+                        collect_cv.notify_one();
+                    }
+                });
+            }
+            seg_cap.release();
+        });
+    }
+    for (auto& t : readers) t.join();
+
+    LOG_INFO("[profile] extraction={:.1f}ms ({} frames scanned)",
+             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_extract0).count(),
+             total_frames);
 
     // Wait for all tasks to complete
     {

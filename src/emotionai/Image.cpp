@@ -2,6 +2,8 @@
 #include <fmt/format.h>
 #include <emotiefflib/facial_analysis.h>
 
+#include <memory>
+
 #include <common/base64.h>
 #include <config/Config.h>
 #include <logging/Logger.h>
@@ -158,7 +160,19 @@ std::vector<cv::Mat> Image::recognizeFaces(const cv::Mat &frame, int downscaleWi
 	oConfig.caffeModel = (fs::path(models_dir) / "det3.caffemodel").string();
 	oConfig.threshold = 0.6f;
 
-	MTCNNDetector detector(pConfig, rConfig, oConfig);
+	// Build the MTCNN detector once per worker thread and reuse it. Each network
+	// constructor loads a Caffe model from disk (`readNetFromCaffe`), so
+	// rebuilding it for every frame wasted I/O and net-init time. One detector
+	// per thread, because cv::dnn::Net::forward must not run concurrently on a
+	// shared instance.
+	static thread_local std::unique_ptr<MTCNNDetector> cached_detector;
+	static thread_local std::string cached_models_dir;
+	if (!cached_detector || cached_models_dir != models_dir)
+	{
+		cached_detector = std::make_unique<MTCNNDetector>(pConfig, rConfig, oConfig);
+		cached_models_dir = models_dir;
+	}
+	MTCNNDetector &detector = *cached_detector;
 
 	auto scaledFrame = downscaleImageToWidth(frame, downscaleWidth);
 	if (scaledFrame.empty())
@@ -235,15 +249,13 @@ std::pair<cv::Mat, nlohmann::json> Image::process_image(const cv::Mat &image, Em
 			throw std::runtime_error("no_faces_detected");
 		}
 
-		// Process emotions for all detected faces
+		// Only the main (first) face drives the result, so infer on it alone.
+		// Inferring every detected face was wasted work (~1.8 faces per frame on
+		// the test videos) and dominated processing time; the output is identical
+		// because the result below only ever reads the first score.
 		std::vector<EmotiEffLib::EmotiEffLibRes> scores_list;
-		scores_list.reserve(facial_images.size());
-
-		for (const auto &face_img : facial_images)
-		{
-			EmotiEffLib::EmotiEffLibRes scores = fer->predictEmotions(face_img, false);
-			scores_list.push_back(std::move(scores));
-		}
+		scores_list.reserve(1);
+		scores_list.push_back(fer->predictEmotions(facial_images[0], false));
 
 		if (scores_list.empty())
 			throw std::runtime_error("no_emotions_detected");
