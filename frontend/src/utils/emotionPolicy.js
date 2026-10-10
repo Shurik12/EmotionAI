@@ -34,7 +34,10 @@ export const emotionPolicy = Object.freeze({
   baselineMs: 60000, // minimum confirmed working baseline
   windowMs: 15000, // default decision window (rows 2–4)
   checkWindowMs: 30000, // row 1 uses a longer window
-  persistence: 0.8, // 80% temporal persistence (baseline readiness)
+  persistence: 0.8, // 80% temporal persistence (channel coverage)
+  baselineCoverage: 0.25, // pilot: real webcams drop frames (no face / motion),
+  // so a strict 80% coverage of the wall-clock window is unreachable. Readiness
+  // is judged on enough valid frames spanning ≥60 s at ≥25% coverage.
   patternPersistence: 0.6, // pilot: per-frame emotion estimates are noisy, so
   // the offer window uses a softer threshold than the spec's nominal 80%.
   // Keep the latest-frame requirement; tune against logged `progress` values.
@@ -108,23 +111,9 @@ function ordered(frames) {
   );
 }
 
-// Duration-weighted ratio, so a dense burst cannot outweigh a longer window.
-// Only intervals with usable endpoints satisfying the predicate count.
-function durationRatio(frames, start, end, predicate) {
-  let ms = 0;
-  for (let i = 1; i < frames.length; i++) {
-    const a = frames[i - 1];
-    const b = frames[i];
-    const dt = Math.max(0, Math.min(end, b.timestampMs) - Math.max(start, a.timestampMs));
-    if (usable(a) && usable(b) && predicate(a) && predicate(b)) ms += dt;
-  }
-  return ms / (end - start);
-}
-
-// Fraction of the window's usable frames that satisfy the predicate. Unlike
-// `durationRatio`, a rule does not need both endpoints of an interval to match,
-// so independent per-frame noise does not square the miss rate. Used for the
-// offer windows; the (stricter) baseline readiness keeps `durationRatio`.
+// Fraction of the window's usable frames that satisfy the predicate. A rule does
+// not need both endpoints of an interval to match, so independent per-frame
+// noise does not square the miss rate. Used for the offer windows.
 function frameRatio(frames, predicate) {
   let total = 0;
   let pass = 0;
@@ -136,17 +125,27 @@ function frameRatio(frames, predicate) {
   return total ? pass / total : 0;
 }
 
+// Fraction of the trailing baseline run made of usable frames. Real webcams
+// drop frames (no detected face / motion), so this is the honest readiness
+// signal — and it matches the "valid frames" count the UI shows.
+export function baselineCoverage(frames) {
+  if (!Array.isArray(frames) || frames.length === 0) return 0;
+  return frames.filter(usable).length / frames.length;
+}
+
 // Mirrors the baseline checks in decideEmotionOffer so the UI can enable
 // "confirm baseline" only when it will actually be accepted.
 export function baselineReady(frames) {
-  if (!Array.isArray(frames) || frames.length < emotionPolicy.minBaselineFrames || !ordered(frames)) {
+  if (!Array.isArray(frames) || frames.length === 0 || !ordered(frames)) {
     return false;
   }
+  const valid = frames.filter(usable).length;
+  if (valid < emotionPolicy.minBaselineFrames) return false;
   const start = frames[0].timestampMs;
   const end = frames[frames.length - 1].timestampMs;
   return (
     end - start >= emotionPolicy.baselineMs &&
-    durationRatio(frames, start, end, () => true) >= emotionPolicy.persistence
+    baselineCoverage(frames) >= emotionPolicy.baselineCoverage
   );
 }
 
@@ -358,7 +357,7 @@ export function decideEmotionOffer(observation, context) {
   const be = baseline.frames[baseline.frames.length - 1].timestampMs;
   if (
     be - bs < emotionPolicy.baselineMs ||
-    durationRatio(baseline.frames, bs, be, () => true) < emotionPolicy.persistence
+    baselineCoverage(baseline.frames) < emotionPolicy.baselineCoverage
   ) {
     return { action: 'quiet', reason: 'baseline-required' };
   }

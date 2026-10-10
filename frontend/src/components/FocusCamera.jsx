@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLanguage } from '../hooks/useLanguage';
 import { apiClient } from '../api/client';
 import {
+  baselineCoverage,
   baselineReady,
   decideEmotionOffer,
   emotionPolicy,
@@ -115,6 +116,7 @@ export const FocusCamera = ({
         (baselineRun[baselineRun.length - 1].timestampMs - baselineRun[0].timestampMs) / 1000,
       )
     : 0;
+  const baselineCoveragePct = Math.round(baselineCoverage(baselineRun) * 100);
 
   const soundOptions = { enabled: soundEnabled, volume: soundVolume };
   // `?debug` reveals the gating state, the last policy reason and manual
@@ -494,7 +496,11 @@ export const FocusCamera = ({
                 ? 'focus.diag.baselineReady'
                 : 'focus.diag.baseline'
               : 'focus.diag.ready';
-  const gateText = t(gateKey, { seconds: baselineSeconds });
+  const gateText = t(gateKey, {
+    seconds: baselineSeconds,
+    valid: baselineValid,
+    coverage: baselineCoveragePct,
+  });
   const reasonText = t(`focus.reason.${decision?.reason || 'waiting'}`);
 
   // Turn the first unmet gate into a one-click action where the camera card can
@@ -660,7 +666,7 @@ export const FocusCamera = ({
             >
               {baseline?.confirmedOnTask
                 ? t('focus.emotion.baselineConfirmed')
-                : `${baselineValid} · ${baselineSeconds}s`}
+                : `${baselineValid} · ${baselineCoveragePct}%`}
             </span>
           </div>
           {!baseline?.confirmedOnTask && (
@@ -671,6 +677,7 @@ export const FocusCamera = ({
                   : t('focus.emotion.baselineCollecting', {
                       valid: baselineValid,
                       seconds: baselineSeconds,
+                      coverage: baselineCoveragePct,
                     })}
               </p>
               <button
