@@ -10,7 +10,7 @@ on:
       target:
         description: 'VM host to deploy to'
         required: false
-        default: '84.201.164.227'
+        default: '45.132.179.232'
 
 env:
   VM_USER: alex
@@ -117,7 +117,7 @@ jobs:
 
       - name: Add VM to known hosts
         run: |
-          HOST="${{ secrets.VM_HOST || github.event.inputs.target || '84.201.164.227' }}"
+          HOST="${{ secrets.VM_HOST || github.event.inputs.target || '45.132.179.232' }}"
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
           echo "VM_HOST=$HOST" >> $GITHUB_ENV
 
