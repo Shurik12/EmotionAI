@@ -32,7 +32,7 @@ usage() {
 }
 
 if [ $# -lt 1 ]; then
-    VM_HOST="84.201.164.227"
+    VM_HOST="45.132.179.232"
     echo "  No host specified; using default: ${VM_HOST}"
 else
     VM_HOST="$1"
