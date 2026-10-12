@@ -156,7 +156,7 @@ export const FocusSession = ({
                     onClick={() => handleSelect(stepIndex)}
                   >
                     <span className="focus-step-index">{isDone ? '✓' : stepIndex + 1}</span>
-                    <span className="focus-step-title">{t(step.key)}</span>
+                    <span className="focus-step-title">{step.text ? step.text : t(step.key)}</span>
                   </button>
                 </li>
               );
