@@ -7,7 +7,7 @@ export YC_CONFIG_DIR=/home/alex/.config/yandex-cloud
 YC="/home/alex/yandex-cloud/bin/yc"
 INSTANCE_ID="epdotpce79b54s7cf095"
 LOG_FILE="/home/alex/yandex-cloud/restart-vm.log"
-TUNNEL_HOST="alex@84.201.164.227"
+TUNNEL_HOST="alex@45.132.179.232"
 
 RAW=$($YC compute instance get "$INSTANCE_ID" --format json 2>&1)
 STATUS=$(echo "$RAW" | jq -r '.status' 2>/dev/null)
