@@ -238,38 +238,41 @@ export const Focus = () => {
           </>
         )}
 
-        {activeTab === 'session' && (
-          <>
-            <div className="focus-card">
-              <h2>{t('focus.session.title')}</h2>
-              <p>{t('focus.session.text')}</p>
-              {planNote && <p className="focus-plan-note">{planNote}</p>}
-              <FocusSession
-                plan={plan}
-                index={stepIndex}
-                onIndexChange={setStepIndex}
-                running={sessionRunning}
-                onRunningChange={setSessionRunning}
-                completed={completedSteps}
-                onCompletedChange={setCompletedSteps}
-                highlightId={highlightStep}
-              />
-            </div>
+        {/* Kept mounted while another Focus tab is shown so the camera stream
+            and the collected baseline survive the switch. */}
+        <div
+          className={`focus-panel-session ${activeTab === 'session' ? '' : 'is-parked'}`}
+          aria-hidden={activeTab !== 'session'}
+        >
+          <div className="focus-card">
+            <h2>{t('focus.session.title')}</h2>
+            <p>{t('focus.session.text')}</p>
+            {planNote && <p className="focus-plan-note">{planNote}</p>}
+            <FocusSession
+              plan={plan}
+              index={stepIndex}
+              onIndexChange={setStepIndex}
+              running={sessionRunning}
+              onRunningChange={setSessionRunning}
+              completed={completedSteps}
+              onCompletedChange={setCompletedSteps}
+              highlightId={highlightStep}
+            />
+          </div>
 
-            <div className="focus-card">
-              <FocusCamera
-                numaNearby={numaNearby}
-                stepId={hasStep ? currentStep?.id ?? null : null}
-                hasStep={hasStep}
-                running={sessionRunning}
-                onPoint={handlePoint}
-                onSmaller={handleSmaller}
-                onPause={() => setSessionRunning(false)}
-                onResume={() => setSessionRunning(true)}
-              />
-            </div>
-          </>
-        )}
+          <div className="focus-card">
+            <FocusCamera
+              numaNearby={numaNearby}
+              stepId={hasStep ? currentStep?.id ?? null : null}
+              hasStep={hasStep}
+              running={sessionRunning}
+              onPoint={handlePoint}
+              onSmaller={handleSmaller}
+              onPause={() => setSessionRunning(false)}
+              onResume={() => setSessionRunning(true)}
+            />
+          </div>
+        </div>
 
         {activeTab === 'how' && (
           <div className="focus-card">
