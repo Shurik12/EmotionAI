@@ -38,13 +38,15 @@ const trailingRun = (frames) => {
 
 // Camera + emotional dynamics for the Focus session (EMO-17, phase 4).
 //
-// The camera only starts after an explicit consent checkbox, stops as soon as
-// the tab is hidden, and never records. While it is on, frames are streamed
-// into a server-side session (POST /api/focus/session/<id>/frame) and the
-// normalized observations are polled back (GET /api/focus/session/<id>). The
-// server only adapts the core output; the `emotion-pilot-v1` decision runs here
-// against a user-confirmed personal baseline. Offers stay off until the user
-// enables them, and nothing is stored.
+// The camera only starts after an explicit consent checkbox and never records.
+// It is owned by this component rather than by the active Focus tab, so moving
+// to another Focus tab or browser tab keeps the stream (and the collected
+// baseline) alive. While it is on, frames are streamed into a server-side
+// session (POST /api/focus/session/<id>/frame) and the normalized observations
+// are polled back (GET /api/focus/session/<id>). The server only adapts the core
+// output; the `emotion-pilot-v1` decision runs here against a user-confirmed
+// personal baseline. Offers stay off until the user enables them, and nothing
+// is stored.
 export const FocusCamera = ({
   numaNearby = true,
   stepId = null,
@@ -147,12 +149,7 @@ export const FocusCamera = ({
 
   useEffect(() => {
     aliveRef.current = true;
-    const handleVisibility = () => {
-      if (document.hidden) stopCamera();
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
       aliveRef.current = false;
       stopCamera();
       if (frameUrlRef.current) URL.revokeObjectURL(frameUrlRef.current);
@@ -185,9 +182,8 @@ export const FocusCamera = ({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
       });
 
-      if (requestId !== requestRef.current || document.hidden) {
+      if (requestId !== requestRef.current) {
         stream.getTracks().forEach((track) => track.stop());
-        if (requestId === requestRef.current) setStatus('off');
         return;
       }
 

@@ -84,6 +84,24 @@
   font-weight: 600;
 }
 
+/* Tab panels */
+.focus-panel {
+  position: relative;
+}
+
+/* The session panel stays mounted while another Focus tab is active so the
+   camera stream and baseline keep running. It is parked out of flow but stays
+   rendered — a display:none video can stop producing frames for capture, so we
+   only hide it visually. */
+.focus-panel-session.is-parked {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* Cards */
 .focus-card {
   padding: var(--spacing-lg);

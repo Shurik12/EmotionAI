@@ -117,6 +117,12 @@ The Focus camera uses an in-memory session (`src/focus/FocusSessionManager`) ins
 async task per frame: `POST /api/focus/session` creates it, `POST /api/focus/session/<id>/frame`
 scores a frame on the thread pool (no disk, no AI), `GET /api/focus/session/<id>` returns
 the accumulated observations, and `POST /api/focus/session/<id>/close` drops it.
+The stream is owned by `FocusCamera`, which the Focus page keeps mounted while another Focus
+tab is shown (the session panel is parked with CSS `visibility:hidden`, **not** unmounted), and
+it no longer stops on `visibilitychange`. Switching Focus or browser tabs therefore keeps the
+camera and the collected baseline alive — but background browser tabs throttle timers to ~1/s
+(and ~1/min after a few minutes), so sampling slows while hidden; the policy still gates offers
+on `visible: !document.hidden`.
 
 **Focus task breakdown is AI-backed (EMO-19).** `POST /api/focus/breakdown` takes
 `{text, duration, lang}` and returns `{steps: [...]}` from an OpenAI-compatible model
