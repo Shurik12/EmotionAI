@@ -29,13 +29,19 @@ export const emotionPolicy = Object.freeze({
 
 export const emptyOfferMemory = () => ({ lastOfferAt: null, offeredStepIds: [], count: 0 });
 
-// UI metadata for the three pilot patterns. The human-readable copy lives in
-// the translations under `focus.emotion.patterns.<pattern>`, keyed by the same
-// id, so the same algorithm serves RU and EN.
+// UI metadata for the four pilot patterns (v6 spec rules 1–4). The human-
+// readable copy lives in the translations under `focus.emotion.patterns.<id>`,
+// keyed by the same id. `mood` drives the assistant gesture (ORI scenarios);
+// `actions` is the ordered button list — the first is the primary one.
 export const emotionPatterns = Object.freeze({
-  'fear-high': { mood: 'support', primary: 'pause' },
-  'friction-high': { mood: 'support', primary: 'smaller' },
-  'sadness-low': { mood: 'point', primary: 'point' },
+  // Rule 1 — possible "zoning out" (decreased expression).
+  check: { mood: 'check', actions: ['continue', 'help-return', 'pause'] },
+  // Rule 2 — help when anger/disgust rise (head tilt, no sound).
+  'friction-high': { mood: 'help', actions: ['split-steps', 'continue', 'pause'] },
+  // Rule 3 — support when fear rises (arms out).
+  'fear-high': { mood: 'support', actions: ['continue', 'help', 'pause'] },
+  // Rule 4 — remind the action when sadness rises and activation drops.
+  'sadness-low': { mood: 'point', actions: ['show-action', 'continue', 'pause'] },
 });
 
 const median = (values) => {
@@ -181,54 +187,86 @@ export function decideEmotionOffer(observation, context) {
     return { action: 'quiet', reason: 'insufficient-signal' };
   }
   const end = observation.frames[observation.frames.length - 1].timestampMs;
-  const start = end - emotionPolicy.windowMs;
-  if (
-    end > context.nowMs ||
-    context.nowMs - end > emotionPolicy.maxGapMs ||
-    observation.frames[0].timestampMs > start ||
-    be >= start
-  ) {
+  if (end > context.nowMs || context.nowMs - end > emotionPolicy.maxGapMs) {
     return { action: 'quiet', reason: 'insufficient-signal' };
   }
-  if (durationRatio(observation.frames, start, end, () => true) < emotionPolicy.persistence) {
+  // Base window for rules 2–4; rule 1 uses its own (longer) window below.
+  const baseStart = end - emotionPolicy.windowMs;
+  if (
+    observation.frames[0].timestampMs > baseStart ||
+    be >= baseStart ||
+    durationRatio(observation.frames, baseStart, end, () => true) < emotionPolicy.persistence
+  ) {
     return { action: 'quiet', reason: 'insufficient-signal' };
   }
   const z = makeBaselineScale(baseline.frames) || (() => NaN);
   const d = emotionPolicy.deviation;
-  const high = (f) => f.valence < 0 && z(f, 'valence') <= -d && z(f, 'arousal') >= d && z(f, 'intensity') >= d;
+  const finiteOr = (value, fallback) => (Number.isFinite(value) ? value : fallback);
+  const high = (f) =>
+    f.valence < 0 && z(f, 'valence') <= -d && z(f, 'arousal') >= d && z(f, 'intensity') >= d;
+  // A missing channel must not be filled with 0, so these fail on NaN.
+  const leq = (f, k, t) => {
+    const v = z(f, k);
+    return Number.isFinite(v) && v <= t;
+  };
+  // Rule 1 — possible "zoning out": expression declines with no strong negative
+  // signal. `interest`/`shame` are not in the 8-class core, so they are skipped
+  // rather than filled with 0 (the spec's experimental state check).
+  const quietSignal = (f) =>
+    ['fear', 'anger', 'sadness', 'shame', 'contempt', 'disgust'].every((k) => {
+      const v = z(f, k);
+      return !Number.isFinite(v) || v < d;
+    });
+  const check = (f) =>
+    Math.abs(z(f, 'valence')) < d &&
+    leq(f, 'joy', 0) &&
+    leq(f, 'surprise', 0) &&
+    leq(f, 'arousal', -d) &&
+    leq(f, 'intensity', -d) &&
+    quietSignal(f);
   const rules = [
-    [
-      'fear-high',
-      (f) =>
+    { pattern: 'check', windowMs: 30000, test: check },
+    {
+      pattern: 'fear-high',
+      windowMs: emotionPolicy.windowMs,
+      test: (f) =>
         high(f) &&
         z(f, 'fear') >= d &&
         z(f, 'fear') >=
-          Math.max(
-            Number.isFinite(z(f, 'anger')) ? z(f, 'anger') : -Infinity,
-            Number.isFinite(z(f, 'disgust')) ? z(f, 'disgust') : -Infinity,
-          ),
-    ],
-    ['friction-high', (f) => high(f) && (z(f, 'anger') >= d || z(f, 'disgust') >= d)],
-    ['sadness-low', (f) => f.valence < 0 && z(f, 'valence') <= -d && z(f, 'arousal') <= -d && z(f, 'sadness') >= d],
+          Math.max(finiteOr(z(f, 'anger'), -Infinity), finiteOr(z(f, 'disgust'), -Infinity)),
+    },
+    {
+      pattern: 'friction-high',
+      windowMs: emotionPolicy.windowMs,
+      test: (f) => high(f) && (z(f, 'anger') >= d || z(f, 'disgust') >= d),
+    },
+    {
+      pattern: 'sadness-low',
+      windowMs: emotionPolicy.windowMs,
+      test: (f) => f.valence < 0 && z(f, 'valence') <= -d && z(f, 'arousal') <= -d && z(f, 'sadness') >= d,
+    },
   ];
   const latest = observation.frames[observation.frames.length - 1];
-  for (const [pattern, test] of rules) {
-    const persistence = durationRatio(observation.frames, start, end, test);
-    if (usable(latest) && test(latest) && persistence >= emotionPolicy.persistence) {
-      return { action: 'question', reason: 'emotion-pattern', pattern, persistence };
+  if (!usable(latest)) return { action: 'quiet', reason: 'insufficient-signal' };
+  for (const rule of rules) {
+    const start = end - rule.windowMs;
+    // A rule whose window the observation does not cover is skipped.
+    if (observation.frames[0].timestampMs > start || be >= start) continue;
+    if (durationRatio(observation.frames, start, end, () => true) < emotionPolicy.persistence) continue;
+    if (!rule.test(latest)) continue;
+    const persistence = durationRatio(observation.frames, start, end, rule.test);
+    if (persistence >= emotionPolicy.persistence) {
+      return { action: 'question', reason: 'emotion-pattern', pattern: rule.pattern, persistence };
     }
   }
   return { action: 'quiet', reason: 'emotion-only' };
 }
 
-// Ambient body-language reaction. Unlike decideEmotionOffer this never opens an
-// offer card and never records an offer — it only picks the assistant's pose
-// from the recent emotional state, so Numa follows the emotion dynamics.
-//
-// It maps the *dominant* category over the recent window instead of requiring an
-// absolute threshold: the core's category scores are model-dependent and in
-// practice sit around 0.2–0.4, so a fixed cutoff left Numa frozen. Neutral (and
-// silence) keep Numa still.
+// Ambient body-language reaction. This is a deliberate deviation from rules 5–8
+// of the spec (which keep Numa still), enabled by the product owner: when no
+// assistant card is showing, Numa's gesture follows the dominant emotion over
+// the recent window. It never opens a card and never records an offer — it only
+// changes the assistant's pose. An open card always takes precedence.
 export const AMBIENT_WINDOW = 8;
 
 // Dominant category → gesture. Joy is the adapter's rename of `happiness`.
