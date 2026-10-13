@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
 import { apiClient } from '../api/client';
+import { Numa } from './Numa';
+import { playFocusCue, unlockFocusSound } from '../utils/focusSound';
 import {
+  ambientNumaMood,
   baselineReady,
   decideEmotionOffer,
   emotionPatterns,
@@ -20,6 +23,9 @@ const DEFAULT_SAMPLE_INTERVAL_SEC = 1;
 const SESSION_POLL_MS = 1000;
 // Keep about a minute of recent frames so the 15 s window is fully covered.
 const RECENT_FRAMES = 60;
+// Minimum time between two ambient Numa gestures, so a noisy emotion signal
+// cannot make the assistant flap. Sustained moods still come through.
+const AMBIENT_MIN_INTERVAL_MS = 4000;
 
 // Walk backwards from the newest frame while consecutive samples are close
 // enough for the policy's `ordered` (max gap 5 s). A camera pause starts a new
@@ -56,6 +62,10 @@ export const FocusCamera = ({
   onSmaller,
   onPause,
   onResume,
+  soundEnabled = false,
+  soundVolume = 0.7,
+  onSoundEnabledChange,
+  onSoundVolumeChange,
 }) => {
   const { t } = useLanguage();
 
@@ -69,6 +79,7 @@ export const FocusCamera = ({
   const frameUrlRef = useRef(null);
   const offerMemoryRef = useRef(emptyOfferMemory());
   const dismissTimerRef = useRef(null);
+  const soundRef = useRef({ enabled: soundEnabled, volume: soundVolume });
 
   const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState('off'); // off | asking | on | error
@@ -83,6 +94,10 @@ export const FocusCamera = ({
   const [baseline, setBaseline] = useState(null); // { confirmedOnTask, frames }
   const [offer, setOffer] = useState(null); // { pattern, persistence }
   const [decision, setDecision] = useState(null);
+  const [ambientMood, setAmbientMood] = useState('rest');
+  const [ambientReaction, setAmbientReaction] = useState(0);
+  const ambientMoodRef = useRef('rest');
+  const ambientAtRef = useRef(0);
 
   const intervalMs = intervalSec * 1000;
   const frames = useMemo(() => samples.map(sampleToFrame), [samples]);
@@ -334,6 +349,41 @@ export const FocusCamera = ({
     }
   }, [status, frames, baseline, offersEnabled, running, hasStep, stepId, offer]);
 
+  // Ambient reaction: let Numa's body language follow the live emotions, not
+  // only the rare (and heavily gated) offer events. Runs whenever the camera is
+  // on — no confirmed baseline required — and commits a new mood only after
+  // AMBIENT_MIN_INTERVAL_MS, so it cannot flap.
+  useEffect(() => {
+    if (status !== 'on') {
+      if (ambientMoodRef.current !== 'rest') {
+        ambientMoodRef.current = 'rest';
+        setAmbientMood('rest');
+        setAmbientReaction((n) => n + 1);
+      }
+      return;
+    }
+    const next = ambientNumaMood(frames);
+    const nowMs = Date.now();
+    if (next !== ambientMoodRef.current && nowMs - ambientAtRef.current >= AMBIENT_MIN_INTERVAL_MS) {
+      ambientMoodRef.current = next;
+      ambientAtRef.current = nowMs;
+      setAmbientMood(next);
+      setAmbientReaction((n) => n + 1);
+    }
+  }, [status, frames]);
+
+  // Keep the sound setting in a ref so the offer effect stays stable.
+  useEffect(() => {
+    soundRef.current = { enabled: soundEnabled, volume: soundVolume };
+  }, [soundEnabled, soundVolume]);
+
+  // Audible cue when the assistant surfaces a question (opt-in).
+  useEffect(() => {
+    if (offer && soundRef.current.enabled) {
+      playFocusCue('check', soundRef.current.volume);
+    }
+  }, [offer]);
+
   const confirmBaseline = () => {
     if (!baselineReadyNow) return;
     setBaseline({ confirmedOnTask: true, frames: baselineRun });
@@ -368,6 +418,9 @@ export const FocusCamera = ({
 
   const primary = offer ? emotionPatterns[offer.pattern]?.primary : null;
   const strip = samples.slice(-MAX_STRIP_SAMPLES);
+  // An active offer takes precedence; otherwise Numa mirrors the live emotions.
+  const numaMood = offer ? emotionPatterns[offer.pattern]?.mood ?? 'support' : ambientMood;
+  const numaReaction = offer ? offer.pattern : ambientReaction;
 
   let statusText = t('focus.emotion.idle');
   if (!total) statusText = t('focus.emotion.noSignal');
@@ -455,6 +508,44 @@ export const FocusCamera = ({
       </label>
       <p className="focus-hint">{t('focus.emotion.offersHint')}</p>
 
+      <label className="focus-option">
+        <input
+          type="checkbox"
+          checked={soundEnabled}
+          onChange={(e) => {
+            onSoundEnabledChange?.(e.target.checked);
+            if (e.target.checked) unlockFocusSound();
+          }}
+        />
+        {t('focus.sound.enable')}
+      </label>
+      {soundEnabled && (
+        <div className="focus-sound">
+          <label className="focus-option focus-option-select">
+            <span>{t('focus.sound.volume')}</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={soundVolume}
+              onChange={(e) => onSoundVolumeChange?.(Number(e.target.value))}
+            />
+          </label>
+          <button
+            type="button"
+            className="focus-btn ghost"
+            onClick={() => {
+              unlockFocusSound();
+              playFocusCue('check', soundVolume);
+            }}
+          >
+            {t('focus.sound.preview')}
+          </button>
+        </div>
+      )}
+      <p className="focus-hint">{t('focus.sound.hint')}</p>
+
       {status === 'on' && (
         <div className="focus-baseline">
           <div className="focus-baseline-head">
@@ -474,16 +565,26 @@ export const FocusCamera = ({
               <p className="focus-hint">
                 {baselineReadyNow
                   ? t('focus.emotion.baselineReady')
-                  : t('focus.emotion.baselineCollecting', {
-                      valid: baselineValid,
-                      seconds: baselineSeconds,
-                    })}
+                  : baselineValid === 0
+                    ? t('focus.emotion.noSignal')
+                    : t('focus.emotion.baselineCollecting', {
+                        valid: baselineValid,
+                        seconds: baselineSeconds,
+                      })}
               </p>
               <button
                 type="button"
                 className="focus-btn ghost"
                 onClick={confirmBaseline}
                 disabled={!baselineReadyNow}
+                title={
+                  baselineReadyNow
+                    ? undefined
+                    : t('focus.emotion.baselineCollecting', {
+                        valid: baselineValid,
+                        seconds: baselineSeconds,
+                      })
+                }
               >
                 {t('focus.emotion.baselineConfirm')}
               </button>
@@ -535,6 +636,9 @@ export const FocusCamera = ({
         className={`focus-numa ${offer ? 'offer' : 'idle'}`}
         aria-live="polite"
       >
+        {numaNearby && (
+          <Numa small mood={numaMood} reaction={numaReaction} />
+        )}
         <p className="focus-numa-label">{numaNearby ? t('focus.emotion.numa') : t('focus.emotion.core')}</p>
         {offer ? (
           <>
