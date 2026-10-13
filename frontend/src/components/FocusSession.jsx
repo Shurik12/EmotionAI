@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
+import { playFocusCue } from '../utils/focusSound';
 
 const DURATIONS = [5, 15, 25];
 
@@ -21,6 +22,8 @@ export const FocusSession = ({
   completed,
   onCompletedChange,
   highlightId = null,
+  soundEnabled = false,
+  soundVolume = 0.7,
 }) => {
   const { t } = useLanguage();
   const [durationMin, setDurationMin] = useState(DURATIONS[0]);
@@ -63,6 +66,8 @@ export const FocusSession = ({
 
   const handleNext = () => {
     markCompleted(current.id);
+    // Confirmed completion of an action (spec scenario 14) — opt-in cue.
+    if (soundEnabled) playFocusCue('done', soundVolume);
     onRunningChange(false);
     onIndexChange(Math.min(index + 1, plan.length - 1));
   };

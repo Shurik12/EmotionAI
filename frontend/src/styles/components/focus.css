@@ -205,6 +205,7 @@
   font-weight: 600;
 }
 
+.focus-btn:disabled,
 .focus-btn.primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -217,7 +218,7 @@
   color: var(--rz-foreground);
 }
 
-.focus-btn.ghost:hover {
+.focus-btn.ghost:hover:not(:disabled) {
   background: var(--rz-secondary);
 }
 
@@ -580,11 +581,34 @@
   border-left-color: var(--rz-muted-foreground);
 }
 
+/* Numa assistant placement: greeting in the hero, sprite inside the card. */
+.focus-hero-numa {
+  margin: var(--spacing-md) auto 0;
+}
+
+.focus-numa .numa {
+  margin: 0 auto var(--spacing-xs);
+}
+
 .focus-offer-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-xs);
   margin-top: var(--spacing-sm);
+}
+
+/* Sound cues */
+.focus-sound {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-xs) 0;
+}
+
+.focus-sound input[type='range'] {
+  width: 140px;
+  accent-color: var(--rz-accent);
 }
 
 /* Personal baseline */

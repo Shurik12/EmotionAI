@@ -141,7 +141,7 @@ the core output to one normalized frame — `valid`, `valence` [-1,1], `arousal`
 AND both va_mtl heads, so the 7-class model never triggers an offer (a missing channel is not
 filled with 0). The decision itself lives in the frontend
 (`frontend/src/utils/emotionPolicy.js`, a faithful port of `lib/emotion-policy.ts`): a
-user-confirmed baseline (≥60 s, ≥16 frames, ≥80% coverage), robust per-channel z-scores
+user-confirmed baseline (≥10 s, ≥8 frames, ≥80% coverage), robust per-channel z-scores
 (`1.4826·MAD`, floor 0.05), a 15 s window with ≥80% persistence and ≥8 answers, and three patterns
 (`fear-high` / `friction-high` / `sadness-low`). Offers are opt-in (default off), one per step,
 ≥5 min apart, ≤2 per session, and vanish after 20 s. Every threshold is a pilot hypothesis, not a

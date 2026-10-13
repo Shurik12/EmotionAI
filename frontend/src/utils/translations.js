@@ -32,6 +32,16 @@ export const translations = {
       kicker: 'Razuma Focus — ваше место для работы',
       title: 'В своём темпе. Одна задача. Один посильный шаг.',
       subtitle: 'Нума рядом, когда нужна помощь.',
+      numa: {
+        greet: 'Нума, ваш спокойный помощник. Нажмите, чтобы поздороваться.',
+        greetTitle: 'Поздороваться с Нумой',
+      },
+      sound: {
+        enable: 'Звуковые сигналы',
+        volume: 'Громкость',
+        preview: 'Прослушать',
+        hint: 'Короткий тон, когда Нума задаёт вопрос, и сигнал при завершении шага. По умолчанию выключено.',
+      },
       tabs: {
         movement: 'Движение',
         session: 'Моя сессия',
@@ -147,7 +157,7 @@ export const translations = {
         offersLabel: 'Мягкие предложения',
         offersHint: 'По устойчивому сочетанию эмоций. Включаете только вы; помощь по запросу работает всегда.',
         baselineTitle: 'Исходный период',
-        baselineCollecting: 'Собираю ваш обычный уровень: валидных кадров — {valid}, {seconds} с.',
+        baselineCollecting: 'Собираю ваш обычный уровень: валидных кадров — {valid} из 8, {seconds} из 10 с.',
         baselineReady: 'Исходный уровень можно подтвердить — он станет личным ориентиром этой сессии.',
         baselineConfirm: 'Подтвердить исходный период',
         baselineConfirmed: 'Исходный период подтверждён. Дальше сравниваю с ним.',
@@ -827,6 +837,16 @@ export const translations = {
       kicker: 'Razuma Focus — your place to work',
       title: 'At your own pace. One task. One manageable step.',
       subtitle: 'Numa is nearby when you need help.',
+      numa: {
+        greet: 'Numa, your calm assistant. Tap to say hello.',
+        greetTitle: 'Say hello to Numa',
+      },
+      sound: {
+        enable: 'Sound cues',
+        volume: 'Volume',
+        preview: 'Preview',
+        hint: 'A short tone when Numa asks a question, and a cue when a step is completed. Off by default.',
+      },
       tabs: {
         movement: 'Movement',
         session: 'My session',
@@ -942,7 +962,7 @@ export const translations = {
         offersLabel: 'Gentle offers',
         offersHint: 'Based on a sustained emotion combination. Only you enable it; help on request always works.',
         baselineTitle: 'Baseline period',
-        baselineCollecting: 'Collecting your usual level: {valid} valid frames, {seconds} s.',
+        baselineCollecting: 'Collecting your usual level: {valid} of 8 valid frames, {seconds} of 10 s.',
         baselineReady: 'The baseline can be confirmed — it becomes this session’s personal reference.',
         baselineConfirm: 'Confirm the baseline period',
         baselineConfirmed: 'Baseline confirmed. I compare against it from here.',

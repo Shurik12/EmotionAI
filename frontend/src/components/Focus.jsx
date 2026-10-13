@@ -4,6 +4,7 @@ import { breakdownTask } from '../utils/taskBreakdown';
 import { apiClient } from '../api/client';
 import { FocusSession } from './FocusSession';
 import { FocusCamera } from './FocusCamera';
+import { Numa } from './Numa';
 
 const makeKeySteps = (keys) =>
   keys.map((key, index) => ({ id: `step-${Date.now()}-${index}`, key }));
@@ -20,6 +21,8 @@ export const Focus = () => {
   const [plan, setPlan] = useState([]);
   const [timeLimit, setTimeLimit] = useState(false);
   const [numaNearby, setNumaNearby] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [soundVolume, setSoundVolume] = useState(0.7);
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState('');
 
@@ -143,6 +146,14 @@ export const Focus = () => {
         <p className="focus-kicker">{t('focus.kicker')}</p>
         <h1 className="focus-title">{t('focus.title')}</h1>
         <p className="focus-subtitle">{t('focus.subtitle')}</p>
+        {/* The greeting Numa lives on the planning screen; the session tab
+            renders its own Numa inside the assistant card. */}
+        {numaNearby && activeTab !== 'session' && (
+          <Numa
+            className="focus-hero-numa"
+            mood={planLoading ? 'thinking' : 'idle'}
+          />
+        )}
       </section>
 
       <div className="focus-tabs" role="tablist">
@@ -257,6 +268,8 @@ export const Focus = () => {
               completed={completedSteps}
               onCompletedChange={setCompletedSteps}
               highlightId={highlightStep}
+              soundEnabled={soundEnabled}
+              soundVolume={soundVolume}
             />
           </div>
 
@@ -270,6 +283,10 @@ export const Focus = () => {
               onSmaller={handleSmaller}
               onPause={() => setSessionRunning(false)}
               onResume={() => setSessionRunning(true)}
+              soundEnabled={soundEnabled}
+              soundVolume={soundVolume}
+              onSoundEnabledChange={setSoundEnabled}
+              onSoundVolumeChange={setSoundVolume}
             />
           </div>
         </div>

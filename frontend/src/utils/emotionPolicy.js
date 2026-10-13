@@ -15,7 +15,8 @@
 
 export const emotionPolicy = Object.freeze({
   version: 'emotion-pilot-v1',
-  baselineMs: 60000,
+  baselineMs: 10000,
+  baselineMinFrames: 8,
   windowMs: 15000,
   persistence: 0.8,
   deviation: 2,
@@ -86,13 +87,55 @@ function durationRatio(frames, start, end, predicate) {
 // Mirrors the baseline checks in decideEmotionOffer (lines 42-44 of the spec)
 // so the UI can enable "confirm baseline" only when it will actually be accepted.
 export function baselineReady(frames) {
-  if (!Array.isArray(frames) || frames.length < 16 || !ordered(frames)) return false;
+  if (
+    !Array.isArray(frames) ||
+    frames.length < emotionPolicy.baselineMinFrames ||
+    !ordered(frames)
+  ) {
+    return false;
+  }
   const start = frames[0].timestampMs;
   const end = frames[frames.length - 1].timestampMs;
   return (
     end - start >= emotionPolicy.baselineMs &&
     durationRatio(frames, start, end, () => true) >= emotionPolicy.persistence
   );
+}
+
+const readChannel = (f, k) =>
+  k === 'valence' || k === 'arousal' || k === 'intensity' ? f[k] : f.emotions?.[k];
+
+// Robust per-channel z-score (1.4826·MAD, floor 0.05) against a confirmed
+// baseline. Returns null when the baseline is too sparse to trust.
+export function makeBaselineScale(baselineFrames) {
+  if (!Array.isArray(baselineFrames)) return null;
+  const valid = baselineFrames.filter(usable);
+  if (valid.length < emotionPolicy.baselineMinFrames) return null;
+  const scales = new Map();
+  return (f, k) => {
+    const value = readChannel(f, k);
+    if (!Number.isFinite(value)) return NaN;
+    let s = scales.get(k);
+    if (!s) {
+      const a = valid.map((x) => readChannel(x, k)).filter(Number.isFinite);
+      if (
+        a.length < emotionPolicy.baselineMinFrames ||
+        a.length / valid.length < emotionPolicy.persistence
+      ) {
+        return NaN;
+      }
+      const center = median(a);
+      s = {
+        center,
+        scale: Math.max(
+          1.4826 * median(a.map((x) => Math.abs(x - center))),
+          emotionPolicy.scaleFloor,
+        ),
+      };
+      scales.set(k, s);
+    }
+    return (value - s.center) / s.scale;
+  };
 }
 
 export function decideEmotionOffer(observation, context) {
@@ -121,7 +164,7 @@ export function decideEmotionOffer(observation, context) {
   if (
     !baseline?.confirmedOnTask ||
     !Array.isArray(baseline.frames) ||
-    baseline.frames.length < 16 ||
+    baseline.frames.length < emotionPolicy.baselineMinFrames ||
     !ordered(baseline.frames)
   ) {
     return { action: 'quiet', reason: 'baseline-required' };
@@ -150,28 +193,7 @@ export function decideEmotionOffer(observation, context) {
   if (durationRatio(observation.frames, start, end, () => true) < emotionPolicy.persistence) {
     return { action: 'quiet', reason: 'insufficient-signal' };
   }
-  const validBaseline = baseline.frames.filter(usable);
-  const read = (f, k) => (k === 'valence' || k === 'arousal' || k === 'intensity' ? f[k] : f.emotions[k]);
-  const scales = new Map();
-  const z = (f, k) => {
-    const value = read(f, k);
-    if (value === undefined) return NaN;
-    let s = scales.get(k);
-    if (!s) {
-      const a = validBaseline.map((x) => read(x, k)).filter((x) => x !== undefined);
-      if (a.length < 16 || a.length / validBaseline.length < emotionPolicy.persistence) return NaN;
-      const center = median(a);
-      s = {
-        center,
-        scale: Math.max(
-          1.4826 * median(a.map((x) => Math.abs(x - center))),
-          emotionPolicy.scaleFloor,
-        ),
-      };
-      scales.set(k, s);
-    }
-    return (value - s.center) / s.scale;
-  };
+  const z = makeBaselineScale(baseline.frames) || (() => NaN);
   const d = emotionPolicy.deviation;
   const high = (f) => f.valence < 0 && z(f, 'valence') <= -d && z(f, 'arousal') >= d && z(f, 'intensity') >= d;
   const rules = [
@@ -197,6 +219,57 @@ export function decideEmotionOffer(observation, context) {
     }
   }
   return { action: 'quiet', reason: 'emotion-only' };
+}
+
+// Ambient body-language reaction. Unlike decideEmotionOffer this never opens an
+// offer card and never records an offer — it only picks the assistant's pose
+// from the recent emotional state, so Numa follows the emotion dynamics.
+//
+// It maps the *dominant* category over the recent window instead of requiring an
+// absolute threshold: the core's category scores are model-dependent and in
+// practice sit around 0.2–0.4, so a fixed cutoff left Numa frozen. Neutral (and
+// silence) keep Numa still.
+export const AMBIENT_WINDOW = 8;
+
+// Dominant category → gesture. Joy is the adapter's rename of `happiness`.
+const AMBIENT_MOODS = Object.freeze({
+  fear: 'support',
+  anger: 'help',
+  disgust: 'help',
+  contempt: 'help',
+  sadness: 'point',
+  joy: 'happy',
+  happiness: 'happy',
+  surprise: 'help',
+  neutral: 'rest',
+});
+
+// Below this the "dominant" channel is just noise; stay still.
+const AMBIENT_FLOOR = 0.2;
+
+/**
+ * Map the recent frames to a Numa mood. Returns one of
+ * 'support' | 'help' | 'point' | 'happy' | 'rest'.
+ */
+export function ambientNumaMood(frames) {
+  const recent = (Array.isArray(frames) ? frames : []).filter(usable);
+  if (recent.length < 2) return 'rest';
+  const window = recent.slice(-AMBIENT_WINDOW);
+  const mean = (k) => {
+    const values = window.map((f) => readChannel(f, k)).filter(Number.isFinite);
+    return values.length ? values.reduce((sum, x) => sum + x, 0) / values.length : -Infinity;
+  };
+  let best = 'neutral';
+  let bestScore = -Infinity;
+  for (const key of Object.keys(AMBIENT_MOODS)) {
+    const score = mean(key);
+    if (score > bestScore) {
+      bestScore = score;
+      best = key;
+    }
+  }
+  if (bestScore < AMBIENT_FLOOR) return 'rest';
+  return AMBIENT_MOODS[best] || 'rest';
 }
 
 // Record once when the offer was actually shown; dismissal never resets it.
