@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../hooks/useLanguage';
-import { playFocusCue } from '../utils/focusSound';
 
 const DURATIONS = [5, 15, 25];
 
@@ -22,8 +21,7 @@ export const FocusSession = ({
   completed,
   onCompletedChange,
   highlightId = null,
-  soundEnabled = false,
-  soundVolume = 0.7,
+  onStepDone,
 }) => {
   const { t } = useLanguage();
   const [durationMin, setDurationMin] = useState(DURATIONS[0]);
@@ -65,11 +63,18 @@ export const FocusSession = ({
     onCompletedChange((prev) => (prev.includes(stepId) ? prev : [...prev, stepId]));
 
   const handleNext = () => {
+    const alreadyDone = completed.includes(current.id);
     markCompleted(current.id);
-    // Confirmed completion of an action (spec scenario 14) — opt-in cue.
-    if (soundEnabled) playFocusCue('done', soundVolume);
+    const nextIndex = Math.min(index + 1, plan.length - 1);
+    const next = plan[nextIndex];
+    // Scenario 14 — confirmed completion of an action (raised to the parent,
+    // which shows the assistant card and plays the "ту-ду" tone).
+    onStepDone?.({
+      nextAction: next?.text ?? (next?.key ? t(next.key) : ''),
+      allDone: (alreadyDone ? completed.length : completed.length + 1) >= plan.length,
+    });
     onRunningChange(false);
-    onIndexChange(Math.min(index + 1, plan.length - 1));
+    onIndexChange(nextIndex);
   };
 
   const handleSelect = (stepIndex) => {

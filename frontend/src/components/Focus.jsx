@@ -23,6 +23,7 @@ export const Focus = () => {
   const [numaNearby, setNumaNearby] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [soundVolume, setSoundVolume] = useState(0.7);
+  const [doneEvent, setDoneEvent] = useState(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState('');
 
@@ -81,7 +82,25 @@ export const Focus = () => {
   };
 
   const currentStep = plan[Math.min(stepIndex, Math.max(plan.length - 1, 0))];
+  const currentAction = currentStep
+    ? currentStep.text ?? (currentStep.key ? t(currentStep.key) : '')
+    : '';
   const hasStep = plan.length > 0 && completedSteps.length < plan.length;
+
+  // Scenario 14 — a completed action raised from the session view.
+  const handleStepDone = ({ nextAction, allDone }) => {
+    setDoneEvent({ id: Date.now(), nextAction, allDone });
+  };
+
+  // Scenario 12 — apply the assistant's suggested sub-steps after the current one.
+  const handleApplySteps = (steps) => {
+    if (!steps?.length) return;
+    setPlan((prev) => {
+      const insertAt = Math.min(stepIndex + 1, prev.length);
+      const added = steps.map((text, i) => ({ id: `step-${Date.now()}-${i}`, text }));
+      return [...prev.slice(0, insertAt), ...added, ...prev.slice(insertAt)];
+    });
+  };
 
   const scrollToStep = useCallback((id) => {
     if (!id) return;
@@ -268,8 +287,7 @@ export const Focus = () => {
               completed={completedSteps}
               onCompletedChange={setCompletedSteps}
               highlightId={highlightStep}
-              soundEnabled={soundEnabled}
-              soundVolume={soundVolume}
+              onStepDone={handleStepDone}
             />
           </div>
 
@@ -287,6 +305,9 @@ export const Focus = () => {
               soundVolume={soundVolume}
               onSoundEnabledChange={setSoundEnabled}
               onSoundVolumeChange={setSoundVolume}
+              currentAction={currentAction}
+              onApplySteps={handleApplySteps}
+              doneEvent={doneEvent}
             />
           </div>
         </div>

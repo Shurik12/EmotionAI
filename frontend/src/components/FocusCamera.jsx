@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLanguage } from '../hooks/useLanguage';
 import { apiClient } from '../api/client';
 import { Numa } from './Numa';
+import { breakdownTask } from '../utils/taskBreakdown';
 import { playFocusCue, unlockFocusSound } from '../utils/focusSound';
 import {
   ambientNumaMood,
@@ -23,6 +24,15 @@ const DEFAULT_SAMPLE_INTERVAL_SEC = 1;
 const SESSION_POLL_MS = 1000;
 // Keep about a minute of recent frames so the 15 s window is fully covered.
 const RECENT_FRAMES = 60;
+// Gestures for the answer-flow cards (spec 9–14); help/steps deliberately have
+// no movement ("Нума неподвижна").
+const CARD_MOODS = Object.freeze({
+  'current-action': 'point',
+  help: 'rest',
+  steps: 'rest',
+  pause: 'pause',
+  done: 'done',
+});
 // Minimum time between two ambient Numa gestures, so a noisy emotion signal
 // cannot make the assistant flap. Sustained moods still come through.
 const AMBIENT_MIN_INTERVAL_MS = 4000;
@@ -66,6 +76,9 @@ export const FocusCamera = ({
   soundVolume = 0.7,
   onSoundEnabledChange,
   onSoundVolumeChange,
+  currentAction = '',
+  onApplySteps,
+  doneEvent = null,
 }) => {
   const { t } = useLanguage();
 
@@ -80,6 +93,7 @@ export const FocusCamera = ({
   const offerMemoryRef = useRef(emptyOfferMemory());
   const dismissTimerRef = useRef(null);
   const soundRef = useRef({ enabled: soundEnabled, volume: soundVolume });
+  const backCardRef = useRef(null);
 
   const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState('off'); // off | asking | on | error
@@ -92,10 +106,11 @@ export const FocusCamera = ({
   const [total, setTotal] = useState(0);
   const [offersEnabled, setOffersEnabled] = useState(false);
   const [baseline, setBaseline] = useState(null); // { confirmedOnTask, frames }
-  const [offer, setOffer] = useState(null); // { pattern, persistence }
-  const [decision, setDecision] = useState(null);
+  const [card, setCard] = useState(null); // assistant card state machine (spec 1–15)
+  const [cardSeq, setCardSeq] = useState(0);
   const [ambientMood, setAmbientMood] = useState('rest');
   const [ambientReaction, setAmbientReaction] = useState(0);
+  const [decision, setDecision] = useState(null);
   const ambientMoodRef = useRef('rest');
   const ambientAtRef = useRef(0);
 
@@ -110,12 +125,25 @@ export const FocusCamera = ({
       )
     : 0;
 
-  const dismissOffer = useCallback(() => {
-    if (dismissTimerRef.current) {
-      clearTimeout(dismissTimerRef.current);
-      dismissTimerRef.current = null;
+  // Assistant card state machine (spec scenarios 1–15). `lifetimeMs` = 0 means
+  // the card waits for the user; the automatic question closes after 20 s.
+  const showCard = useCallback((next, lifetimeMs = 0) => {
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    dismissTimerRef.current = null;
+    setCard(next);
+    setCardSeq((n) => n + 1);
+    if (lifetimeMs > 0) {
+      dismissTimerRef.current = window.setTimeout(() => {
+        dismissTimerRef.current = null;
+        setCard(null);
+      }, lifetimeMs);
     }
-    setOffer(null);
+  }, []);
+
+  const dismissCard = useCallback(() => {
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    dismissTimerRef.current = null;
+    setCard(null);
   }, []);
 
   const endSession = useCallback(() => {
@@ -137,7 +165,7 @@ export const FocusCamera = ({
       offerMemoryRef.current = emptyOfferMemory();
       setSamples([]);
       setTotal(0);
-      setOffer(null);
+      setCard(null);
       setDecision(null);
       setBaseline(null);
     } catch (err) {
@@ -152,7 +180,7 @@ export const FocusCamera = ({
       streamRef.current = null;
     }
     if (videoRef.current) videoRef.current.srcObject = null;
-    dismissOffer();
+    dismissCard();
     offerMemoryRef.current = emptyOfferMemory();
     setSamples([]);
     setTotal(0);
@@ -160,7 +188,7 @@ export const FocusCamera = ({
     setDecision(null);
     setStatus('off');
     endSession();
-  }, [dismissOffer, endSession]);
+  }, [dismissCard, endSession]);
 
   useEffect(() => {
     aliveRef.current = true;
@@ -314,8 +342,10 @@ export const FocusCamera = ({
   }, [status, autoAnalyze, captureBlob, pushFrame, intervalMs]);
 
   // Run the emotion policy whenever the observation or the context changes.
+  // While a card is open no new automatic proposal is made (spec), which also
+  // keeps explicit user choices in control.
   useEffect(() => {
-    if (status !== 'on' || offer) return;
+    if (status !== 'on' || card) return;
     const nowMs = frames.length ? frames[frames.length - 1].timestampMs : Date.now();
     const observation = {
       source: 'razuma-core',
@@ -340,19 +370,37 @@ export const FocusCamera = ({
     setDecision(next);
     if (next.action === 'question' && next.pattern && stepId) {
       offerMemoryRef.current = recordEmotionOffer(offerMemoryRef.current, stepId, nowMs);
-      setOffer({ pattern: next.pattern, persistence: next.persistence });
-      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
-      dismissTimerRef.current = window.setTimeout(() => {
-        dismissTimerRef.current = null;
-        setOffer(null);
-      }, emotionPolicy.offerLifetimeMs);
+      // Scenario 15: an unanswered automatic question closes itself after 20 s.
+      showCard(
+        { kind: 'question', pattern: next.pattern, persistence: next.persistence },
+        emotionPolicy.offerLifetimeMs,
+      );
     }
-  }, [status, frames, baseline, offersEnabled, running, hasStep, stepId, offer]);
+  }, [status, frames, baseline, offersEnabled, running, hasStep, stepId, card, showCard]);
 
-  // Ambient reaction: let Numa's body language follow the live emotions, not
-  // only the rare (and heavily gated) offer events. Runs whenever the camera is
-  // on — no confirmed baseline required — and commits a new mood only after
-  // AMBIENT_MIN_INTERVAL_MS, so it cannot flap.
+  // Keep the sound setting in a ref so the effect deps stay stable.
+  useEffect(() => {
+    soundRef.current = { enabled: soundEnabled, volume: soundVolume };
+  }, [soundEnabled, soundVolume]);
+
+  // Audible cue only for scenario 1 ("Ты сейчас в задаче?"); the spec keeps the
+  // other patterns silent (scenarios 2–4). Opt-in.
+  useEffect(() => {
+    if (card?.kind === 'question' && card.pattern === 'check' && soundRef.current.enabled) {
+      playFocusCue('check', soundRef.current.volume);
+    }
+  }, [card]);
+
+  // Scenario 14 — a completed action (raised from the session): nod + smile
+  // gesture and the "ту-ду" tone.
+  useEffect(() => {
+    if (!doneEvent) return;
+    showCard({ kind: 'done', nextAction: doneEvent.nextAction, allDone: doneEvent.allDone }, 6000);
+    if (soundRef.current.enabled) playFocusCue('done', soundRef.current.volume);
+  }, [doneEvent, showCard]);
+
+  // Ambient reaction (product deviation from rules 5–8): while no card is open,
+  // Numa's pose follows the dominant emotion, committed at most every 4 s.
   useEffect(() => {
     if (status !== 'on') {
       if (ambientMoodRef.current !== 'rest') {
@@ -362,6 +410,8 @@ export const FocusCamera = ({
       }
       return;
     }
+    // An open card drives the gesture; keep the ambient mood frozen meanwhile.
+    if (card) return;
     const next = ambientNumaMood(frames);
     const nowMs = Date.now();
     if (next !== ambientMoodRef.current && nowMs - ambientAtRef.current >= AMBIENT_MIN_INTERVAL_MS) {
@@ -370,19 +420,7 @@ export const FocusCamera = ({
       setAmbientMood(next);
       setAmbientReaction((n) => n + 1);
     }
-  }, [status, frames]);
-
-  // Keep the sound setting in a ref so the offer effect stays stable.
-  useEffect(() => {
-    soundRef.current = { enabled: soundEnabled, volume: soundVolume };
-  }, [soundEnabled, soundVolume]);
-
-  // Audible cue when the assistant surfaces a question (opt-in).
-  useEffect(() => {
-    if (offer && soundRef.current.enabled) {
-      playFocusCue('check', soundRef.current.volume);
-    }
-  }, [offer]);
+  }, [status, card, frames]);
 
   const confirmBaseline = () => {
     if (!baselineReadyNow) return;
@@ -403,30 +441,161 @@ export const FocusCamera = ({
     await pushFrame(shot.blob);
   };
 
-  const choose = (action) => {
-    dismissOffer();
-    if (action === 'point') onPoint?.();
-    else if (action === 'smaller') onSmaller?.();
-    else if (action === 'pause') onPause?.();
-    else if (action === 'continue') onResume?.();
+  // The current action's sub-steps, suggested for scenario 12.
+  const suggestedSteps = useMemo(
+    () => (currentAction ? breakdownTask(currentAction).map((key) => t(key)) : []),
+    [currentAction, t],
+  );
+
+  // Answer handling (spec scenarios 9–14). An explicit choice has priority; one
+  // reaction is shown and no others are queued.
+  const answer = (action) => {
+    if (action === 'continue') {
+      dismissCard();
+      onResume?.();
+    } else if (action === 'pause') {
+      onPause?.();
+      showCard({ kind: 'pause' });
+    } else if (action === 'help') {
+      showCard({ kind: 'help' });
+    } else if (action === 'help-return' || action === 'show-action') {
+      onPoint?.();
+      showCard({ kind: 'current-action' });
+    } else if (action === 'split-steps') {
+      onSmaller?.();
+      backCardRef.current = card;
+      showCard({ kind: 'steps' });
+    } else if (action === 'apply-steps') {
+      onApplySteps?.(suggestedSteps);
+      dismissCard();
+    } else if (action === 'edit-steps') {
+      dismissCard();
+      onPoint?.();
+    } else if (action === 'back') {
+      showCard(backCardRef.current ?? { kind: 'help' });
+    } else if (action === 'resume-session') {
+      dismissCard();
+      onResume?.();
+    }
   };
 
   const toggleOffers = (value) => {
     setOffersEnabled(value);
-    if (!value) dismissOffer();
+    if (!value) dismissCard();
   };
 
-  const primary = offer ? emotionPatterns[offer.pattern]?.primary : null;
   const strip = samples.slice(-MAX_STRIP_SAMPLES);
-  // An active offer takes precedence; otherwise Numa mirrors the live emotions.
-  const numaMood = offer ? emotionPatterns[offer.pattern]?.mood ?? 'support' : ambientMood;
-  const numaReaction = offer ? offer.pattern : ambientReaction;
+  // An open card drives the gesture (spec 1–15); otherwise Numa mirrors the
+  // dominant emotion (ambient reaction).
+  const numaMood = card
+    ? card.kind === 'question'
+      ? emotionPatterns[card.pattern]?.mood ?? 'rest'
+      : CARD_MOODS[card.kind] ?? 'rest'
+    : ambientMood;
+  const numaReaction = card ? cardSeq : ambientReaction;
 
   let statusText = t('focus.emotion.idle');
   if (!total) statusText = t('focus.emotion.noSignal');
   else if (decision?.action === 'quiet' && decision.reason === 'emotion-only') {
     statusText = t('focus.emotion.quiet');
+  } else if (decision?.action === 'quiet' && decision.reason === 'insufficient-signal') {
+    statusText = t('focus.emotion.unavailable');
   }
+
+  const cardButtons = (actions, keyPrefix) => (
+    <div className="focus-offer-actions">
+      {actions.map((action, i) => (
+        <button
+          key={action}
+          type="button"
+          className={`focus-btn ${i === 0 ? 'primary' : 'ghost'}`}
+          onClick={() => answer(action)}
+        >
+          {t(`${keyPrefix}.${i}`)}
+        </button>
+      ))}
+    </div>
+  );
+
+  // The assistant card (spec scenarios 1 and 9–15). Empty card → idle status.
+  const renderCard = () => {
+    if (!card) return <p className="focus-numa-idle">{statusText}</p>;
+    if (card.kind === 'question') {
+      const pattern = card.pattern;
+      return (
+        <>
+          <h4>{t(`focus.emotion.patterns.${pattern}.title`)}</h4>
+          <p>{t(`focus.emotion.patterns.${pattern}.body`)}</p>
+          {cardButtons(
+            emotionPatterns[pattern]?.actions ?? ['continue'],
+            `focus.emotion.patterns.${pattern}.buttons`,
+          )}
+        </>
+      );
+    }
+    if (card.kind === 'current-action') {
+      return (
+        <>
+          <h4>{t('focus.emotion.cards.currentActionTitle')}</h4>
+          <p>
+            {currentAction
+              ? t('focus.emotion.cards.currentAction', { action: currentAction })
+              : t('focus.emotion.cards.noAction')}
+          </p>
+          {cardButtons(
+            ['continue', 'split-steps', 'pause'],
+            'focus.emotion.cards.currentActionButtons',
+          )}
+        </>
+      );
+    }
+    if (card.kind === 'help') {
+      return (
+        <>
+          <h4>{t('focus.emotion.cards.helpTitle')}</h4>
+          {cardButtons(['show-action', 'split-steps', 'pause'], 'focus.emotion.cards.helpButtons')}
+        </>
+      );
+    }
+    if (card.kind === 'steps') {
+      return (
+        <>
+          <h4>{t('focus.emotion.cards.stepsTitle')}</h4>
+          {suggestedSteps.length > 0 && (
+            <ol className="focus-steps">
+              {suggestedSteps.map((text, i) => (
+                <li key={`${i}-${text}`} className="focus-step">
+                  <span className="focus-step-title">{text}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+          {cardButtons(['apply-steps', 'edit-steps', 'back'], 'focus.emotion.cards.stepsButtons')}
+        </>
+      );
+    }
+    if (card.kind === 'pause') {
+      return (
+        <>
+          <h4>{t('focus.emotion.cards.pauseTitle')}</h4>
+          {cardButtons(['resume-session'], 'focus.emotion.cards.pauseButtons')}
+        </>
+      );
+    }
+    if (card.kind === 'done') {
+      return (
+        <>
+          <h4>{t('focus.emotion.cards.doneTitle')}</h4>
+          <p>
+            {card.allDone
+              ? t('focus.emotion.cards.taskDone')
+              : t('focus.emotion.cards.doneNext', { action: card.nextAction || '' })}
+          </p>
+        </>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="focus-camera">
@@ -633,51 +802,14 @@ export const FocusCamera = ({
       )}
 
       <div
-        className={`focus-numa ${offer ? 'offer' : 'idle'}`}
+        className={`focus-numa ${card?.kind === 'question' ? 'offer' : 'idle'}`}
         aria-live="polite"
       >
         {numaNearby && (
           <Numa small mood={numaMood} reaction={numaReaction} />
         )}
         <p className="focus-numa-label">{numaNearby ? t('focus.emotion.numa') : t('focus.emotion.core')}</p>
-        {offer ? (
-          <>
-            <h4>{t(`focus.emotion.patterns.${offer.pattern}.title`)}</h4>
-            <p>{t(`focus.emotion.patterns.${offer.pattern}.body`)}</p>
-            <div className="focus-offer-actions">
-              <button
-                type="button"
-                className={`focus-btn ${primary === 'point' ? 'primary' : 'ghost'}`}
-                onClick={() => choose('point')}
-              >
-                {t('focus.emotion.action.point')}
-              </button>
-              <button
-                type="button"
-                className={`focus-btn ${primary === 'smaller' ? 'primary' : 'ghost'}`}
-                onClick={() => choose('smaller')}
-              >
-                {t('focus.emotion.action.smaller')}
-              </button>
-              <button
-                type="button"
-                className={`focus-btn ${primary === 'pause' ? 'primary' : 'ghost'}`}
-                onClick={() => choose('pause')}
-              >
-                {t('focus.emotion.action.pause')}
-              </button>
-              <button
-                type="button"
-                className="focus-btn ghost"
-                onClick={() => choose('continue')}
-              >
-                {t('focus.emotion.action.continue')}
-              </button>
-            </div>
-          </>
-        ) : (
-          <p className="focus-numa-idle">{statusText}</p>
-        )}
+        {renderCard()}
       </div>
 
       <div className="focus-dynamics">
