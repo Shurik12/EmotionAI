@@ -46,27 +46,30 @@ void BM_AiCostBreakdown(benchmark::State &state)
 
         for (auto _ : state)
         {
-            const std::string &task_text = task_list[task_idx % task_list.size()];
-            const std::string duration = "25 мин";
-            const std::string lang = (task_idx % 2 == 0) ? "ru" : "en";
-
-            auto t0 = std::chrono::steady_clock::now();
-            auto result = benchmark.callBreakdown(task_text, duration, lang);
-            auto t1 = std::chrono::steady_clock::now();
-
-            latencies_ms.push_back(
-                std::chrono::duration<double, std::milli>(t1 - t0).count());
-
-            calls_total++;
-            if (result.ok)
+            // Run every sample task once per iteration so that a single
+            // "iteration" covers the full cost profile (10 LLM calls).
+            for (size_t i = 0; i < task_list.size(); ++i)
             {
-                calls_ok++;
-                total_prompt += result.prompt_tokens;
-                total_completion += result.completion_tokens;
-                total_tokens += result.total_tokens;
-            }
+                const std::string &task_text = task_list[i];
+                const std::string duration = "25 мин";
+                const std::string lang = (i % 2 == 0) ? "ru" : "en";
 
-            task_idx++;
+                auto t0 = std::chrono::steady_clock::now();
+                auto result = benchmark.callBreakdown(task_text, duration, lang);
+                auto t1 = std::chrono::steady_clock::now();
+
+                latencies_ms.push_back(
+                    std::chrono::duration<double, std::milli>(t1 - t0).count());
+
+                calls_total++;
+                if (result.ok)
+                {
+                    calls_ok++;
+                    total_prompt += result.prompt_tokens;
+                    total_completion += result.completion_tokens;
+                    total_tokens += result.total_tokens;
+                }
+            }
         }
 
         // If every call failed the AI is likely not configured.
