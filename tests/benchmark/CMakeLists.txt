@@ -12,6 +12,8 @@ if(TARGET benchmark::benchmark)
         ConcurrentClientBenchmark.cpp
         FocusBenchmark.cpp
         FocusBenchmarkLoad.cpp
+        AiCostBenchmark.cpp
+        AiCostBenchmarkLoad.cpp
     )
 
     target_include_directories(emotionai_benchmark PRIVATE

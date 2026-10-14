@@ -74,11 +74,15 @@ make benchmark
 
 # Run Focus benchmarks and save a measurement to measurements/
 make benchmark_focus
+
+# Run LLM token-cost benchmark (needs ai.enabled=true + api_key in config.yaml)
+make benchmark_ai_cost
 ```
 
 > Note: the Focus benchmarks require a running server. If the server is not
 > reachable they will be reported as skipped (not failed), so the suite still
-> exits cleanly in CI without a live server.
+> exits cleanly in CI without a live server. The AI-cost benchmark skips with
+> an error message when the AI is not configured.
 
 ## Interpreting the Focus RPS numbers
 
@@ -96,10 +100,28 @@ The frame-upload endpoint is the bottleneck; the full session flow adds the
 cost of session create/poll/close. A 10 RPS requirement is met with a wide
 margin even on a single core.
 
+## LLM token-cost benchmark
+
+`BM_AiCostBreakdown` sends 10 realistic task texts (RU/EN) to
+`POST /api/focus/breakdown` and records the token usage returned by the LLM.
+User counters in the JSON output:
+
+| Counter | Meaning |
+|---------|---------|
+| `CallsOk` | Successful LLM calls |
+| `AvgPromptTokens` | Mean input tokens per call |
+| `AvgCompletionTokens` | Mean output tokens per call |
+| `AvgTotalTokens` | Mean total tokens per call |
+| `TotalTokens` | Sum of all tokens across all calls |
+| `AvgLatencyMs` | Mean wall-clock latency per call |
+
+**Cost per DAU** = `TotalTokens / CallsOk × price_per_token × calls_per_user_per_day`.
+
 ## Storing measurement results
 
 `make benchmark_focus` writes a timestamped JSON file into `measurements/`
-(e.g. `measurements/focus-20261014-205047.json`) and prints a human-readable
-console summary. Measurement files are committed to the repository so that
-performance regressions are visible in code review. See
+(e.g. `measurements/focus-20261014-205047.json`).
+`make benchmark_ai_cost` writes `measurements/ai-cost-<timestamp>.json`.
+Both print a human-readable console summary. Measurement files are committed
+to the repository so that regressions are visible in code review. See
 [measurements/README.md](measurements/README.md) for details.
