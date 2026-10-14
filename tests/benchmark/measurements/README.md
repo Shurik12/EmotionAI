@@ -11,22 +11,20 @@ Example: `focus-20261014-203900.json`
 ## How to generate
 
 ```bash
-# Run the Focus benchmarks and save results to measurements/
-cd tests/benchmark
-./run_focus_benchmark.sh
+# From the repo root (requires a running EmotionAI server on :8080)
+make benchmark_focus
 ```
 
-The script:
-1. Builds the benchmark binary (if needed)
-2. Runs all `BM_Focus*` benchmarks in JSON format
-3. Saves the output to `measurements/focus-<timestamp>.json`
-4. Prints a human-readable summary
+This builds the benchmark binary and runs all `BM_Focus*` benchmarks,
+saving the JSON to `measurements/focus-<timestamp>.json` via Google
+Benchmark's native `--benchmark_out` flag. The console also prints a
+human-readable summary table.
 
 ## Committing results
 
 Measurement files are committed to the repository so that performance
 regressions can be spotted in code review. When a PR changes Focus server
-code, run the script and commit the new measurement file.
+code, run `make benchmark_focus` and commit the new measurement file.
 
 ## Reading the JSON
 
