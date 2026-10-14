@@ -1,6 +1,6 @@
 MODELS_DIR := contrib/emotiefflib/models
 
-.PHONY: help install python_env models configure build_backend build_frontend build benchmark test \
+.PHONY: help install python_env models configure build_backend build_frontend build benchmark benchmark_focus test \
         test_integration up up-build down re-up clean clean-data balance
 
 help: ## List targets
@@ -30,6 +30,16 @@ build: build_backend build_frontend ## Configure and build everything
 benchmark: ## Build the offline benchmarks (tests/benchmark)
 	cmake -S . -B build -G Ninja -DBUILD_BENCHMARKS=ON
 	cmake --build build --target emotionai_benchmark
+
+benchmark_focus: benchmark ## Run Focus camera benchmarks, save JSON to tests/benchmark/measurements/
+	@mkdir -p tests/benchmark/measurements
+	@cd tests/benchmark && \
+		$(CURDIR)/build/tests/benchmark/emotionai_benchmark \
+		--benchmark_filter="BM_Focus" \
+		--benchmark_format=console \
+		--benchmark_out="measurements/focus-$$(date +%Y%m%d-%H%M%S).json" \
+		--benchmark_out_format=json \
+		--benchmark_repetitions=1
 
 test: ## Build and run the unit test suite
 	cmake -S . -B build -G Ninja -DBUILD_TESTS=ON -DEMOTIONAI_BUILD_INTEGRATION_TESTS=OFF

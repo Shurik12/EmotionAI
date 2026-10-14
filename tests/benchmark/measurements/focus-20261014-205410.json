@@ -1,8 +1,8 @@
 {
   "context": {
-    "date": "2026-10-14T20:42:28+03:00",
+    "date": "2026-10-14T20:54:11+03:00",
     "host_name": "oscm-5n6",
-    "executable": "/root/EmotionAI/tests/benchmark/../../build/tests/benchmark/emotionai_benchmark",
+    "executable": "/root/EmotionAI/build/tests/benchmark/emotionai_benchmark",
     "num_cpus": 16,
     "mhz_per_cpu": 2694,
     "cpu_scaling_enabled": false,
@@ -32,7 +32,7 @@
         "num_sharing": 1
       }
     ],
-    "load_avg": [2.79736,1.98975,0.981445],
+    "load_avg": [2.09863,2.00928,1.55469],
     "library_build_type": "debug"
   },
   "benchmarks": [
@@ -46,15 +46,15 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 3.0130127969999999e+03,
-      "cpu_time": 1.4750099999999433e-01,
+      "real_time": 3.0096794080000000e+03,
+      "cpu_time": 1.4323200000004865e-01,
       "time_unit": "ms",
       "ConcurrentClients": 1.0000000000000000e+00,
       "DurationMs": 3.0000000000000000e+03,
-      "Frames": 1.1800000000000000e+03,
-      "Polls": 1.1800000000000000e+02,
-      "RPS_frames": 1.2998105416696436e+02,
-      "Sessions": 1.2000000000000000e+01
+      "Frames": 1.0000000000000000e+03,
+      "Polls": 1.0000000000000000e+02,
+      "RPS_frames": 1.1039757309273796e+02,
+      "Sessions": 1.0000000000000000e+01
     },
     {
       "name": "BM_FocusConcurrentSessions/1/3000/iterations:1/manual_time",
@@ -66,14 +66,14 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 3.0149915940000001e+03,
-      "cpu_time": 1.0009700000002120e-01,
+      "real_time": 3.0128673739999999e+03,
+      "cpu_time": 9.0833000000012376e-02,
       "time_unit": "ms",
       "ConcurrentClients": 1.0000000000000000e+00,
       "DurationMs": 3.0000000000000000e+03,
-      "Frames": 1.1600000000000000e+03,
-      "Polls": 1.1600000000000000e+02,
-      "RPS_frames": 1.2761031419195437e+02,
+      "Frames": 1.2000000000000000e+03,
+      "Polls": 1.2000000000000000e+02,
+      "RPS_frames": 1.3219688353337509e+02,
       "Sessions": 1.2000000000000000e+01
     },
     {
@@ -86,15 +86,15 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 3.0862302910000003e+03,
-      "cpu_time": 2.7441900000002573e-01,
+      "real_time": 3.0273403939999998e+03,
+      "cpu_time": 2.2157700000002833e-01,
       "time_unit": "ms",
       "ConcurrentClients": 4.0000000000000000e+00,
       "DurationMs": 3.0000000000000000e+03,
-      "Frames": 1.3000000000000000e+03,
-      "Polls": 1.3000000000000000e+02,
-      "RPS_frames": 1.3648555601285329e+02,
-      "Sessions": 1.7000000000000000e+01
+      "Frames": 1.4300000000000000e+03,
+      "Polls": 1.4300000000000000e+02,
+      "RPS_frames": 1.5603194635839560e+02,
+      "Sessions": 2.2000000000000000e+01
     },
     {
       "name": "BM_FocusConcurrentSessions/8/3000/iterations:1/manual_time",
@@ -106,15 +106,15 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 3.1640486839999999e+03,
-      "cpu_time": 6.5210700000001287e-01,
+      "real_time": 3.0626277759999998e+03,
+      "cpu_time": 5.1983599999999575e-01,
       "time_unit": "ms",
       "ConcurrentClients": 8.0000000000000000e+00,
       "DurationMs": 3.0000000000000000e+03,
-      "Frames": 1.5200000000000000e+03,
-      "Polls": 1.5200000000000000e+02,
-      "RPS_frames": 1.5182988865824203e+02,
-      "Sessions": 1.4000000000000000e+01
+      "Frames": 1.5100000000000000e+03,
+      "Polls": 1.5100000000000000e+02,
+      "RPS_frames": 1.6098614964866499e+02,
+      "Sessions": 2.7000000000000000e+01
     },
     {
       "name": "BM_FocusConcurrentSessions/16/3000/iterations:1/manual_time",
@@ -126,15 +126,15 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 3.1197057789999999e+03,
-      "cpu_time": 1.1921109999999957e+00,
+      "real_time": 3.2034608960000000e+03,
+      "cpu_time": 1.0078299999999873e+00,
       "time_unit": "ms",
       "ConcurrentClients": 1.6000000000000000e+01,
       "DurationMs": 3.0000000000000000e+03,
-      "Frames": 1.4400000000000000e+03,
-      "Polls": 1.4400000000000000e+02,
-      "RPS_frames": 1.4795689791225738e+02,
-      "Sessions": 3.8000000000000000e+01
+      "Frames": 1.4200000000000000e+03,
+      "Polls": 1.4200000000000000e+02,
+      "RPS_frames": 1.3837240532973684e+02,
+      "Sessions": 2.0000000000000000e+01
     },
     {
       "name": "BM_FocusConcurrentSessions/32/3000/iterations:1/manual_time",
@@ -146,15 +146,15 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 3.2403619140000001e+03,
-      "cpu_time": 2.0140060000000126e+00,
+      "real_time": 3.2908732500000001e+03,
+      "cpu_time": 2.0257880000000283e+00,
       "time_unit": "ms",
       "ConcurrentClients": 3.2000000000000000e+01,
       "DurationMs": 3.0000000000000000e+03,
       "Frames": 1.6000000000000000e+03,
       "Polls": 1.6000000000000000e+02,
-      "RPS_frames": 1.5238174572818673e+02,
-      "Sessions": 4.2000000000000000e+01
+      "RPS_frames": 1.4773985609350041e+02,
+      "Sessions": 6.1000000000000000e+01
     },
     {
       "name": "BM_FocusPolling/1/iterations:1/manual_time",
@@ -166,12 +166,12 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.0179820120000001e+03,
-      "cpu_time": 1.5613300000000274e-01,
+      "real_time": 1.0001578300000000e+03,
+      "cpu_time": 8.2356000000005647e-02,
       "time_unit": "ms",
       "ConcurrentClients": 1.0000000000000000e+00,
-      "Polls": 1.6490000000000000e+03,
-      "RPS_polls": 1.5912574416980030e+03
+      "Polls": 1.6870000000000000e+03,
+      "RPS_polls": 1.6864676076245480e+03
     },
     {
       "name": "BM_FocusPolling/4/iterations:1/manual_time",
@@ -183,12 +183,12 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.0015848040000000e+03,
-      "cpu_time": 1.7094200000000725e-01,
+      "real_time": 1.0643456189999999e+03,
+      "cpu_time": 1.6334699999998037e-01,
       "time_unit": "ms",
       "ConcurrentClients": 4.0000000000000000e+00,
-      "Polls": 1.7260000000000000e+03,
-      "RPS_polls": 1.7205422342497111e+03
+      "Polls": 1.7290000000000000e+03,
+      "RPS_polls": 1.5262639257770868e+03
     },
     {
       "name": "BM_FocusPolling/8/iterations:1/manual_time",
@@ -200,12 +200,12 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.0033746210000000e+03,
-      "cpu_time": 4.8282099999996664e-01,
+      "real_time": 1.0034166769999999e+03,
+      "cpu_time": 5.3596500000002711e-01,
       "time_unit": "ms",
       "ConcurrentClients": 8.0000000000000000e+00,
-      "Polls": 1.7790000000000000e+03,
-      "RPS_polls": 1.7670536042731380e+03
+      "Polls": 1.7870000000000000e+03,
+      "RPS_polls": 1.7748510951229484e+03
     },
     {
       "name": "BM_FocusPolling/16/iterations:1/manual_time",
@@ -217,12 +217,12 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.0072158229999999e+03,
-      "cpu_time": 9.7860599999999298e-01,
+      "real_time": 1.0066190550000000e+03,
+      "cpu_time": 8.0941999999994962e-01,
       "time_unit": "ms",
       "ConcurrentClients": 1.6000000000000000e+01,
-      "Polls": 1.7240000000000000e+03,
-      "RPS_polls": 1.6993865707610541e+03
+      "Polls": 1.6610000000000000e+03,
+      "RPS_polls": 1.6392279030334873e+03
     },
     {
       "name": "BM_FocusFrameUpload/1/iterations:1/manual_time",
@@ -234,12 +234,12 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.0015540390000000e+03,
-      "cpu_time": 7.8394000000037156e-02,
+      "real_time": 1.0010348480000000e+03,
+      "cpu_time": 7.7427999999990504e-02,
       "time_unit": "ms",
       "ConcurrentClients": 1.0000000000000000e+00,
-      "Frames": 3.7700000000000000e+02,
-      "RPS_frames": 3.7583098035244461e+02
+      "Frames": 4.2800000000000000e+02,
+      "RPS_frames": 4.2711554326609428e+02
     },
     {
       "name": "BM_FocusFrameUpload/4/iterations:1/manual_time",
@@ -251,12 +251,12 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.0062229070000000e+03,
-      "cpu_time": 1.7051800000000839e-01,
+      "real_time": 1.0040095309999999e+03,
+      "cpu_time": 1.7124499999998655e-01,
       "time_unit": "ms",
       "ConcurrentClients": 4.0000000000000000e+00,
-      "Frames": 5.2600000000000000e+02,
-      "RPS_frames": 5.1951410610389178e+02
+      "Frames": 4.8600000000000000e+02,
+      "RPS_frames": 4.8212605048757393e+02
     },
     {
       "name": "BM_FocusFrameUpload/8/iterations:1/manual_time",
@@ -268,12 +268,12 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.0140459430000000e+03,
-      "cpu_time": 4.5749999999999957e-01,
+      "real_time": 1.0127547920000000e+03,
+      "cpu_time": 5.3891400000000145e-01,
       "time_unit": "ms",
       "ConcurrentClients": 8.0000000000000000e+00,
-      "Frames": 5.0100000000000000e+02,
-      "RPS_frames": 4.8721703234541741e+02
+      "Frames": 4.8700000000000000e+02,
+      "RPS_frames": 4.7481053632097291e+02
     },
     {
       "name": "BM_FocusFrameUpload/16/iterations:1/manual_time",
@@ -285,12 +285,12 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.0640084279999999e+03,
-      "cpu_time": 1.4174860000000233e+00,
+      "real_time": 1.0861178960000000e+03,
+      "cpu_time": 1.3517379999999912e+00,
       "time_unit": "ms",
       "ConcurrentClients": 1.6000000000000000e+01,
-      "Frames": 5.0400000000000000e+02,
-      "RPS_frames": 4.4518487449281150e+02
+      "Frames": 5.4800000000000000e+02,
+      "RPS_frames": 4.6454374762472185e+02
     },
     {
       "name": "BM_FocusFrameUpload/32/iterations:1/manual_time",
@@ -302,12 +302,12 @@
       "repetition_index": 0,
       "threads": 1,
       "iterations": 1,
-      "real_time": 1.0495907090000001e+03,
-      "cpu_time": 4.0414550000000276e+00,
+      "real_time": 1.0448549450000000e+03,
+      "cpu_time": 3.4870720000000355e+00,
       "time_unit": "ms",
       "ConcurrentClients": 3.2000000000000000e+01,
-      "Frames": 5.2000000000000000e+02,
-      "RPS_frames": 4.7202324729940278e+02
+      "Frames": 5.6500000000000000e+02,
+      "RPS_frames": 5.1753108802186421e+02
     }
   ]
 }
