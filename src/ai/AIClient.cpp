@@ -51,7 +51,8 @@ namespace emotionai
         AIClient::~AIClient() = default;
 
         std::string AIClient::chatCompletion(const std::string &systemPrompt,
-                                             const std::string &userPrompt)
+                                             const std::string &userPrompt,
+                                             TokenUsage *usage)
         {
             if (!m_config.enabled)
                 return "";
@@ -98,6 +99,15 @@ namespace emotionai
             try
             {
                 auto json_response = nlohmann::json::parse(response);
+
+                if (usage && json_response.contains("usage"))
+                {
+                    const auto &u = json_response["usage"];
+                    usage->promptTokens = u.value("prompt_tokens", 0);
+                    usage->completionTokens = u.value("completion_tokens", 0);
+                    usage->totalTokens = u.value("total_tokens", 0);
+                }
+
                 if (json_response.contains("choices") &&
                     !json_response["choices"].empty() &&
                     json_response["choices"][0].contains("message") &&
@@ -136,7 +146,8 @@ namespace emotionai
             if (!duration.empty())
                 userPrompt += "\nДлительность блока: " + duration;
 
-            const std::string content = chatCompletion(systemPrompt, userPrompt);
+            TokenUsage usage;
+            const std::string content = chatCompletion(systemPrompt, userPrompt, &usage);
             if (content.empty())
                 return nlohmann::json();
 
@@ -158,7 +169,12 @@ namespace emotionai
             if (steps.empty())
                 return nlohmann::json();
 
-            return nlohmann::json{{"steps", steps}};
+            return nlohmann::json{
+                {"steps", steps},
+                {"usage", nlohmann::json{
+                     {"prompt_tokens", usage.promptTokens},
+                     {"completion_tokens", usage.completionTokens},
+                     {"total_tokens", usage.totalTokens}}}};
         }
 
     } // namespace ai
