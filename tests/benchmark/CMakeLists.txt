@@ -10,6 +10,8 @@ if(TARGET benchmark::benchmark)
         EmotionServerBenchmark.cpp
         LoadTestBenchmark.cpp
         ConcurrentClientBenchmark.cpp
+        FocusBenchmark.cpp
+        FocusBenchmarkLoad.cpp
     )
 
     target_include_directories(emotionai_benchmark PRIVATE
