@@ -190,11 +190,21 @@ No other Focus-specific config. Camera sampling rate, policy thresholds, offer l
 | What | Where | Notes |
 |------|-------|-------|
 | Focus HTTP benchmarks | `tests/benchmark/FocusBenchmark*` | Google Benchmark, runs against a live server |
-| Benchmark runner | `make benchmark_focus` | Saves JSON to `tests/benchmark/measurements/` |
+| LLM token-cost benchmark | `tests/benchmark/AiCostBenchmark*` | Sends 10 sample tasks to `/api/focus/breakdown`, records tokens |
+| Benchmark runners | `make benchmark_focus`, `make benchmark_ai_cost` | Save JSON to `tests/benchmark/measurements/` |
 | Baseline measurement | `tests/benchmark/measurements/focus-20261014-205410.json` | Frame upload: 389–520 RPS; full flow: 110–161 RPS |
 | Unit tests | *none yet* | No `tests/unit/*Focus*` |
 
-**Requirement:** > 10 RPS. **Measured:** ~400–500 RPS on frame upload (1–32 concurrent clients). Met with 40× margin.
+**RPS requirement:** > 10 RPS. **Measured:** ~400–500 RPS on frame upload (1–32 concurrent clients). Met with 40× margin.
+
+**LLM cost tracking:** Every `/api/focus/breakdown` call records token usage
+(`prompt_tokens`, `completion_tokens`, `total_tokens`) in:
+- The HTTP response body (`usage` field)
+- Prometheus counters (`ai_calls_total`, `ai_prompt_tokens_total`,
+  `ai_completion_tokens_total`, `ai_total_tokens_total`) via `/metrics`
+- The offline benchmark (`make benchmark_ai_cost` → `measurements/ai-cost-*.json`)
+
+**Cost per DAU** = `ai_total_tokens_total (24 h) / DAU × price_per_token`.
 
 ---
 

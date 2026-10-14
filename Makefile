@@ -1,6 +1,6 @@
 MODELS_DIR := contrib/emotiefflib/models
 
-.PHONY: help install python_env models configure build_backend build_frontend build benchmark benchmark_focus test \
+.PHONY: help install python_env models configure build_backend build_frontend build benchmark benchmark_focus benchmark_ai_cost test \
         test_integration up up-build down re-up clean clean-data balance
 
 help: ## List targets
@@ -38,6 +38,16 @@ benchmark_focus: benchmark ## Run Focus camera benchmarks, save JSON to tests/be
 		--benchmark_filter="BM_Focus" \
 		--benchmark_format=console \
 		--benchmark_out="measurements/focus-$$(date +%Y%m%d-%H%M%S).json" \
+		--benchmark_out_format=json \
+		--benchmark_repetitions=1
+
+benchmark_ai_cost: benchmark ## Run LLM token-cost benchmark, save JSON to tests/benchmark/measurements/
+	@mkdir -p tests/benchmark/measurements
+	@cd tests/benchmark && \
+		$(CURDIR)/build/tests/benchmark/emotionai_benchmark \
+		--benchmark_filter="BM_AiCost" \
+		--benchmark_format=console \
+		--benchmark_out="measurements/ai-cost-$$(date +%Y%m%d-%H%M%S).json" \
 		--benchmark_out_format=json \
 		--benchmark_repetitions=1
 
