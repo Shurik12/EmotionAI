@@ -71,6 +71,9 @@ make benchmark
 
 # Run with detailed output
 ./build/tests/benchmark/emotionai_benchmark --benchmark_format=json > results.json
+
+# Run Focus benchmarks and save a measurement to measurements/
+./tests/benchmark/run_focus_benchmark.sh [host] [port]
 ```
 
 > Note: the Focus benchmarks require a running server. If the server is not
@@ -92,3 +95,11 @@ here measure head-room:
 The frame-upload endpoint is the bottleneck; the full session flow adds the
 cost of session create/poll/close. A 10 RPS requirement is met with a wide
 margin even on a single core.
+
+## Storing measurement results
+
+`run_focus_benchmark.sh` writes a timestamped JSON file into
+`measurements/` (e.g. `measurements/focus-20261014-204227.json`) and prints a
+human-readable summary. Measurement files are committed to the repository so
+that performance regressions are visible in code review. See
+[measurements/README.md](measurements/README.md) for details.
