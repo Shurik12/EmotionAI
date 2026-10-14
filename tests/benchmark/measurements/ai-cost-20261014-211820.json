@@ -1,0 +1,61 @@
+{
+  "context": {
+    "date": "2026-10-14T21:18:20+03:00",
+    "host_name": "oscm-5n6",
+    "executable": "/root/EmotionAI/build/tests/benchmark/emotionai_benchmark",
+    "num_cpus": 16,
+    "mhz_per_cpu": 2694,
+    "cpu_scaling_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 1
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 1048576,
+        "num_sharing": 1
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 40370176,
+        "num_sharing": 1
+      }
+    ],
+    "load_avg": [15.8789,6.82471,3.79053],
+    "library_build_type": "debug"
+  },
+  "benchmarks": [
+    {
+      "name": "BM_AiCostBreakdown/iterations:1/manual_time",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "BM_AiCostBreakdown/iterations:1/manual_time",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1,
+      "real_time": 1.0000000000000000e+04,
+      "cpu_time": 6.9060280000000080e+00,
+      "time_unit": "ms",
+      "AvgCompletionTokens": 4.1577777777777777e+02,
+      "AvgLatencyMs": 9.3035959203999992e+03,
+      "AvgPromptTokens": 1.5166666666666666e+02,
+      "AvgTotalTokens": 5.6744444444444446e+02,
+      "CallsOk": 9.0000000000000000e+00,
+      "CallsTotal": 1.0000000000000000e+01,
+      "TotalTokens": 5.1070000000000000e+03
+    }
+  ]
+}
