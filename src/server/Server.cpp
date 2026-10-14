@@ -1598,6 +1598,16 @@ void Server::handleFocusBreakdown(const std::shared_ptr<ClientContext> &context,
             return;
         }
 
+        // Record token usage for cost tracking
+        if (result.contains("usage"))
+        {
+            const auto &u = result["usage"];
+            MetricsCollector::instance().recordAiCall(
+                u.value("prompt_tokens", 0),
+                u.value("completion_tokens", 0),
+                u.value("total_tokens", 0));
+        }
+
         sendHttpResponse(context->fd, 200, "application/json", result.dump());
     }
     catch (const std::exception &e)

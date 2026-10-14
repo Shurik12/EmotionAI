@@ -29,6 +29,9 @@ public:
 	void setDragonflyConnected(bool connected);
 	void recordDragonflyRequest(const std::string &operation, double duration_seconds);
 
+	// AI (LLM) metrics
+	void recordAiCall(int prompt_tokens, int completion_tokens, int total_tokens);
+
 	// System metrics
 	void updateSystemMetrics();
 
@@ -63,6 +66,12 @@ private:
 	std::atomic<bool> dragonfly_connected_{false};
 	std::map<std::string, std::atomic<size_t>> dragonfly_operations_;
 	std::map<std::string, std::atomic<double>> dragonfly_durations_;
+
+	// AI (LLM) metrics
+	std::atomic<size_t> ai_calls_total_{0};
+	std::atomic<size_t> ai_prompt_tokens_total_{0};
+	std::atomic<size_t> ai_completion_tokens_total_{0};
+	std::atomic<size_t> ai_total_tokens_total_{0};
 
 	mutable std::mutex metrics_mutex_;
 };

@@ -69,6 +69,14 @@ void MetricsCollector::recordDragonflyRequest(const std::string &operation, doub
 	dragonfly_durations_[operation] = duration_seconds;
 }
 
+void MetricsCollector::recordAiCall(int prompt_tokens, int completion_tokens, int total_tokens)
+{
+	ai_calls_total_++;
+	ai_prompt_tokens_total_ += prompt_tokens;
+	ai_completion_tokens_total_ += completion_tokens;
+	ai_total_tokens_total_ += total_tokens;
+}
+
 void MetricsCollector::updateSystemMetrics()
 {
 	struct rusage usage;
@@ -138,6 +146,12 @@ std::string MetricsCollector::collectMetrics()
 		{
 			metrics << "dragonfly_operations_total{operation=\"" << operation << "\"} " << count.load() << "\n";
 		}
+
+		// AI (LLM) metrics
+		metrics << "ai_calls_total " << ai_calls_total_.load() << "\n";
+		metrics << "ai_prompt_tokens_total " << ai_prompt_tokens_total_.load() << "\n";
+		metrics << "ai_completion_tokens_total " << ai_completion_tokens_total_.load() << "\n";
+		metrics << "ai_total_tokens_total " << ai_total_tokens_total_.load() << "\n";
 	}
 
 	return metrics.str();
