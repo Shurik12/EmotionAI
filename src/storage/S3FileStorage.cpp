@@ -12,6 +12,8 @@ S3FileStorage::S3FileStorage(const Config &config)
 	state_->bucket_name = config.bucket;
 	state_->region = config.region;
 	state_->endpoint = config.endpoint;
+	state_->access_key = config.access_key;
+	state_->secret_key = config.secret_key;
 	state_->use_ssl = config.use_ssl;
 
 	LOG_INFO("Initializing S3 storage with endpoint: {}, bucket: {}",
@@ -137,10 +139,9 @@ bool S3FileStorage::reconnect()
 		minio::s3::BaseUrl base_url(state_->endpoint);
 		base_url.https = state_->use_ssl;
 
-		// Recreate credential provider (in case credentials changed)
-		// Note: You might want to store credentials in the config
-		throw std::runtime_error("Reconnect not implemented - requires credentials");
-
+		// Rebuild the credential provider and client from the stored state.
+		state_->credential_provider = std::make_shared<minio::creds::StaticProvider>(
+			state_->access_key, state_->secret_key);
 		state_->client = std::make_unique<minio::s3::Client>(base_url,
 															 state_->credential_provider.get());
 		state_->connected = true;
@@ -268,7 +269,7 @@ bool S3FileStorage::fileExists(const std::string &file_path)
             args.object = file_path;
 
             minio::s3::StatObjectResponse response = client.StatObject(args);
-            return response && response.size > 0; });
+            return static_cast<bool>(response); });
 	}
 	catch (const std::exception &e)
 	{
