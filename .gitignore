@@ -29,3 +29,6 @@ training/processed_images/
 
 # Environment variables (API keys, secrets)
 .env
+
+# CodeGraph index (regenerated locally, not source)
+.codegraph/
