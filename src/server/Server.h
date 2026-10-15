@@ -67,6 +67,7 @@ private:
         std::map<std::string, std::string> params;
         bool headers_complete;
         bool body_too_large{false};
+        int last_status_code{0};
         size_t content_length;
 
         ClientContext(int socket_fd) : fd(socket_fd), headers_complete(false), content_length(0) {}
@@ -201,13 +202,4 @@ private:
 
     // Metrics
     std::string collectMetrics();
-    void updateRequestMetrics(const std::string &method, const std::string &endpoint,
-                              int status_code, double duration_seconds);
-
-    // Metrics counters
-    std::atomic<size_t> total_requests_{0};
-    std::atomic<size_t> active_connections_{0};
-    std::map<std::string, std::atomic<size_t>> endpoint_requests_;
-    std::map<int, std::atomic<size_t>> status_codes_;
-    std::mutex metrics_mutex_;
 };
