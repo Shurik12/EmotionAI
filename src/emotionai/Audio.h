@@ -8,6 +8,13 @@
 #include <audio/AudioFeatures.h>
 #include <audio/BurnoutAnalyzer.h>
 
+namespace audio
+{
+    // Linear interpolation resample. Shared by Audio::resample_audio and
+    // FileProcessor::resampleToModelRate so the algorithm lives in one place.
+    std::vector<float> linearResample(const std::vector<float>& src, int src_rate, int target_rate);
+}
+
 // Forward declarations for FFmpeg
 struct AVFormatContext;
 struct AVCodecContext;
