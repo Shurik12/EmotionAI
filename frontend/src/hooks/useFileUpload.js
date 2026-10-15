@@ -12,7 +12,7 @@ export const useFileUpload = () => {
 
   const handleFileSelect = useCallback((selectedFile) => {
     if (!selectedFile) {
-      setError('error_file_not_selected');
+      setError('errors.fileNotSelected');
       return;
     }
 
@@ -47,7 +47,7 @@ export const useFileUpload = () => {
 
   const uploadFile = useCallback(async (mode = 'standard') => {
     if (!file) {
-      setError('error_file_not_selected');
+      setError('errors.fileNotSelected');
       throw new Error('No file selected');
     }
 
@@ -58,7 +58,7 @@ export const useFileUpload = () => {
       const data = await apiClient.uploadFile(file, mode);
       return data;
     } catch (err) {
-      setError(err.message || 'error_upload_failed');
+      setError(err.message || 'errors.uploadFailed');
       throw err;
     } finally {
       setIsProcessing(false);
