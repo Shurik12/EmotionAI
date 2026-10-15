@@ -17,8 +17,12 @@
 
 namespace fs = std::filesystem;
 
+// Static pool pointer used by ThreadLocalContextDeleter to decrement in_use
+// when a thread dies and its connection is freed.
+DragonflyManager::ConnectionPool *DragonflyManager::ThreadLocalContextDeleter::s_pool = nullptr;
+
 // Thread-local connection
-thread_local std::unique_ptr<redisContext, DragonflyManager::RedisContextDeleter> DragonflyManager::thread_connection_ = nullptr;
+thread_local std::unique_ptr<redisContext, DragonflyManager::ThreadLocalContextDeleter> DragonflyManager::thread_connection_ = nullptr;
 
 DragonflyManager::DragonflyManager()
 	: port_(6379),
@@ -26,6 +30,10 @@ DragonflyManager::DragonflyManager()
 	  task_expiration_(3600),
 	  connection_pool_(std::make_unique<ConnectionPool>())
 {
+	// Expose the pool to the thread-local deleter so it can decrement in_use
+	// when a thread dies. There is at most one DragonflyManager instance
+	// (singleton), so this is safe.
+	ThreadLocalContextDeleter::s_pool = connection_pool_.get();
 }
 
 DragonflyManager::~DragonflyManager()
@@ -94,18 +102,24 @@ redisContext *DragonflyManager::get_connection()
 		{
 			auto conn = std::move(connection_pool_->connections.back());
 			connection_pool_->connections.pop_back();
-			connection_pool_->in_use++;
+			// in_use counts total allocated connections (pool + thread-local).
+			// Taking from the pool does not change the total — the connection
+			// was already counted when it was created.
 			lock.unlock();
 
 			if (test_connection(conn.get()))
 			{
-				// Move to thread-local storage
-				thread_connection_ = std::move(conn);
+				// Move to thread-local storage. The pool connection uses
+				// RedisContextDeleter; the thread-local uses
+				// ThreadLocalContextDeleter (which also decrements in_use on
+				// thread death). Extract the raw pointer and re-wrap.
+				redisContext *raw = conn.release();
+				thread_connection_.reset(raw);
 				return thread_connection_.get();
 			}
 			else
 			{
-				// Connection is bad, try next one
+				// Connection is bad, close it and decrement the allocated count.
 				lock.lock();
 				connection_pool_->in_use--;
 			}
@@ -123,7 +137,9 @@ redisContext *DragonflyManager::get_connection()
 			{
 				if (test_connection(new_conn.get()))
 				{
-					thread_connection_ = std::move(new_conn);
+					// Re-wrap with the thread-local deleter (see above).
+					redisContext *raw = new_conn.release();
+					thread_connection_.reset(raw);
 					return thread_connection_.get();
 				}
 				else
@@ -169,19 +185,21 @@ void DragonflyManager::return_connection(redisContext *conn)
 		{
 			connection_pool_->connections.push_back(
 				std::unique_ptr<redisContext, RedisContextDeleter>(conn));
+			// Connection goes back to the pool — still allocated, no in_use change.
 		}
 		else
 		{
-			// Pool is full, close the connection
+			// Pool is full, close the connection — decrement allocated count.
 			redisFree(conn);
+			connection_pool_->in_use--;
 		}
 	}
 	else
 	{
-		// Connection is bad, close it
+		// Connection is bad, close it — decrement allocated count.
 		redisFree(conn);
+		connection_pool_->in_use--;
 	}
-	connection_pool_->in_use--;
 }
 
 std::unique_ptr<redisContext, DragonflyManager::RedisContextDeleter> DragonflyManager::create_connection()

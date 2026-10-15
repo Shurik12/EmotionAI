@@ -84,6 +84,27 @@ private:
 		const size_t max_pool_size = 100;
 	};
 
+	// Deleter for thread-local connections: frees the connection AND decrements
+	// the pool's in_use counter so the allocated-connection count stays accurate
+	// when a thread dies. Uses a static pool pointer set during initialization.
+	struct ThreadLocalContextDeleter
+	{
+		void operator()(redisContext *ctx) const
+		{
+			if (ctx)
+			{
+				redisFree(ctx);
+				if (s_pool)
+				{
+					std::lock_guard<std::mutex> lock(s_pool->mutex);
+					if (s_pool->in_use > 0)
+						s_pool->in_use--;
+				}
+			}
+		}
+		static ConnectionPool *s_pool;
+	};
+
 	// Enhanced connection pool with pipeline support
 	struct PipelineConnection
 	{
@@ -116,6 +137,7 @@ private:
 	mutable std::mutex pipeline_mutex_;
 	std::condition_variable pipeline_cv_;
 
-	// Thread-local storage for connections
-	static thread_local std::unique_ptr<redisContext, RedisContextDeleter> thread_connection_;
+	// Thread-local storage for connections. Uses ThreadLocalContextDeleter so
+	// that in_use is decremented when the thread dies and the connection is freed.
+	static thread_local std::unique_ptr<redisContext, ThreadLocalContextDeleter> thread_connection_;
 };
