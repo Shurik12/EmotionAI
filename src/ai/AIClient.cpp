@@ -132,20 +132,32 @@ namespace emotionai
                 return nlohmann::json();
 
             const std::string language = isSupportedLang(lang) ? lang : "ru";
-            const std::string language_name = (language == "en") ? "английском (English)" : "русском (Russian)";
 
-            const std::string systemPrompt =
-                "Ты — ассистент Razuma, помогаешь человеку начать сложную задачу. "
-                "Разбей задачу на 3 небольших посильных шага. Первый шаг должен быть совсем маленьким, "
-                "чтобы снизить порог входа. Шаги должны быть конкретными и выполнимыми за один подход. "
-                "Ответь строго в формате JSON без дополнительного текста: "
-                "{\"steps\": [\"шаг 1\", \"шаг 2\", \"шаг 3\"]}. "
-                "Текст шагов верни на " +
-                language_name + ".";
-
-            std::string userPrompt = "Задача: " + text;
-            if (!duration.empty())
-                userPrompt += "\nДлительность блока: " + duration;
+            std::string systemPrompt, userPrompt;
+            if (language == "en")
+            {
+                systemPrompt =
+                    "You are a Razuma assistant that helps a person start a difficult task. "
+                    "Break the task into 3 small, manageable steps. The first step must be very small "
+                    "to lower the entry barrier. Steps must be concrete and completable in one sitting. "
+                    "Reply strictly in JSON with no extra text: "
+                    "{\"steps\": [\"step 1\", \"step 2\", \"step 3\"]}.";
+                userPrompt = "Task: " + text;
+                if (!duration.empty())
+                    userPrompt += "\nBlock duration: " + duration;
+            }
+            else
+            {
+                systemPrompt =
+                    "Ты — ассистент Razuma, помогаешь человеку начать сложную задачу. "
+                    "Разбей задачу на 3 небольших посильных шага. Первый шаг должен быть совсем маленьким, "
+                    "чтобы снизить порог входа. Шаги должны быть конкретными и выполнимыми за один подход. "
+                    "Ответь строго в формате JSON без дополнительного текста: "
+                    "{\"steps\": [\"шаг 1\", \"шаг 2\", \"шаг 3\"]}.";
+                userPrompt = "Задача: " + text;
+                if (!duration.empty())
+                    userPrompt += "\nДлительность блока: " + duration;
+            }
 
             TokenUsage usage;
             const std::string content = chatCompletion(systemPrompt, userPrompt, &usage);
