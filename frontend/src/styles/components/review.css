@@ -1,0 +1,68 @@
+/* ── Review additions (used alongside detector.css) ────────────── */
+
+/* Self score slider */
+.score-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.score-slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(to right, #dc3545, #ffc107, #28a745);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.score-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: 2px solid #0b5ea8;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.score-value-badge {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0b4c8f;
+  min-width: 2.5rem;
+  text-align: center;
+}
+
+.score-hints {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #91a4b9;
+  margin-top: 4px;
+}
+
+/* Verdict badge */
+.review-verdict {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.review-verdict-badge {
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.review-delta {
+  font-size: 0.9rem;
+  color: #58779b;
+}

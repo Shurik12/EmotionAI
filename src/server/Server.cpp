@@ -5,6 +5,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cstring>
+#include <cmath>
 #include <sys/resource.h>
 
 #include <spdlog/spdlog.h>
@@ -16,6 +17,7 @@
 #include <common/uuid.h>
 #include <db/TaskManager.h>
 #include <emotionai/FileProcessor.h>
+#include <emotionai/ReviewScorer.h>
 #include <ai/AIClient.h>
 #include <focus/FocusSessionManager.h>
 #include <metrics/MetricsCollector.h>
@@ -299,7 +301,9 @@ void Server::setupRoutes()
         {"/api/focus/session", [this](auto &&ctx, auto &&body)
          { handleFocusSessionCreate(ctx, body); }},
         {"/api/focus/breakdown", [this](auto &&ctx, auto &&body)
-         { handleFocusBreakdown(ctx, body); }}
+         { handleFocusBreakdown(ctx, body); }},
+        {"/api/review", [this](auto &&ctx, auto &&body)
+         { handleReview(ctx, body); }}
     };
 
     // GET routes
@@ -325,7 +329,7 @@ void Server::setupRoutes()
                               "/api/submit_application", "/api/progress", "/api/results", 
                               "/api/health", "/api/burnout/analyze", "/api/burnout/baseline", "/static",
                               "/api/upload_external_influence", "/api/external-influence/analyze",
-                              "/api/focus/session", "/api/focus/breakdown"})
+                              "/api/focus/session", "/api/focus/breakdown", "/api/review"})
     {
         options_routes_[route] = [this](auto &&ctx)
         { handleOptions(ctx); };
@@ -993,6 +997,90 @@ void Server::handleUpload(const std::shared_ptr<ClientContext> &context, const s
     catch (const std::exception &e)
     {
         LOG_ERROR("Exception in handleUpload from client {}: {}", context->fd, e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
+void Server::handleReview(const std::shared_ptr<ClientContext> &context, const std::string &body)
+{
+    try
+    {
+        LOG_DEBUG("Handling review request");
+
+        auto content_type_it = context->headers.find("content-type");
+        if (content_type_it == context->headers.end() ||
+            content_type_it->second.find("multipart/form-data") == std::string::npos)
+        {
+            sendErrorResponse(context->fd, 400, "Expected multipart form data");
+            return;
+        }
+
+        std::string boundary = extractBoundary(content_type_it->second);
+        if (boundary.empty())
+        {
+            sendErrorResponse(context->fd, 400, "Invalid multipart data");
+            return;
+        }
+
+        auto form_data = parseMultipartFormData(body, boundary);
+
+        auto file_it = form_data.find("file");
+        if (file_it == form_data.end() || file_it->second.empty())
+        {
+            sendErrorResponse(context->fd, 400, "No file provided");
+            return;
+        }
+
+        // self_score is required for this route (1-10 scale).
+        double self_score = -1.0;
+        auto score_it = form_data.find("self_score");
+        if (score_it == form_data.end() || score_it->second.empty())
+        {
+            sendErrorResponse(context->fd, 400, "self_score is required");
+            return;
+        }
+        {
+            try
+            {
+                const std::string& raw = score_it->second;
+                std::size_t consumed = 0;
+                self_score = std::stod(raw, &consumed);
+                // Reject NaN/inf and trailing garbage ("7abc", "nan", "1e999").
+                if (consumed != raw.size() || !emotionai::ReviewScorer::isValidSelfScore(self_score))
+                {
+                    sendErrorResponse(context->fd, 400, "self_score must be a number between 1 and 10");
+                    return;
+                }
+            }
+            catch (...)
+            {
+                sendErrorResponse(context->fd, 400, "Invalid self_score value");
+                return;
+            }
+        }
+
+        std::string filename = form_data.contains("filename") ? form_data["filename"] : "uploaded_file";
+        if (filename.empty())
+            filename = "uploaded_file";
+
+        // Review needs facial emotion output, so audio is not accepted here
+        // (it never yields average_emotions and could never be scored).
+        if (!file_processor_ || !file_processor_->allowed_visual_file(filename))
+        {
+            sendErrorResponse(context->fd, 400, "Review supports image and video files only");
+            return;
+        }
+
+        std::string task_id = handleUploadCommon(file_it->second, filename, self_score);
+        LOG_INFO("Review accepted from client {}, task_id: {}, self_score: {:.1f}",
+                 context->fd, task_id, self_score);
+
+        sendHttpResponse(context->fd, 202, "application/json",
+                         fmt::format(R"({{"task_id": "{}"}})", task_id));
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Exception in handleReview from client {}: {}", context->fd, e.what());
         sendErrorResponse(context->fd, 500, "Internal server error");
     }
 }
@@ -1696,7 +1784,8 @@ void Server::handleFocusBreakdown(const std::shared_ptr<ClientContext> &context,
 
 // Common handlers
 std::string Server::handleUploadCommon(const std::string &file_content, 
-                                          const std::string &filename)
+                                          const std::string &filename,
+                                          double self_score)
 {
     auto &config = Config::instance();
     std::string task_id = DragonflyManager::generate_uuid();
@@ -1746,11 +1835,10 @@ std::string Server::handleUploadCommon(const std::string &file_content,
         throw std::runtime_error("Failed to prepare file for processing");
     }
     
-
     // Fallback to local processing
     auto *file_processor = file_processor_.get();
 
-    thread_pool_->enqueue([this, file_processor, task_id, local_path, safe_filename, storage_path]()
+    thread_pool_->enqueue([this, file_processor, task_id, local_path, safe_filename, storage_path, self_score]()
                           {
         try
         {
@@ -1758,7 +1846,7 @@ std::string Server::handleUploadCommon(const std::string &file_content,
             
             auto& task_manager = TaskManager::instance();
             
-            task_manager.set_task_status(task_id, {
+            nlohmann::json init_status = {
                 {"task_id", task_id},
                 {"progress", 0},
                 {"message", "Starting file processing"},
@@ -1769,9 +1857,12 @@ std::string Server::handleUploadCommon(const std::string &file_content,
                 {"storage_path", storage_path},
                 {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::system_clock::now().time_since_epoch()).count()}
-            });
+            };
+            if (emotionai::ReviewScorer::isValidSelfScore(self_score))
+                init_status["self_score"] = self_score;
+            task_manager.set_task_status(task_id, init_status);
             
-            file_processor->process_file(task_id, local_path.string(), safe_filename);
+            file_processor->process_file(task_id, local_path.string(), safe_filename, self_score);
             
             LOG_INFO("Processing completed for task: {}", task_id);
         }

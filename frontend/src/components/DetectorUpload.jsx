@@ -8,7 +8,9 @@ export const DetectorUpload = ({
   preview, 
   isProcessing,
   onFileSelect, 
-  onClear 
+  onClear,
+  accept = 'image/*,video/*,audio/*',
+  formatsText,
 }) => {
   const { t } = useLanguage();
   const inputRef = useRef(null);
@@ -62,7 +64,7 @@ export const DetectorUpload = ({
           ref={inputRef}
           type="file"
           className="file-input"
-          accept="image/*,video/*,audio/*"
+          accept={accept}
           onChange={handleFileChange}
           disabled={isProcessing}
         />
@@ -76,7 +78,7 @@ export const DetectorUpload = ({
           {t('detector.chooseFile')}
         </button>
 
-        <p className="formats">{t('detector.supportedFormats')}</p>
+        <p className="formats">{formatsText || t('detector.supportedFormats')}</p>
 
         {fileName && (
           <div className="file-info">

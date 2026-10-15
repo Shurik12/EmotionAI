@@ -56,6 +56,25 @@ export const apiClient = {
     return response.json();
   },
 
+  async uploadReview(file, selfScore, mode = 'standard') {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('self_score', String(selfScore));
+    formData.append('mode', mode);
+
+    const response = await fetch(`${API_BASE}/review`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Review upload failed');
+    }
+
+    return response.json();
+  },
+
   async getProgress(taskId) {
     return this.request(`/progress/${taskId}`);
   },

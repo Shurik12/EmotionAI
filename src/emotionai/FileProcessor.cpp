@@ -74,6 +74,12 @@ bool FileProcessor::allowed_file(const std::string& filename)
     return has_extension(filename, ALLOWED_EXTENSIONS);
 }
 
+bool FileProcessor::allowed_visual_file(const std::string& filename)
+{
+    return has_extension(filename, IMAGE_EXTENSIONS) ||
+           has_extension(filename, VIDEO_EXTENSIONS);
+}
+
 bool FileProcessor::is_audio_file(const std::string& filename)
 {
     return has_extension(filename, AUDIO_EXTENSIONS);
@@ -196,7 +202,8 @@ void FileProcessor::save_json_to_storage(const nlohmann::json& data, const std::
 //=============================================================================
 // Main processing entry point
 //=============================================================================
-void FileProcessor::process_file(const std::string& task_id, const std::string& filepath, const std::string& filename)
+void FileProcessor::process_file(const std::string& task_id, const std::string& filepath,
+                                 const std::string& filename, double self_score)
 {
     auto& task_manager = TaskManager::instance();
     auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -235,6 +242,33 @@ void FileProcessor::process_file(const std::string& task_id, const std::string& 
             {"progress", 100}, {"message", "Completed"}, {"complete", true}, {"timestamp", timestamp}
         };
         final_status.insert(result.begin(), result.end());
+
+        // For review tasks, compute the emotion-based score and attach it to
+        // the SAME completion write, so a poll can never observe complete:true
+        // without the review payload. When there is no usable emotion signal
+        // (e.g. no face was detected) no review is attached at all, so the UI
+        // can report "could not detect emotions" instead of a fabricated score.
+        if (emotionai::ReviewScorer::isValidSelfScore(self_score) &&
+            final_status.contains("average_emotions"))
+        {
+            const auto& ae = final_status["average_emotions"];
+            if (auto review = emotionai::ReviewScorer::evaluate(self_score, ae))
+            {
+                final_status["review"] = {
+                    {"self_score", review->self_score},
+                    {"model_score", review->model_score},
+                    {"delta", review->delta},
+                    {"verdict", review->verdict},
+                    {"adjusted_score", review->adjusted_score}};
+                LOG_INFO("Review computed for task {}: model_score={:.2f}, verdict={}",
+                         task_id, review->model_score, review->verdict);
+            }
+            else
+            {
+                LOG_WARN("Review skipped for task {}: no usable emotion data", task_id);
+            }
+        }
+
         update_task_status(task_id, final_status);
 
         LOG_INFO("Processing completed: Task={}", task_id);
@@ -790,11 +824,17 @@ nlohmann::json FileProcessor::process_image_file(const std::string& task_id,
 
     auto [processed_image, emotion_result] = process_image(image);
 
+    // Compute average_emotions for this single frame so downstream review
+    // scoring has a consistent input regardless of file type (image/video).
+    std::vector<nlohmann::json> frame_results = {nlohmann::json{{"result", emotion_result}}};
+    nlohmann::json avg_emotions = calculate_average_emotions(frame_results);
+
     return {
         {"type", "image"},
         {"image_url", file_storage_->getFileUrl(storage_path)},
         {"storage_path", storage_path},
-        {"result", emotion_result}
+        {"result", emotion_result},
+        {"average_emotions", avg_emotions}
     };
 }
 
@@ -899,9 +939,12 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
     nlohmann::json avg_emotions = calculate_average_emotions(results);
     
     // Find the emotion with the highest average probability -> average main emotion
+    // (valence/arousal are regression heads, not emotions — never pick them).
     std::string avg_main_label = "neutral";
     double avg_main_prob = 0.0;
     for (auto& [key, val] : avg_emotions.items()) {
+        if (key == "valence" || key == "arousal") continue;
+        if (!val.is_number()) continue;
         double prob = val.get<double>();
         if (prob > avg_main_prob) {
             avg_main_prob = prob;
@@ -962,6 +1005,7 @@ nlohmann::json FileProcessor::calculate_statistics(const std::vector<double>& va
 nlohmann::json FileProcessor::calculate_average_emotions(const std::vector<nlohmann::json>& frame_results)
 {
     std::vector<std::string> emotion_keys = {"anger", "contempt", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"};
+    std::vector<std::string> va_keys = {"valence", "arousal"};
     nlohmann::json avg_emotions;
     std::unordered_map<std::string, double> sums;
     std::unordered_map<std::string, int> counts;
@@ -978,9 +1022,23 @@ nlohmann::json FileProcessor::calculate_average_emotions(const std::vector<nlohm
                 } catch (...) {}
             }
         }
+        // Also collect valence/arousal keys if present (VA model heads)
+        for (const auto& key : va_keys) {
+            if (probs.contains(key)) {
+                try {
+                    sums[key] += std::stod(probs[key].get<std::string>());
+                    counts[key]++;
+                } catch (...) {}
+            }
+        }
     }
 
     for (const auto& key : emotion_keys) {
+        if (counts[key] > 0) {
+            avg_emotions[key] = sums[key] / counts[key];
+        }
+    }
+    for (const auto& key : va_keys) {
         if (counts[key] > 0) {
             avg_emotions[key] = sums[key] / counts[key];
         }

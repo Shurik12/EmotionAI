@@ -9,6 +9,7 @@ import { Detector } from './Detector';
 import { Privacy } from './Privacy';
 import { Contact } from './Contact';
 import { Focus } from './Focus';
+import { Review } from './Review';
 import { CookieConsent } from './CookieConsent';
 import { ApplicationModal } from './ApplicationModal';
 import { useNavigation } from '../hooks/useNavigation';
@@ -45,6 +46,8 @@ const AppContent = () => {
         return <Contact />;
       case 'focus':
         return <Focus />;
+      case 'review':
+        return <Review />;
       default:
         return <Home />;
     }
