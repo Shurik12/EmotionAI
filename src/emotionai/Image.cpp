@@ -10,17 +10,6 @@
 #include "Image.h"
 
 namespace fs = std::filesystem;
-Image::Image(const std::string &filename)
-{
-	std::ifstream fin(filename, std::ios::binary);
-	if (!fin.is_open())
-	{
-		throw std::runtime_error("Failed to open file: " + filename);
-	}
-	m_buffer << fin.rdbuf();
-	fin.close();
-}
-
 Image::Image(const cv::Mat &image, const std::string &format)
 {
 	if (image.empty())
@@ -36,78 +25,6 @@ Image::Image(const cv::Mat &image, const std::string &format)
 	}
 
 	m_buffer.write(reinterpret_cast<const char *>(buffer.data()), buffer.size());
-}
-
-std::string Image::get_buffer() const
-{
-	return m_buffer.str();
-}
-
-nlohmann::json Image::mime_bundle_repr() const
-{
-	auto bundle = nlohmann::json::object();
-	try
-	{
-		std::string encoded = base64_encode(m_buffer.str());
-		bundle["image/jpeg"] = encoded;
-	}
-	catch (const std::exception &e)
-	{
-		LOG_ERROR("Error in mime_bundle_repr: {}", e.what());
-	}
-	return bundle;
-}
-
-cv::Mat Image::to_cv_mat() const
-{
-	std::string buffer_str = m_buffer.str();
-	if (buffer_str.empty())
-	{
-		return cv::Mat();
-	}
-
-	std::vector<uchar> buffer(buffer_str.begin(), buffer_str.end());
-	return cv::imdecode(buffer, cv::IMREAD_COLOR);
-}
-
-// Utility functions implementation
-cv::Mat resizeWithAspectRatio(const cv::Mat &img, int target_width, int target_height)
-{
-	if (img.empty())
-	{
-		LOG_ERROR("Error: Image is empty!");
-		return cv::Mat();
-	}
-
-	int original_width = img.cols;
-	int original_height = img.rows;
-
-	if (original_width == 0 || original_height == 0)
-	{
-		return cv::Mat();
-	}
-
-	double aspect_ratio = static_cast<double>(original_width) / original_height;
-
-	int new_width = target_width;
-	int new_height = target_height;
-
-	if (target_width > 0 && target_height == 0)
-	{
-		new_height = static_cast<int>(target_width / aspect_ratio);
-	}
-	else if (target_height > 0 && target_width == 0)
-	{
-		new_width = static_cast<int>(target_height * aspect_ratio);
-	}
-	else if (target_width == 0 && target_height == 0)
-	{
-		return img.clone(); // No resizing needed
-	}
-
-	cv::Mat resized_img;
-	cv::resize(img, resized_img, cv::Size(new_width, new_height), 0, 0, cv::INTER_LINEAR);
-	return resized_img;
 }
 
 cv::Mat downscaleImageToWidth(const cv::Mat &inputImage, int targetWidth)
