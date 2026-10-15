@@ -101,12 +101,17 @@ private:
 				catch (const std::exception &e)
 				{
 					LOG_WARN("Pipeline set failed, using individual updates: {}", e.what());
-					// Fall back to individual updates
+					// Fall back to individual updates. Use set_task_status_raw
+					// with the same "task:<id>" key the pipeline path writes,
+					// so reads (which use the same key) see the write. The old
+					// code called set_task_status(task_id, ...) which prepends
+					// another "task:" — writing to "task:task:<id>" — and the
+					// key space split silently after cache expiry.
 					for (const auto &[task_id, status] : batch)
 					{
 						try
 						{
-							dragonfly_manager_->set_task_status(task_id, status);
+							dragonfly_manager_->set_task_status_raw("task:" + task_id, status.dump());
 						}
 						catch (const std::exception &individual_error)
 						{

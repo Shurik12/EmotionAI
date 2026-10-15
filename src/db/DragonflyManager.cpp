@@ -409,6 +409,31 @@ void DragonflyManager::set_task_status(const std::string &task_id, const nlohman
 	set_task_status(task_id, status_data.dump());
 }
 
+void DragonflyManager::set_task_status_raw(const std::string &full_key, const std::string &status_data)
+{
+	auto conn = get_connection();
+	if (!conn)
+	{
+		LOG_ERROR("No DragonflyDB connection available for setting raw key: {}", full_key);
+		return;
+	}
+
+	try
+	{
+		redisReply *reply = execute_command(conn, "SETEX %s %d %b",
+											full_key.c_str(),
+											task_expiration_,
+											status_data.c_str(),
+											status_data.size());
+		free_reply(reply);
+		LOG_DEBUG("Set raw key: {}", full_key);
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Error updating raw key {}: {}", full_key, e.what());
+	}
+}
+
 std::optional<std::string> DragonflyManager::get_task_status(const std::string &task_id)
 {
 	auto conn = get_connection();

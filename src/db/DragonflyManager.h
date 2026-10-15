@@ -34,6 +34,10 @@ public:
 	// Thread-safe operations
 	void set_task_status(const std::string &task_id, const std::string &status_data);
 	void set_task_status(const std::string &task_id, const nlohmann::json &status_data);
+	// Like set_task_status but does NOT prepend the "task:" prefix.
+	// Callers that already build the full key (e.g. TaskManager's pipeline
+	// fallback) use this to stay in the same key space as pipeline_set.
+	void set_task_status_raw(const std::string &full_key, const std::string &status_data);
 
 	std::optional<std::string> get_task_status(const std::string &task_id);
 	std::optional<nlohmann::json> get_task_status_json(const std::string &task_id);
