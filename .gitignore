@@ -32,3 +32,13 @@ training/processed_images/
 
 # CodeGraph index (regenerated locally, not source)
 .codegraph/
+
+# Generated analytics evidence artifacts (server log lives in logs/, ignored)
+analytics_emulated.jsonl
+analytics_merged.jsonl
+analytics_events.csv
+analytics_summary.csv
+
+# Contest tooling (local only) and any JSONL evidence/log output
+scripts/
+*.jsonl

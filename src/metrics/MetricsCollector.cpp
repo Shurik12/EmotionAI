@@ -2,6 +2,7 @@
 #include <sys/resource.h>
 #include <sstream>
 #include <algorithm>
+#include <cctype>
 #include <logging/Logger.h>
 
 MetricsCollector &MetricsCollector::instance()
@@ -10,45 +11,60 @@ MetricsCollector &MetricsCollector::instance()
 	return instance;
 }
 
+namespace
+{
+	// A path segment is "dynamic" (an id/filename) when it looks like one:
+	// a UUID/hex token, a filename with an extension, or a very long opaque
+	// string. Static route names such as "upload_burnout" stay intact — the old
+	// hyphen/underscore heuristic mangled them into ":id".
+	bool looksLikeDynamicId(const std::string &segment)
+	{
+		if (segment.empty())
+			return false;
+		if (segment.find('.') != std::string::npos)
+			return true; // filename
+		if (segment.size() >= 16)
+		{
+			bool hexish = true;
+			for (char c : segment)
+			{
+				if (!std::isxdigit(static_cast<unsigned char>(c)) && c != '-')
+				{
+					hexish = false;
+					break;
+				}
+			}
+			if (hexish)
+				return true; // uuid / hex id
+		}
+		return segment.size() > 24;
+	}
+}
+
 std::string MetricsCollector::normalizePath(const std::string &path)
 {
 	// Replace segments that look like dynamic IDs with ":id" so that
 	// /api/results/abc-123-xyz and /api/results/def-456-uvw share one metric.
 	std::string result;
 	result.reserve(path.size());
-	size_t start = 0;
-	while (start < path.size())
+
+	size_t start = (!path.empty() && path[0] == '/') ? 1 : 0;
+	while (start <= path.size())
 	{
 		size_t slash = path.find('/', start);
 		std::string segment = (slash == std::string::npos)
 								  ? path.substr(start)
 								  : path.substr(start, slash - start);
 
-		// Heuristic: a segment is "dynamic" if it contains a hyphen, an
-		// underscore, or is longer than 12 chars (UUIDs, filenames, etc.).
-		bool dynamic = false;
-		if (segment.size() > 12)
-			dynamic = true;
-		else
-		{
-			for (char c : segment)
-			{
-				if (c == '-' || c == '_')
-				{
-					dynamic = true;
-					break;
-				}
-			}
-		}
-
-		result += (slash == std::string::npos) ? "" : "/";
-		result += dynamic ? ":id" : segment;
+		result += '/';
+		result += looksLikeDynamicId(segment) ? ":id" : segment;
 
 		if (slash == std::string::npos)
 			break;
 		start = slash + 1;
 	}
-	return result;
+
+	return result.empty() ? "/" : result;
 }
 
 void MetricsCollector::recordRequest(const std::string &method, const std::string &endpoint,

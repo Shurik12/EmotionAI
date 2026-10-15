@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <chrono>
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -63,6 +64,7 @@ private:
         bool body_too_large{false};
         int last_status_code{0};
         size_t content_length;
+        std::string client_ip;
 
         ClientContext(int socket_fd) : fd(socket_fd), headers_complete(false), content_length(0) {}
     };
@@ -107,6 +109,10 @@ private:
     // HTTP processing
     void processRequest(const std::shared_ptr<ClientContext> &context);
     void parseHttpRequest(const std::shared_ptr<ClientContext> &context);
+    // Record metrics and the structured analytics event exactly once per
+    // request (called from every exit path of processRequest).
+    void finalizeRequest(const std::shared_ptr<ClientContext> &context,
+                         std::chrono::steady_clock::time_point start_time);
     void sendHttpResponse(int client_fd, int status_code, const std::string &content_type, const std::string &body);
     void sendFileResponse(int client_fd, const fs::path &file_path);
 

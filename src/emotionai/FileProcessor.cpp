@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <system_error>
 #include <chrono>
 #include <thread>
 #include <set>
@@ -100,7 +101,8 @@ bool FileProcessor::load_image_model(const std::string& model_path, const std::s
     };
 
     for (const auto& path : search_paths) {
-        if (fs::exists(path)) {
+        std::error_code ec;
+        if (fs::is_regular_file(path, ec)) {
             try {
                 fer_ = EmotiEffLib::EmotiEffLibRecognizer::createInstance(backend, path);
                 model_loaded_ = true;
@@ -124,7 +126,8 @@ bool FileProcessor::load_audio_model(const std::string& model_path)
     };
 
     for (const auto& path : search_paths) {
-        if (fs::exists(path)) {
+        std::error_code ec;
+        if (fs::is_regular_file(path, ec)) {
             try {
                 LOG_INFO("Loading audio model: {} ({} bytes)", path, fs::file_size(path));
                 auto module = torch::jit::load(path);

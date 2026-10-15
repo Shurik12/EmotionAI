@@ -281,9 +281,16 @@ const AudioBurnoutResults = ({ results, resultData, burnout }) => {
   );
 };
 
-const DefaultResults = ({ results }) => (
-  <div className="result-card">
-    <h3>{t('detector.analysisResults') || 'Analysis Results'}</h3>
-    <pre className="json-output">{JSON.stringify(results, null, 2)}</pre>
-  </div>
-);
+const DefaultResults = ({ results }) => {
+  const { t } = useLanguage();
+
+  return (
+    <div className="result-card">
+      <h3>{t('detector.analysisResults') || 'Analysis Results'}</h3>
+      {results?.error && (
+        <p className="error-text">{t('errors.processingFailed')}</p>
+      )}
+      <pre className="json-output">{JSON.stringify(results, null, 2)}</pre>
+    </div>
+  );
+};

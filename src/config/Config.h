@@ -48,6 +48,7 @@ public:
 	const auto &ai() const { return data_.ai; }
 	const auto &externalInfluence() const { return data_.external_influence; }
 	const auto &burnout() const { return data_.burnout; }
+	const auto &analytics() const { return data_.analytics; }
 
 	// Check if config is loaded
 	bool isLoaded() const { return loaded_.load(); }
@@ -170,6 +171,14 @@ private:
 		long connect_timeout_seconds{5};
 	};
 
+	struct AnalyticsConfig
+	{
+		// Structured per-event JSONL log (contest analytics requirement).
+		bool enabled{true};
+		// Empty -> <paths.logs>/analytics.jsonl.
+		std::string path;
+	};
+
 	struct ConfigData
 	{
 		ServerConfig server;
@@ -186,6 +195,7 @@ private:
 		AIConfig ai;
 		audio::ExternalInfluenceConfig external_influence;
 		audio::BurnoutConfig burnout;
+		AnalyticsConfig analytics;
 	};
 
 	ConfigData data_;
