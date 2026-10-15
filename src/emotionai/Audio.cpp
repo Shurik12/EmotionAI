@@ -580,28 +580,36 @@ bool Audio::decode_audio_stream()
 }
 #endif
 
+namespace audio
+{
+    std::vector<float> linearResample(const std::vector<float>& src, int src_rate, int target_rate)
+    {
+        if (src_rate <= 0 || src_rate == target_rate || src.empty()) {
+            return src;
+        }
+
+        float ratio = static_cast<float>(target_rate) / src_rate;
+        std::vector<float> resampled(static_cast<size_t>(src.size() * ratio));
+
+        for (size_t i = 0; i < resampled.size(); ++i) {
+            float pos = i / ratio;
+            size_t idx = static_cast<size_t>(pos);
+            float frac = pos - idx;
+
+            if (idx < src.size() - 1) {
+                resampled[i] = src[idx] * (1 - frac) + src[idx + 1] * frac;
+            } else if (idx < src.size()) {
+                resampled[i] = src[idx];
+            }
+        }
+
+        return resampled;
+    }
+} // namespace audio
+
 std::vector<float> Audio::resample_audio(int target_sr) const
 {
-    if (sample_rate_ == target_sr || audio_data_.empty()) {
-        return audio_data_;
-    }
-
-    float ratio = static_cast<float>(target_sr) / sample_rate_;
-    std::vector<float> resampled(static_cast<size_t>(audio_data_.size() * ratio));
-
-    for (size_t i = 0; i < resampled.size(); ++i) {
-        float pos = i / ratio;
-        size_t idx = static_cast<size_t>(pos);
-        float frac = pos - idx;
-        
-        if (idx < audio_data_.size() - 1) {
-            resampled[i] = audio_data_[idx] * (1 - frac) + audio_data_[idx + 1] * frac;
-        } else if (idx < audio_data_.size()) {
-            resampled[i] = audio_data_[idx];
-        }
-    }
-    
-    return resampled;
+    return audio::linearResample(audio_data_, sample_rate_, target_sr);
 }
 
 std::vector<float> Audio::prepare_audio() const

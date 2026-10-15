@@ -423,30 +423,11 @@ namespace {
 // WavLM input domain (matches Audio::TARGET_SR, which is private)
 constexpr int EI_MODEL_SAMPLE_RATE = 16000;
 
-// Linear resample (mirrors Audio::resample_audio) - features and the model
-// are calibrated on 16 kHz audio, uploaded WAVs may carry another rate.
+// Linear resample to the model's expected sample rate. Shared with
+// Audio::resample_audio via the free function in Audio.h.
 std::vector<float> resampleToModelRate(const std::vector<float>& audio, int sample_rate)
 {
-    if (sample_rate <= 0 || sample_rate == EI_MODEL_SAMPLE_RATE || audio.empty()) {
-        return audio;
-    }
-
-    float ratio = static_cast<float>(EI_MODEL_SAMPLE_RATE) / sample_rate;
-    std::vector<float> resampled(static_cast<size_t>(audio.size() * ratio));
-
-    for (size_t i = 0; i < resampled.size(); ++i) {
-        float pos = i / ratio;
-        size_t idx = static_cast<size_t>(pos);
-        float frac = pos - idx;
-
-        if (idx < audio.size() - 1) {
-            resampled[i] = audio[idx] * (1 - frac) + audio[idx + 1] * frac;
-        } else if (idx < audio.size()) {
-            resampled[i] = audio[idx];
-        }
-    }
-
-    return resampled;
+    return audio::linearResample(audio, sample_rate, EI_MODEL_SAMPLE_RATE);
 }
 
 struct AudioFragment {
