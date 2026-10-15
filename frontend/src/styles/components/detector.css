@@ -577,6 +577,26 @@
   word-break: break-all;
 }
 
+/* Failed result */
+.error-text {
+  color: var(--color-error);
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+}
+
+.error-detail {
+  color: var(--color-text-light);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.raw-data summary {
+  cursor: pointer;
+  color: var(--color-text-light);
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-sm) 0;
+}
+
 /* No results */
 .no-results {
   padding: var(--spacing-md);
