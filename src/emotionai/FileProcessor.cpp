@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <chrono>
 #include <thread>
+#include <set>
 
 #include <fmt/format.h>
 #include <nlohmann/json.hpp>
@@ -877,11 +878,18 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
     int processed_count = 0;
     nlohmann::json results = nlohmann::json::array();
 
-    for (int frame_num = 0; frame_num < total_frames; ++frame_num) {
+    // Seek to each sampled frame directly instead of reading every frame
+    // sequentially. For a 30-minute 30 fps video this is the difference
+    // between 54 000 reads and ~20 reads.
+    std::set<int> sampled;
+    for (int f = 0; f < total_frames && (int)sampled.size() < num_frames; f += frame_interval)
+        sampled.insert(f);
+    sampled.insert(total_frames - 1); // always include the last frame
+
+    for (int frame_num : sampled) {
+        cap.set(cv::CAP_PROP_POS_FRAMES, frame_num);
         cv::Mat frame;
         if (!cap.read(frame)) break;
-
-        if (frame_num % frame_interval != 0 && frame_num != total_frames - 1) continue;
 
         try {
             auto frame_result = process_video_frame(frame, frame_num, fps, task_id);
@@ -895,9 +903,6 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
         } catch (const std::exception& e) {
             LOG_WARN("Frame {} failed: {}", frame_num, e.what());
         }
-
-        // Stop once we have enough frames
-        if (processed_count >= MAX_BATCH_VIDEO_FRAMES) break;
     }
 
     cap.release();
