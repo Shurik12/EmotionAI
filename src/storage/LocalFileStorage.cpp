@@ -23,14 +23,36 @@ fs::path LocalFileStorage::resolvePath(const std::string &file_path)
         return base_path_;
     }
 
-    // Simple path traversal check
-    if (file_path.find("..") != std::string::npos) {
-        LOG_ERROR("Path traversal attempt detected: {} contains '..'", file_path);
+    // Reject absolute paths outright: base_path_ / "/etc/passwd" is /etc/passwd.
+    if (fs::path(file_path).is_absolute())
+    {
+        LOG_ERROR("Absolute path rejected: {}", file_path);
+        throw std::runtime_error("Absolute path not allowed: " + file_path);
+    }
+
+    // Combine and normalize. fs::path operator/ with a relative right-hand side
+    // cannot escape base_path_ via ".." segments in the *string*, but after
+    // normalization the result could still land outside (e.g. via a symlink
+    // inside base_path_ that points outside). We do a lexical containment
+    // check on the normalized path; a full canonical() check would require the
+    // file to already exist, which it doesn't for saveFile.
+    fs::path full_path = fs::weakly_canonical(base_path_ / file_path);
+
+    // Containment check: the resolved path must start with base_path_.
+    // Compare against the canonical base so trailing-slash differences don't
+    // cause false rejections.
+    const fs::path canonical_base = fs::weakly_canonical(base_path_);
+    const std::string base_str = canonical_base.string();
+    const std::string full_str = full_path.string();
+    if (full_str.size() < base_str.size() ||
+        full_str.compare(0, base_str.size(), base_str) != 0 ||
+        (full_str.size() > base_str.size() && full_str[base_str.size()] != '/'))
+    {
+        LOG_ERROR("Path traversal attempt detected: {} resolves to {} (base: {})",
+                  file_path, full_str, base_str);
         throw std::runtime_error("Path traversal attempt detected: " + file_path);
     }
-    
-    // Just combine the paths - no complex normalization
-    fs::path full_path = base_path_ / file_path;
+
     LOG_DEBUG("Full path: {}", full_path.string());
     
     // Create parent directories
@@ -274,7 +296,10 @@ std::string LocalFileStorage::calculateFileHash(const std::string &file_path)
 {
     try
     {
-        std::ifstream file(fs::path(base_path_) / file_path, std::ios::binary);
+        // Use resolvePath for the containment check — previously this opened
+        // base_path_ / file_path directly, bypassing the traversal guard.
+        fs::path full_path = resolvePath(file_path);
+        std::ifstream file(full_path, std::ios::binary);
         if (!file)
         {
             LOG_ERROR("Failed to open file for hashing: {}", file_path);
