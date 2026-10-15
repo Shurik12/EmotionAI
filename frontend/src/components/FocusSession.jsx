@@ -28,11 +28,16 @@ export const FocusSession = ({
   const [secondsLeft, setSecondsLeft] = useState(DURATIONS[0] * 60);
 
   // A new plan (e.g. regenerated) starts the session from scratch.
+  // Key on the serialized content, not array identity: adding/removing a
+  // step in place creates a fresh array with the same logical plan and
+  // must NOT wipe completedSteps or reset the countdown.
+  const planKey = JSON.stringify(plan);
   useEffect(() => {
     onIndexChange(0);
     onRunningChange(false);
     onCompletedChange([]);
-  }, [plan, onIndexChange, onRunningChange, onCompletedChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planKey, onIndexChange, onRunningChange, onCompletedChange]);
 
   // Changing the duration or the current step resets the countdown.
   useEffect(() => {
