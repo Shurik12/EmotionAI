@@ -7,7 +7,7 @@ import { DetectorUpload } from './DetectorUpload';
 import { DetectorResults } from './DetectorResults';
 import { ProgressIndicator } from './ProgressIndicator';
 import { ErrorMessage } from './ErrorMessage';
-import { PROCESSING_MODES } from '../utils/constants';
+import { PROCESSING_MODES, MODE_FILE_KINDS, detectFileKind, modeAcceptsFileKind, firstModeForFileKind } from '../utils/constants';
 
 export const Detector = () => {
   const { t } = useLanguage();
@@ -33,6 +33,18 @@ export const Detector = () => {
 
   const { progress, isComplete, startTracking, stopTracking } = useProgress();
 
+  const fileKind = detectFileKind(file);
+
+  // Keep the selected mode valid for the chosen file type: burnout and external
+  // influence are audio-only, so selecting an image/video switches to Standard
+  // instead of failing later with "no audio stream".
+  useEffect(() => {
+    if (fileKind && !modeAcceptsFileKind(mode, fileKind)) {
+      const fallback = firstModeForFileKind(fileKind);
+      if (fallback) setMode(fallback);
+    }
+  }, [fileKind, mode]);
+
   // Clear progress when results arrive
   useEffect(() => {
     if (results) {
@@ -44,6 +56,10 @@ export const Detector = () => {
   const handleUpload = async () => {
     if (!consentGiven) {
       setError('errors.consentRequired');
+      return;
+    }
+    if (!modeAcceptsFileKind(mode, fileKind)) {
+      setError('errors.modeFileMismatch');
       return;
     }
 
@@ -109,7 +125,13 @@ export const Detector = () => {
               disabled={isProcessing || isUploading}
             >
               {PROCESSING_MODES.map(({ value, labelKey }) => (
-                <option key={value} value={value}>{t(labelKey)}</option>
+                <option
+                  key={value}
+                  value={value}
+                  disabled={!modeAcceptsFileKind(value, fileKind)}
+                >
+                  {t(labelKey)}
+                </option>
               ))}
             </select>
 

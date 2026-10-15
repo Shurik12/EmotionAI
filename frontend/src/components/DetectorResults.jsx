@@ -72,7 +72,14 @@ export const DetectorResults = ({ results, fileName, mode }) => {
     window.setTimeout(() => window.print(), 0);
   };
 
-  const modeLabelKey = MODE_LABEL_KEYS[results.type] || 'detector.modes.standard';
+  // Prefer the concrete result type; a failed task has none, so fall back to
+  // the mode the server actually ran (results.mode) and then the requested mode.
+  const modeLabelKey =
+    MODE_LABEL_KEYS[results.type] ||
+    MODE_LABEL_KEYS[results.mode] ||
+    MODE_LABEL_KEYS[mode] ||
+    'detector.modes.standard';
+  const isError = Boolean(results?.error);
   const metaRows = [
     { label: t('detector.reportDate'), value: formatDate(language) },
     fileName ? { label: t('detector.reportFile'), value: fileName } : null,
@@ -98,13 +105,15 @@ export const DetectorResults = ({ results, fileName, mode }) => {
 
       {renderResults()}
 
-      <button
-        type="button"
-        className="btn no-print export-pdf-btn"
-        onClick={handlePrint}
-      >
-        {t('detector.exportPdf')}
-      </button>
+      {!isError && (
+        <button
+          type="button"
+          className="btn no-print export-pdf-btn"
+          onClick={handlePrint}
+        >
+          {t('detector.exportPdf')}
+        </button>
+      )}
     </div>
   );
 };
@@ -338,13 +347,21 @@ const AudioBurnoutResults = ({ results, resultData, burnout }) => {
 const DefaultResults = ({ results }) => {
   const { t } = useLanguage();
 
+  // Map the known backend failure to a friendly line; otherwise show it as-is.
+  const rawError = results?.error || '';
+  const errorText = /no audio stream/i.test(rawError)
+    ? t('errors.noAudioStream')
+    : rawError;
+
   return (
     <div className="result-card">
       <h3>{t('detector.analysisResults') || 'Analysis Results'}</h3>
-      {results?.error && (
-        <p className="error-text">{t('errors.processingFailed')}</p>
-      )}
-      <pre className="json-output">{JSON.stringify(results, null, 2)}</pre>
+      <p className="error-text">{t('errors.processingFailed')}</p>
+      {errorText && <p className="error-detail">{errorText}</p>}
+      <details className="raw-data">
+        <summary>{t('common.showRawData') || 'Show raw data'}</summary>
+        <pre className="json-output">{JSON.stringify(results, null, 2)}</pre>
+      </details>
     </div>
   );
 };

@@ -94,6 +94,30 @@ export const PROCESSING_MODES = [
   { value: 'standard', labelKey: 'detector.modes.standard' },
 ];
 
+// Which uploaded media kinds each processing mode can handle. Standard (batch)
+// dispatches by file type (image / video / audio); burnout and external
+// influence are audio-only, so an image uploaded there always fails.
+export const MODE_FILE_KINDS = {
+  standard: ['image', 'video', 'audio'],
+  burnout: ['audio'],
+  external_influence: ['audio'],
+};
+
+export const detectFileKind = (file) => {
+  const type = file?.type || '';
+  if (type.startsWith('image/')) return 'image';
+  if (type.startsWith('video/')) return 'video';
+  if (type.startsWith('audio/')) return 'audio';
+  return null;
+};
+
+// A missing kind (no file yet) is treated as "anything goes".
+export const modeAcceptsFileKind = (mode, kind) =>
+  !kind || (MODE_FILE_KINDS[mode] || []).includes(kind);
+
+export const firstModeForFileKind = (kind) =>
+  PROCESSING_MODES.find((m) => modeAcceptsFileKind(m.value, kind))?.value ?? null;
+
 export const getProcessingModeLabel = (value, t) => {
   const mode = PROCESSING_MODES.find((m) => m.value === value);
   return mode ? t(mode.labelKey) : value;
