@@ -7,16 +7,10 @@ export const ProgressIndicator = ({ progress, isComplete }) => {
   // Don't show progress if complete
   if (isComplete || !progress) return null;
 
-  // Get the text, handling both string keys and direct text
-  let text = progress.text;
-  
-  // If it's a translation key (starts with a letter and contains dots or is a known key)
-  if (typeof text === 'string' && !text.includes(' ')) {
-    // Try to translate it
-    const translated = t(text);
-    // If translation returns the same string (key not found), use the original
-    text = translated !== text ? translated : text;
-  }
+  // Get the text, handling both translation keys and direct text.
+  // t() returns the key unchanged when no translation is found, so it's
+  // always safe to call — non-key strings pass through verbatim.
+  let text = typeof progress.text === 'string' ? t(progress.text) : progress.text;
 
   return (
     <div className="progress-container">
