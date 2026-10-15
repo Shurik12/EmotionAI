@@ -12,9 +12,15 @@ class MetricsCollector
 public:
 	static MetricsCollector &instance();
 
-	// Request metrics
+	// Request metrics. `endpoint` should already be normalized (parameterized
+	// segments replaced with ":param") to avoid unbounded label cardinality.
 	void recordRequest(const std::string &method, const std::string &endpoint,
 					   int status_code, double duration_seconds);
+
+	// Replace path segments that look like IDs (UUIDs, long hex, filenames)
+	// with a generic ":id" so parameterized routes don't create a new metric
+	// entry per unique ID.
+	static std::string normalizePath(const std::string &path);
 
 	// Connection metrics
 	void incrementActiveConnections();
@@ -51,7 +57,13 @@ private:
 	std::atomic<size_t> active_connections_{0};
 	std::map<std::string, std::atomic<size_t>> endpoint_requests_;
 	std::map<int, std::atomic<size_t>> status_codes_;
-	std::map<std::string, std::atomic<double>> request_durations_;
+	// Duration: sum and count per endpoint so the export can report an
+	// average instead of a last-write-wins gauge.
+	struct DurationStats {
+		std::atomic<double> sum{0.0};
+		std::atomic<size_t> count{0};
+	};
+	std::map<std::string, DurationStats> request_durations_;
 
 	// Task metrics
 	std::map<std::string, std::atomic<size_t>> active_tasks_;

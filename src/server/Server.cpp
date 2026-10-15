@@ -19,7 +19,7 @@
 #include <ai/AIClient.h>
 #include <focus/FocusSessionManager.h>
 #include <metrics/MetricsCollector.h>
-#include <metrics/MetricsMiddleware.h>
+
 #include <storage/FileStorageFactory.h>
 #include <audio/BurnoutModels.h>
 #include "Server.h"
@@ -734,20 +734,23 @@ void Server::processRequest(const std::shared_ptr<ClientContext> &context)
             sendErrorResponse(context->fd, 405, "Method not allowed");
         }
 
-        // Record metrics
+        // Record metrics with the actual status code sent to the client.
         auto end_time = std::chrono::steady_clock::now();
         double duration = std::chrono::duration<double>(end_time - start_time).count();
-
+        int status = context->last_status_code > 0 ? context->last_status_code : 200;
         MetricsCollector::instance().recordRequest(
-            context->method, context->path, 200, duration);
+            context->method, MetricsCollector::normalizePath(context->path), status, duration);
     }
     catch (const std::exception &e)
     {
         auto end_time = std::chrono::steady_clock::now();
         double duration = std::chrono::duration<double>(end_time - start_time).count();
 
+        // sendErrorResponse will set last_status_code to 500, but we record
+        // the metric here so the exception path is also captured.
+        context->last_status_code = 500;
         MetricsCollector::instance().recordRequest(
-            context->method, context->path, 500, duration);
+            context->method, MetricsCollector::normalizePath(context->path), 500, duration);
 
         LOG_ERROR("Error processing request: {}", e.what());
         sendErrorResponse(context->fd, 500, "Internal server error");
@@ -756,6 +759,11 @@ void Server::processRequest(const std::shared_ptr<ClientContext> &context)
 
 void Server::sendHttpResponse(int client_fd, int status_code, const std::string &content_type, const std::string &body)
 {
+    // Record the actual status code so processRequest can report the real
+    // code to the metrics collector instead of a hardcoded 200.
+    if (auto it = clients_.find(client_fd); it != clients_.end())
+        it->second->last_status_code = status_code;
+
     static const std::map<int, std::string> STATUS_TEXTS = {
         {200, "OK"}, {201, "Created"}, {202, "Accepted"}, {400, "Bad Request"}, {404, "Not Found"}, {405, "Method Not Allowed"}, {413, "Payload Too Large"}, {500, "Internal Server Error"}, {502, "Bad Gateway"}, {503, "Service Unavailable"}};
 
@@ -2281,11 +2289,7 @@ std::string Server::collectMetrics()
     return MetricsCollector::instance().collectMetrics();
 }
 
-void Server::updateRequestMetrics(const std::string &method, const std::string &endpoint,
-                                      int status_code, double duration_seconds)
-{
-    MetricsCollector::instance().recordRequest(method, endpoint, status_code, duration_seconds);
-}
+
 
 std::string Server::generateInstanceId()
 {

@@ -10,6 +10,47 @@ MetricsCollector &MetricsCollector::instance()
 	return instance;
 }
 
+std::string MetricsCollector::normalizePath(const std::string &path)
+{
+	// Replace segments that look like dynamic IDs with ":id" so that
+	// /api/results/abc-123-xyz and /api/results/def-456-uvw share one metric.
+	std::string result;
+	result.reserve(path.size());
+	size_t start = 0;
+	while (start < path.size())
+	{
+		size_t slash = path.find('/', start);
+		std::string segment = (slash == std::string::npos)
+								  ? path.substr(start)
+								  : path.substr(start, slash - start);
+
+		// Heuristic: a segment is "dynamic" if it contains a hyphen, an
+		// underscore, or is longer than 12 chars (UUIDs, filenames, etc.).
+		bool dynamic = false;
+		if (segment.size() > 12)
+			dynamic = true;
+		else
+		{
+			for (char c : segment)
+			{
+				if (c == '-' || c == '_')
+				{
+					dynamic = true;
+					break;
+				}
+			}
+		}
+
+		result += (slash == std::string::npos) ? "" : "/";
+		result += dynamic ? ":id" : segment;
+
+		if (slash == std::string::npos)
+			break;
+		start = slash + 1;
+	}
+	return result;
+}
+
 void MetricsCollector::recordRequest(const std::string &method, const std::string &endpoint,
 									 int status_code, double duration_seconds)
 {
@@ -21,7 +62,8 @@ void MetricsCollector::recordRequest(const std::string &method, const std::strin
 		std::lock_guard lock(metrics_mutex_);
 		endpoint_requests_[key]++;
 		status_codes_[status_code]++;
-		request_durations_[key] = duration_seconds;
+		request_durations_[key].sum += duration_seconds;
+		request_durations_[key].count++;
 	}
 }
 
@@ -117,10 +159,15 @@ std::string MetricsCollector::collectMetrics()
 			metrics << "http_response_status_total{code=\"" << code << "\"} " << count.load() << "\n";
 		}
 
-		// Request duration metrics
-		for (const auto &[endpoint, duration] : request_durations_)
+		// Request duration metrics (average, not last-write-wins)
+		for (const auto &[endpoint, stats] : request_durations_)
 		{
-			metrics << "http_request_duration_seconds{endpoint=\"" << endpoint << "\"} " << duration.load() << "\n";
+			size_t count = stats.count.load();
+			if (count == 0)
+				continue;
+			double avg = stats.sum.load() / static_cast<double>(count);
+			metrics << "http_request_duration_seconds_avg{endpoint=\"" << endpoint << "\"} " << avg << "\n";
+			metrics << "http_request_duration_seconds_count{endpoint=\"" << endpoint << "\"} " << count << "\n";
 		}
 
 		// Task metrics
