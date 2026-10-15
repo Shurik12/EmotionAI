@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 #include "ExternalInfluenceModels.h"
 #include "BurnoutAnalyzer.h"
+#include "BurnoutModels.h"
 
 namespace audio {
 
@@ -41,9 +42,10 @@ public:
 
     ExternalInfluenceResult analyze(
         const nlohmann::json& fragments,      // array of fragment records
-        const nlohmann::json& baseline,       // {} -> audio::getDefaultBaseline()
+        const nlohmann::json& baseline,       // {} -> burnout_config.defaultBaselineJson()
         double audio_quality,                 // whole-call quality, 0..1
-        const std::vector<std::string>& context_flags = {}) const;
+        const std::vector<std::string>& context_flags = {},
+        const nlohmann::json& burnout_config = {}) const;  // {} -> default BurnoutConfig
 
 private:
     ExternalInfluenceConfig cfg_;

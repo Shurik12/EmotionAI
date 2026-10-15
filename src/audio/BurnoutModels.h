@@ -50,6 +50,12 @@ struct BurnoutConfig {
     int min_valid_windows = 1;      // fewer usable windows -> INSUFFICIENT_DATA
     std::string aggregation = "median";
 
+    // A recording shorter than this is not long enough to score confidence
+    // from (its single window is the whole file, so a short clip and a long
+    // call would otherwise be indistinguishable). Confidence's duration term
+    // ramps linearly from 0 at 0 s to 1.0 at duration_confidence_threshold_s.
+    double duration_confidence_threshold_s = 30.0;
+
     // A window whose voiced fraction is below this is rejected instead of
     // being scored. The WavLM model emits near-uniform probabilities on
     // non-speech, which the component math would otherwise turn into a
@@ -83,6 +89,15 @@ struct BurnoutConfig {
 
     // Build the baseline JSON consumed by BurnoutAnalyzer::analyze.
     nlohmann::json defaultBaselineJson() const;
+
+    // Serialize the config to plain JSON (for passing to analyzers that take
+    // a baseline-override). Companion to fromJson.
+    nlohmann::json toJson() const;
+
+    // Populate this struct from the parsed `burnout:` YAML section (nlohmann
+    // JSON). Mirrors the parsing in Config.cpp. Unknown/absent keys leave the
+    // built-in defaults untouched, so a partial section is always safe.
+    void fromJson(const nlohmann::json& data);
 };
 
 struct Result {
@@ -108,7 +123,5 @@ std::string stateToString(State state);
 std::string levelToString(Level level);
 State stringToState(const std::string& str);
 Level stringToLevel(const std::string& str);
-
-nlohmann::json getDefaultBaseline();
 
 } // namespace audio

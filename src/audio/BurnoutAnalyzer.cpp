@@ -117,11 +117,20 @@ Result BurnoutAnalyzer::analyze(
         const nlohmann::json current = getNestedData(current_raw);
         const nlohmann::json baseline = getNestedData(baseline_raw);
         
-        // Check baseline
-        if (baseline.empty() || baseline.is_null()) {
+        // No-scored states carry confidence 0: a result we refused to produce
+        // must not present itself as a (low) confident score.
+        const auto refuse = [&result]() {
             result.state = State::INSUFFICIENT_DATA;
             result.error = "analysis_failed";
+            result.confidence = 0.0;
+            result.risk = 0.0;
+            result.score = 0.0;
             result.recommendations = {"analysis_failed_retry"};
+        };
+
+        // Check baseline
+        if (baseline.empty() || baseline.is_null()) {
+            refuse();
             LOG_WARN("Baseline not provided");
             return result;
         }
@@ -133,9 +142,7 @@ Result BurnoutAnalyzer::analyze(
         const bool has_current_emotions = !getEmotionProbabilities(current).empty();
         const bool has_baseline_emotions = !getEmotionProbabilities(baseline).empty();
         if (!has_current_emotions || !has_baseline_emotions) {
-            result.state = State::INSUFFICIENT_DATA;
-            result.error = "analysis_failed";
-            result.recommendations = {"analysis_failed_retry"};
+            refuse();
             LOG_WARN("Emotion probabilities missing (current={}, baseline={}); "
                      "returning INSUFFICIENT_DATA instead of a fabricated score",
                      has_current_emotions, has_baseline_emotions);
@@ -168,18 +175,22 @@ Result BurnoutAnalyzer::analyze(
         result.risk = raw_risk;
         result.score = raw_risk * 100.0;
         
-        // 4. Determine state (with history-aware logic)
-        result.state = determineState(raw_risk, components, history);
+        // 4. Determine state (single recording — no history, see determineState)
+        result.state = determineState(raw_risk, components);
         
         // 5. Top factor
         result.top_factor = getTopFactor(components);
         result.components = components;
         
-        // 6. Confidence
-        result.confidence = std::min(1.0, 
-            0.30 * audio_quality +
-            0.25 * baseline_reliability +
-            0.25 * std::min(1.0, static_cast<double>(history.size()) / 3.0)
+        // 6. Confidence — driven by how much usable signal THIS recording
+        // provided, not a constant. audio_quality is the caller's proxy for
+        // recording duration (clamped to [0.5,1.0] upstream); history.size()
+        // is the number of usable windows scored. Both are 0/empty for the
+        // degenerate cases, so confidence drops honestly there.
+        result.confidence = std::min(1.0,
+            duration_confidence_weight * audio_quality +
+            windows_confidence_weight * std::min(1.0, static_cast<double>(history.size()) / 3.0) +
+            baseline_reliability_confidence * baseline_reliability
         );
         
         // 7. Generate recommendations as KEYS (not text)
@@ -200,6 +211,9 @@ Result BurnoutAnalyzer::analyze(
         LOG_ERROR("Error in burnout analysis: {}", e.what());
         result.state = State::INSUFFICIENT_DATA;
         result.error = "analysis_failed";
+        result.confidence = 0.0;
+        result.risk = 0.0;
+        result.score = 0.0;
         result.recommendations = {"analysis_failed_retry"};
     }
     
@@ -207,12 +221,11 @@ Result BurnoutAnalyzer::analyze(
 }
 
 //=============================================================================
-// determineState - State determination with history-aware logic
+// determineState - Single-recording state determination
 //=============================================================================
 State BurnoutAnalyzer::determineState(
     double risk,
-    const std::unordered_map<std::string, double>& components,
-    const std::vector<nlohmann::json>& history)
+    const std::unordered_map<std::string, double>& components)
 {
     // A genuine lack of input is rejected upstream: analyze() refuses when
     // emotions are missing, and Audio::add_burnout_analysis gates on speech
@@ -221,20 +234,20 @@ State BurnoutAnalyzer::determineState(
     if (risk < 0.01) {
         return State::NORMAL;
     }
-    
+
     // Check for LOW_AFFECT_UNSPECIFIC - specific pattern
     auto it_prosodic = components.find("prosodic_flattening");
     auto it_positive = components.find("positive_affect_loss");
     auto it_exhaustion = components.find("exhaustion");
     auto it_negative = components.find("negative_activation");
     auto it_va_drop = components.find("voice_activity_drop");
-    
+
     double prosodic = (it_prosodic != components.end()) ? it_prosodic->second : 0.0;
     double positive = (it_positive != components.end()) ? it_positive->second : 0.0;
     double exhaustion = (it_exhaustion != components.end()) ? it_exhaustion->second : 0.0;
     double negative = (it_negative != components.end()) ? it_negative->second : 0.0;
     double va_drop = (it_va_drop != components.end()) ? it_va_drop->second : 0.0;
-    
+
     if (risk < 0.35) {
         if (prosodic > 0.4 && positive > 0.4 && exhaustion < 0.3 && negative < 0.3) {
             return State::LOW_AFFECT_UNSPECIFIC;
@@ -245,56 +258,42 @@ State BurnoutAnalyzer::determineState(
         }
         return State::NORMAL;
     }
-    
-    // For higher risk, check history to distinguish states
-    int sustained_count = 0;
-    int burnout_count = 0;
-    
-    for (const auto& prev : history) {
-        if (prev.contains("risk") && prev["risk"].is_number()) {
-            double prev_risk = prev["risk"].get<double>();
-            if (prev_risk > 0.35) sustained_count++;
-            if (prev_risk > 0.50) burnout_count++;
-        }
-    }
-    
-    // Determine state based on risk level and history
-    if (risk < 0.50) {
-        if (history.size() >= 2 && sustained_count >= 2) {
-            return State::SUSTAINED_STRESS;
-        }
+
+    // Single-recording bands. A single recording cannot distinguish chronic
+    // from acute on its own, so:
+    //   0.35-0.50 -> SHORT_STRESS  (an elevated reading this one time)
+    //   0.50-0.65 -> SHORT_STRESS  (elevated, but "sustained" needs prior
+    //                               recordings we don't have)
+    //   >= 0.65   -> SUSTAINED_STRESS (persistently elevated; the strongest
+    //                               single-recording signal we can report)
+    // BURNOUT_LIKE is deliberately unreachable here: calling something
+    // "burnout-like" requires the longitudinal signal (multiple elevated
+    // recordings) that history would provide, which is not yet wired. The old
+    // code returned SUSTAINED_STRESS for the 0.50-0.65 band unconditionally,
+    // which over-stated a single reading as chronic.
+    if (risk < 0.65) {
         return State::SHORT_STRESS;
-    } else if (risk < 0.65) {
-        if (history.size() >= 2 && burnout_count >= 2) {
-            return State::BURNOUT_LIKE;
-        }
-        if (history.size() >= 2 && sustained_count >= 1) {
-            return State::SUSTAINED_STRESS;
-        }
-        return State::SUSTAINED_STRESS;
-    } else {
-        if (history.size() >= 2 && burnout_count >= 2) {
-            return State::BURNOUT_LIKE;
-        }
-        return State::SUSTAINED_STRESS;
     }
+    return State::SUSTAINED_STRESS;
 }
 
 //=============================================================================
 // getCommentKey - Returns KEY for system comment
 //=============================================================================
 std::string BurnoutAnalyzer::getCommentKey(State state, size_t history_size) const {
+    // From a single recording we never have history (see determineState), so
+    // both "need history" guards are always true and the comments are emitted
+    // unconditionally. The "not a diagnosis" guard lives on SUSTAINED_STRESS
+    // (the strongest single-recording state) rather than BURNOUT_LIKE, which
+    // is unreachable without history.
     switch (state) {
         case State::SHORT_STRESS:
-            if (history_size < 2) {
-                return "need_history_to_distinguish_short_vs_chronic";
-            }
-            return "";
+            return "need_history_to_distinguish_short_vs_chronic";
         case State::SUSTAINED_STRESS:
             if (history_size < 2) {
                 return "need_dynamics_for_sustained_stress";
             }
-            return "";
+            return "burnout_compatible_not_diagnosis";
         case State::BURNOUT_LIKE:
             return "burnout_compatible_not_diagnosis";
         case State::LOW_AFFECT_UNSPECIFIC:

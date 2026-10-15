@@ -162,42 +162,73 @@ nlohmann::json BurnoutConfig::defaultBaselineJson() const {
     };
 }
 
-nlohmann::json getDefaultBaseline() {
+nlohmann::json BurnoutConfig::toJson() const {
     return {
-        {"acoustic_features", {
-            {"pitch_variation", 0.19},
-            {"pitch_range", 60.0},
-            {"intensity_variation", 0.3},
-            {"pause_ratio", 0.15},
-            {"pause_mean_duration", 0.05},
-            {"pause_max_duration", 0.10},
-            {"speech_rate", 3.5}
-        }},
-        {"detailed_analysis", {
-            {"wavlm_emotion_probabilities", {
-                {"neutral", 0.2},
-                {"happy", 0.3},
-                {"sad", 0.1},
-                {"angry", 0.05},
-                {"fear", 0.05},
-                {"disgust", 0.03},
-                {"surprise", 0.05}
-            }}
-        }},
-        {"model_results", {
-            {
-                {"all_probabilities", {
-                    {"neutral", 0.2},
-                    {"happy", 0.3},
-                    {"sad", 0.1},
-                    {"angry", 0.05},
-                    {"fear", 0.05},
-                    {"disgust", 0.03},
-                    {"surprise", 0.05}
-                }}
-            }
-        }}
+        {"window_seconds", window_seconds},
+        {"max_windows", max_windows},
+        {"min_valid_windows", min_valid_windows},
+        {"aggregation", aggregation},
+        {"duration_confidence_threshold_s", duration_confidence_threshold_s},
+        {"min_voice_activity_ratio", min_voice_activity_ratio},
+        {"base_pitch_variation", base_pitch_variation},
+        {"base_pitch_range", base_pitch_range},
+        {"base_intensity_variation", base_intensity_variation},
+        {"base_pause_ratio", base_pause_ratio},
+        {"base_pause_mean_duration", base_pause_mean_duration},
+        {"base_pause_max_duration", base_pause_max_duration},
+        {"base_speech_rate", base_speech_rate},
+        {"base_neutral", base_neutral},
+        {"base_happy", base_happy},
+        {"base_sad", base_sad},
+        {"base_angry", base_angry},
+        {"base_fear", base_fear},
+        {"base_disgust", base_disgust},
     };
+}
+
+void BurnoutConfig::fromJson(const nlohmann::json& data) {
+    if (!data.is_object()) return;
+    // Each field: read if present and of the right type, else keep the default.
+    if (data.contains("window_seconds") && data["window_seconds"].is_number())
+        window_seconds = data["window_seconds"].get<double>();
+    if (data.contains("max_windows") && data["max_windows"].is_number())
+        max_windows = data["max_windows"].get<int>();
+    if (data.contains("min_valid_windows") && data["min_valid_windows"].is_number())
+        min_valid_windows = data["min_valid_windows"].get<int>();
+    if (data.contains("aggregation") && data["aggregation"].is_string())
+        aggregation = data["aggregation"].get<std::string>();
+    if (data.contains("duration_confidence_threshold_s") && data["duration_confidence_threshold_s"].is_number())
+        duration_confidence_threshold_s = data["duration_confidence_threshold_s"].get<double>();
+    if (data.contains("min_voice_activity_ratio") && data["min_voice_activity_ratio"].is_number())
+        min_voice_activity_ratio = data["min_voice_activity_ratio"].get<double>();
+
+    if (data.contains("base_pitch_variation") && data["base_pitch_variation"].is_number())
+        base_pitch_variation = data["base_pitch_variation"].get<double>();
+    if (data.contains("base_pitch_range") && data["base_pitch_range"].is_number())
+        base_pitch_range = data["base_pitch_range"].get<double>();
+    if (data.contains("base_intensity_variation") && data["base_intensity_variation"].is_number())
+        base_intensity_variation = data["base_intensity_variation"].get<double>();
+    if (data.contains("base_pause_ratio") && data["base_pause_ratio"].is_number())
+        base_pause_ratio = data["base_pause_ratio"].get<double>();
+    if (data.contains("base_pause_mean_duration") && data["base_pause_mean_duration"].is_number())
+        base_pause_mean_duration = data["base_pause_mean_duration"].get<double>();
+    if (data.contains("base_pause_max_duration") && data["base_pause_max_duration"].is_number())
+        base_pause_max_duration = data["base_pause_max_duration"].get<double>();
+    if (data.contains("base_speech_rate") && data["base_speech_rate"].is_number())
+        base_speech_rate = data["base_speech_rate"].get<double>();
+
+    if (data.contains("base_neutral") && data["base_neutral"].is_number())
+        base_neutral = data["base_neutral"].get<double>();
+    if (data.contains("base_happy") && data["base_happy"].is_number())
+        base_happy = data["base_happy"].get<double>();
+    if (data.contains("base_sad") && data["base_sad"].is_number())
+        base_sad = data["base_sad"].get<double>();
+    if (data.contains("base_angry") && data["base_angry"].is_number())
+        base_angry = data["base_angry"].get<double>();
+    if (data.contains("base_fear") && data["base_fear"].is_number())
+        base_fear = data["base_fear"].get<double>();
+    if (data.contains("base_disgust") && data["base_disgust"].is_number())
+        base_disgust = data["base_disgust"].get<double>();
 }
 
 } // namespace audio

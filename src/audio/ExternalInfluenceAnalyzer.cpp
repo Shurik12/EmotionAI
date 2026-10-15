@@ -288,7 +288,8 @@ ExternalInfluenceResult ExternalInfluenceAnalyzer::analyze(
     const nlohmann::json& fragments,
     const nlohmann::json& baseline,
     double audio_quality,
-    const std::vector<std::string>& context_flags) const
+    const std::vector<std::string>& context_flags,
+    const nlohmann::json& burnout_config) const
 {
     ExternalInfluenceResult result;
     result.audioQuality = clamp01(audio_quality);
@@ -296,8 +297,19 @@ ExternalInfluenceResult ExternalInfluenceAnalyzer::analyze(
     result.totalFragmentCount = fragments.is_array()
         ? static_cast<int>(fragments.size()) : 0;
 
-    const nlohmann::json& baseline_to_use =
-        baseline.empty() ? getDefaultBaseline() : baseline;
+    // When no per-user baseline is supplied, fall back to the SAME calibrated
+    // population baseline the burnout path uses (BurnoutConfig::defaultBaselineJson),
+    // not the stale hardcoded getDefaultBaseline(). The two analyzers score the
+    // same WavLM model on the same 8 kHz call data, so they must agree on what
+    // "normal" looks like. A caller-supplied burnout_config JSON (the parsed
+    // `burnout:` section) overrides the built-in defaults so the fallback
+    // tracks any operator-tuned baseline; an empty one means "use defaults".
+    BurnoutConfig burnout_cfg;
+    if (!burnout_config.is_null() && !burnout_config.empty()) {
+        burnout_cfg.fromJson(burnout_config);
+    }
+    const nlohmann::json default_baseline = burnout_cfg.defaultBaselineJson();
+    const nlohmann::json& baseline_to_use = baseline.empty() ? default_baseline : baseline;
     result.baselineReliability = baseline.empty()
         ? cfg_.default_baseline_reliability
         : cfg_.stored_baseline_reliability;
