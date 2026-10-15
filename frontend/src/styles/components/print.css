@@ -1,0 +1,157 @@
+/* ============================================
+    PRINT / PDF EXPORT
+    Only the results card is printed; the rest of
+    the page (header, hero, form, footer, buttons)
+    is hidden. The @media (print) block below is
+    the active one — the screen rules are scoped
+    to a .is-printing class so screen layout is
+    unaffected.
+    ============================================ */
+
+/* ---- Screen-only: report header (shown just before printing) ---- */
+
+.print-only {
+  margin-bottom: var(--spacing-md);
+}
+
+.print-report-header h2 {
+  margin: 0 0 var(--spacing-sm);
+  font-size: var(--font-size-xl);
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.print-report-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
+}
+
+.print-report-meta-row {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.print-report-meta-label {
+  min-width: 150px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.print-report-meta-value {
+  word-break: break-word;
+}
+
+.print-report-hint {
+  margin: var(--spacing-sm) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-light);
+}
+
+/* ---- Screen-only: export button ---- */
+
+.export-pdf-btn {
+  display: block;
+  width: 100%;
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #073d77, #062d5c);
+  color: #fff;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: 0 4px 12px rgba(4, 50, 99, 0.12);
+}
+
+.export-pdf-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(4, 50, 99, 0.18);
+}
+
+/* ---- Print: hide screen-only chrome ---- */
+
+@media print {
+  .print-only .print-report-hint {
+    color: var(--color-text-light);
+  }
+
+  /* The report header IS part of the printed report, so keep it visible
+     but tighten its spacing on paper. */
+  .print-report-header h2 {
+    font-size: 20px;
+    color: #062e60;
+  }
+
+  .print-report-meta {
+    font-size: 12px;
+  }
+}
+
+@page {
+  margin: 14mm;
+}
+
+@media print {
+  /* Everything outside the results container disappears */
+  body * {
+    visibility: hidden;
+  }
+
+  #detector-results,
+  #detector-results * {
+    visibility: visible;
+  }
+
+  /* Pull the results to the top-left of the page */
+  #detector-results {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  /* Drop the card chrome so content uses the full page */
+  #detector-results .result-card {
+    box-shadow: none;
+    border: none;
+    padding: 0;
+    background: #fff;
+  }
+
+  /* Hide interactive / debug-only controls in print */
+  #detector-results .no-print {
+    display: none !important;
+  }
+
+  #detector-results .no-results details {
+    display: none;
+  }
+
+  /* Force bar widths to render in print */
+  #detector-results .emotion-fill,
+  #detector-results .burnout-indicator-fill {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Avoid awkward breaks inside a single indicator row */
+  #detector-results .emotion-item,
+  #detector-results .burnout-indicator-item,
+  #detector-results .burnout-attention-item {
+    break-inside: avoid;
+  }
+
+  #detector-results .burnout-analysis,
+  #detector-results .burnout-disclaimer {
+    break-inside: avoid;
+  }
+}
