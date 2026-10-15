@@ -21,6 +21,12 @@ export const validateFile = (file) => {
   const isValidMime = validMimeTypes.includes(file.type);
   const isValidExt = validExtensions.includes(ext);
 
+  // Size limit first: it applies to every accepted type. (The WAV shortcut
+  // below must not let an oversized file skip it.)
+  if (file.size > FILE_CONSTANTS.MAX_SIZE) {
+    return { valid: false, error: 'errors.fileTooLarge' };
+  }
+
   // For WAV files specifically, browsers often report different MIME types
   if (ext === 'wav' && !isValidMime) {
     // WAV files are commonly misidentified, accept them by extension
@@ -29,10 +35,6 @@ export const validateFile = (file) => {
 
   if (!isValidMime && !isValidExt) {
     return { valid: false, error: 'errors.unsupportedFormat' };
-  }
-
-  if (file.size > FILE_CONSTANTS.MAX_SIZE) {
-    return { valid: false, error: 'errors.fileTooLarge' };
   }
 
   return { valid: true };

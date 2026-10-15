@@ -76,7 +76,7 @@ private:
 
 	struct AppConfig
 	{
-		int max_content_length = 52428800; // 50MB
+		int max_content_length = 314572800; // 300MB
 		std::vector<std::string> allowed_extensions = {"png", "jpg", "jpeg", "mp4", "avi", "webm", "mp3"};
 		int task_expiration = 3600;			  // 1 hour in seconds
 		int application_expiration = 2592000; // 30 days in seconds

@@ -62,7 +62,7 @@ export const BURNOUT_LABELS = {
 };
 
 export const FILE_CONSTANTS = {
-  MAX_SIZE: 50 * 1024 * 1024,
+  MAX_SIZE: 300 * 1024 * 1024,
   VALID_TYPES: [
     'image/jpeg',
     'image/png',
