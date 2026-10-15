@@ -151,6 +151,7 @@ void Server::initializeComponents()
             aiConfig.apiKey = config.ai().api_key;
             aiConfig.verifySsl = config.ai().verify_ssl;
             aiConfig.timeoutSeconds = config.ai().timeout_seconds;
+            aiConfig.connectTimeoutSeconds = config.ai().connect_timeout_seconds;
 
             ai_client_ = std::make_unique<emotionai::ai::AIClient>(aiConfig);
 
@@ -1557,8 +1558,12 @@ void Server::handleFocusSessionGet(const std::shared_ptr<ClientContext> &context
 }
 
 // Focus task breakdown (EMO-19). The AI receives only the task text and the
-// block duration; camera frames never leave the Razuma core. Called
-// synchronously: the model is a fast flash variant, so the request is short.
+// block duration; camera frames never leave the Razuma core.
+//
+// Runs synchronously on the epoll thread. The curl call is bounded by
+// ai.timeout_seconds (default 10 s) and ai.connect_timeout_seconds
+// (default 5 s) so a hung model cannot stall the server for long. If the
+// model is slow in practice, raise those limits in config.yaml.
 void Server::handleFocusBreakdown(const std::shared_ptr<ClientContext> &context, const std::string &body)
 {
     try

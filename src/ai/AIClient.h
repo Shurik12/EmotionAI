@@ -15,7 +15,8 @@ namespace emotionai
             std::string model;
             std::string apiKey;
             bool verifySsl{true};
-            long timeoutSeconds{30};
+            long timeoutSeconds{10};
+            long connectTimeoutSeconds{5};
         };
 
         struct TokenUsage

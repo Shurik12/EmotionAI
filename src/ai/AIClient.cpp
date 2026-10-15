@@ -84,6 +84,7 @@ namespace emotionai
             curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_str.c_str());
             curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, m_config.verifySsl ? 1L : 0L);
             curl_easy_setopt(curl, CURLOPT_TIMEOUT, m_config.timeoutSeconds);
+            curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, m_config.connectTimeoutSeconds);
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 
