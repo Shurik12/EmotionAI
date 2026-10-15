@@ -22,6 +22,7 @@ set(TEST_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/config
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/logging
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/db
+    ${CMAKE_CURRENT_SOURCE_DIR}/unit/emotionai
     ${CMAKE_CURRENT_SOURCE_DIR}/unit/server
 )
 

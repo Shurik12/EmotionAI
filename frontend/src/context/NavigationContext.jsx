@@ -31,6 +31,7 @@ export const NavigationProvider = ({ children }) => {
       features: 'Razuma | Features',
       detector: 'Razuma | Demo',
       focus: 'Razuma | Focus',
+      review: 'Razuma | Review',
       privacy: 'Razuma | Privacy',
       contact: 'Razuma | Contact',
     };

@@ -151,8 +151,12 @@ private:
     // Only the task text and block duration are ever sent to the model.
     void handleFocusBreakdown(const std::shared_ptr<ClientContext> &context, const std::string &body);
 
+    // Review (EMO-26): video review with self-assessment and emotion-based scoring
+    void handleReview(const std::shared_ptr<ClientContext> &context, const std::string &body);
+
     // Common handlers
-    std::string handleUploadCommon(const std::string &file_content, const std::string &filename);
+    std::string handleUploadCommon(const std::string &file_content, const std::string &filename,
+                                   double self_score = -1.0);
     std::string handleUploadBurnoutCommon(const std::string &file_content, const std::string &filename);
     std::string handleUploadExternalInfluenceCommon(const std::string &file_content, const std::string &filename);
     std::string handleSubmitApplicationCommon(const std::string &body);

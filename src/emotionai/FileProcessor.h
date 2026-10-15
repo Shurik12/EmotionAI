@@ -11,6 +11,7 @@
 #include <db/DragonflyManager.h>
 #include <emotionai/Image.h>
 #include <emotionai/Audio.h>
+#include <emotionai/ReviewScorer.h>
 #include <storage/FileStorage.h>
 #include <torch/script.h>
 #include <audio/BurnoutModels.h>
@@ -31,7 +32,14 @@ public:
 
     // Public API
     bool allowed_file(const std::string& filename);
-    void process_file(const std::string& task_id, const std::string& filepath, const std::string& filename);
+    // Image or video only (no audio) — used by the review route, which needs
+    // facial emotion output and therefore cannot score audio.
+    bool allowed_visual_file(const std::string& filename);
+    // self_score >= 1 attaches an emotion-based "review" object to the final
+    // status (computed in the same write as complete:true, so a poll can never
+    // observe a completed task without its review payload).
+    void process_file(const std::string& task_id, const std::string& filepath,
+                      const std::string& filename, double self_score = -1.0);
 
     // Analyze one image frame held in memory (no disk, no task status). Used by
     // the Focus camera session endpoint; returns the core "result" object
