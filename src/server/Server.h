@@ -26,12 +26,6 @@
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
-// Forward declarations for cluster components
-#ifdef WITH_CLUSTER
-class ClusterManager;
-class DistributedTaskManager;
-#endif
-
 namespace emotionai
 {
     namespace ai
@@ -94,15 +88,6 @@ private:
 
     // Storage components
     std::shared_ptr<FileStorage> file_storage_;
-
-#ifdef WITH_CLUSTER
-    std::unique_ptr<ClusterManager> cluster_manager_;
-    std::unique_ptr<DistributedTaskManager> distributed_task_manager_;
-#endif
-
-    // Task worker threads
-    std::vector<std::thread> task_worker_threads_;
-    std::atomic<bool> workers_running_{false};
 
     // Common paths
     fs::path static_files_root_;
@@ -167,11 +152,6 @@ private:
     std::string handleSubmitApplicationCommon(const std::string &body);
     void validateJsonDocument(const nlohmann::json &json);
 
-    // Distributed task processing
-    void startDistributedTaskWorkers();
-    void stopDistributedTaskWorkers();
-    void processDistributedTask(const nlohmann::json &task);
-
     // Common file serving
     std::string getMimeType(const std::string &filename) const;
     bool isApiEndpoint(const std::string &path) const;
@@ -187,13 +167,6 @@ private:
     void ensureDirectoriesExist();
     void initializeComponents();
     void initializeStorage();
-
-    // Cluster management
-    void initializeCluster();
-    void startClusterServices();
-    void stopClusterServices();
-    void registerInstance();
-    void unregisterInstance();
 
     // Helper methods
     std::string generateInstanceId();

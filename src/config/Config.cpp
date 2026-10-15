@@ -132,16 +132,6 @@ bool Config::loadFromFile(const std::string &config_path)
             new_data.cluster.auto_cleanup = cluster["auto_cleanup"].as<bool>(new_data.cluster.auto_cleanup);
         }
 
-        if (root["queue"])
-        {
-            const auto &queue = root["queue"];
-            new_data.queue.batch_queue_name = queue["batch_queue_name"].as<std::string>(new_data.queue.batch_queue_name);
-            new_data.queue.visibility_timeout = queue["visibility_timeout"].as<int>(new_data.queue.visibility_timeout);
-            new_data.queue.max_retries = queue["max_retries"].as<int>(new_data.queue.max_retries);
-            new_data.queue.batch_size = queue["batch_size"].as<int>(new_data.queue.batch_size);
-            new_data.queue.poll_interval_ms = queue["poll_interval_ms"].as<int>(new_data.queue.poll_interval_ms);
-        }
-
         if (root["task_management"])
         {
             const auto &task_management = root["task_management"];
@@ -310,13 +300,6 @@ bool Config::loadFromFile(const std::string &config_path)
         spdlog::info("  Leader Election Interval: {}s", data_.cluster.leader_election_interval);
         spdlog::info("  Auto Cleanup: {}", data_.cluster.auto_cleanup);
 
-        spdlog::info("Queue configuration:");
-        spdlog::info("  Batch Queue: {}", data_.queue.batch_queue_name);
-        spdlog::info("  Visibility Timeout: {}s", data_.queue.visibility_timeout);
-        spdlog::info("  Max Retries: {}", data_.queue.max_retries);
-        spdlog::info("  Batch Size: {}", data_.queue.batch_size);
-        spdlog::info("  Poll Interval: {}ms", data_.queue.poll_interval_ms);
-
         spdlog::info("Storage configuration:");
         spdlog::info("  Type: {}", data_.storage.type);
         spdlog::info("  Base Path: {}", data_.storage.base_path);
@@ -483,19 +466,6 @@ bool Config::validate() const
     if (data_.cluster.instance_timeout <= data_.cluster.heartbeat_interval)
     {
         spdlog::error("Instance timeout must be greater than heartbeat interval");
-        return false;
-    }
-
-    // Validate queue configuration
-    if (data_.queue.visibility_timeout <= 0)
-    {
-        spdlog::error("Invalid visibility timeout: {}", data_.queue.visibility_timeout);
-        return false;
-    }
-
-    if (data_.queue.max_retries < 0)
-    {
-        spdlog::error("Invalid max retries: {}", data_.queue.max_retries);
         return false;
     }
 

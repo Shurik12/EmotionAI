@@ -24,10 +24,7 @@
 #include <audio/BurnoutModels.h>
 #include "Server.h"
 
-#ifdef WITH_CLUSTER
-#include <cluster/ClusterManager.h>
-#include <cluster/DistributedTaskManager.h>
-#endif
+
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -122,13 +119,6 @@ void Server::initializeComponents()
         // Initialize storage first
         initializeStorage();
 
-        // Initialize cluster components if enabled
-        auto &config = Config::instance();
-        if (config.cluster().enabled)
-        {
-            initializeCluster();
-        }
-
         // Initialize TaskManager
         auto &task_manager = TaskManager::instance();
         task_manager.set_dragonfly_manager(dragonfly_manager_);
@@ -140,6 +130,7 @@ void Server::initializeComponents()
 
         // AI client (OpenAI-compatible) for the Focus task breakdown. Only the
         // task text and block duration are sent — never camera frames.
+        auto &config = Config::instance();
         if (config.ai().enabled && !config.ai().api_key.empty())
         {
             LOG_INFO("Initializing AI client...");
@@ -191,103 +182,7 @@ void Server::initializeStorage()
     }
 }
 
-void Server::initializeCluster()
-{
-#ifdef WITH_CLUSTER
-    auto &config = Config::instance();
-    LOG_INFO("Initializing cluster components...");
 
-    try
-    {
-        // Create cluster manager
-        cluster_manager_ = std::make_unique<ClusterManager>(dragonfly_manager_);
-        cluster_manager_->initialize();
-        LOG_INFO("ClusterManager initialized successfully");
-
-        // Create distributed task manager
-        distributed_task_manager_ = std::make_unique<DistributedTaskManager>(
-            dragonfly_manager_, instance_id_);
-        LOG_INFO("DistributedTaskManager initialized successfully");
-
-        // Register this instance
-        registerInstance();
-    }
-    catch (const std::exception &e)
-    {
-        LOG_ERROR("Failed to initialize cluster components: {}", e.what());
-        throw;
-    }
-#else
-    LOG_WARN("Cluster support not compiled in, but cluster.enabled=true in config");
-#endif
-}
-
-void Server::startClusterServices()
-{
-#ifdef WITH_CLUSTER
-    auto &config = Config::instance();
-    if (config.cluster().enabled && cluster_manager_)
-    {
-        LOG_INFO("Starting cluster services...");
-        cluster_manager_->start();
-        startDistributedTaskWorkers();
-        LOG_INFO("Cluster services started successfully");
-    }
-#endif
-}
-
-void Server::stopClusterServices()
-{
-#ifdef WITH_CLUSTER
-    auto &config = Config::instance();
-    if (config.cluster().enabled)
-    {
-        LOG_INFO("Stopping cluster services...");
-        stopDistributedTaskWorkers();
-        if (cluster_manager_)
-        {
-            cluster_manager_->stop();
-        }
-        unregisterInstance();
-        LOG_INFO("Cluster services stopped successfully");
-    }
-#endif
-}
-
-void Server::registerInstance()
-{
-#ifdef WITH_CLUSTER
-    if (!cluster_manager_)
-        return;
-
-    try
-    {
-        // Instance info will be registered by ClusterManager
-        LOG_INFO("Instance registered with cluster: {}", instance_id_);
-    }
-    catch (const std::exception &e)
-    {
-        LOG_ERROR("Failed to register instance: {}", e.what());
-    }
-#endif
-}
-
-void Server::unregisterInstance()
-{
-#ifdef WITH_CLUSTER
-    if (!cluster_manager_)
-        return;
-
-    try
-    {
-        LOG_INFO("Unregistering instance from cluster: {}", instance_id_);
-    }
-    catch (const std::exception &e)
-    {
-        LOG_ERROR("Failed to unregister instance: {}", e.what());
-    }
-#endif
-}
 
 void Server::initialize()
 {
@@ -306,14 +201,12 @@ void Server::start()
     LOG_INFO("Starting server on {}:{}", config.server().host, config.server().port);
 
     running_ = true;
-    startClusterServices();
     handleEvents();
 }
 
 void Server::stop() noexcept
 {
     running_ = false;
-    stopClusterServices();
 }
 
 void Server::setupRoutes()
@@ -1700,44 +1593,6 @@ std::string Server::handleUploadCommon(const std::string &file_content,
         throw std::runtime_error("Failed to prepare file for processing");
     }
     
-    // Check if we should use distributed processing
-#ifdef WITH_CLUSTER
-    if (config.cluster().enabled && distributed_task_manager_)
-    {
-        // Use distributed task queue
-        nlohmann::json task = {
-            {"task_id", task_id},
-            {"type", "batch_processing"},
-            {"filename", filename},
-            {"file_path", local_path.string()},
-            {"storage_path", storage_path},
-            {"instance_id", instance_id_},
-            {"created_at", std::chrono::system_clock::now().time_since_epoch().count()},
-            {"status", "pending"},
-            {"retry_count", 0}};
-
-        if (distributed_task_manager_->submitTask(config.queue().batch_queue_name, task))
-        {
-            LOG_INFO("Task {} submitted to distributed queue: {}", task_id, config.queue().batch_queue_name);
-            
-            auto &task_manager = TaskManager::instance();
-            task_manager.set_task_status(task_id, {{"task_id", task_id},
-                                                   {"progress", 0},
-                                                   {"message", "Queued for batch processing"},
-                                                   {"error", nullptr},
-                                                   {"complete", false},
-                                                   {"mode", "batch"},
-                                                   {"instance_id", instance_id_},
-                                                   {"queued", true},
-                                                   {"storage_path", storage_path},
-                                                   {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-                                                                     std::chrono::system_clock::now().time_since_epoch())
-                                                                     .count()}});
-
-            return task_id;
-        }
-    }
-#endif
 
     // Fallback to local processing
     auto *file_processor = file_processor_.get();
@@ -2304,136 +2159,3 @@ std::string Server::generateInstanceId()
     return DragonflyManager::generate_uuid();
 }
 
-void Server::startDistributedTaskWorkers()
-{
-#ifdef WITH_CLUSTER
-    auto &config = Config::instance();
-    if (!config.cluster().enabled || !distributed_task_manager_)
-    {
-        return;
-    }
-
-    workers_running_.store(true);
-
-    // Start batch task workers
-    unsigned int num_workers = std::max(1u, std::thread::hardware_concurrency() / 2);
-
-    for (unsigned int i = 0; i < num_workers; ++i)
-    {
-        task_worker_threads_.emplace_back([this, i, &config]()
-                                          {
-            LOG_INFO("Distributed task worker {} started", i);
-            
-            while (workers_running_.load()) {
-                try {
-                    // Try to get next batch task
-                    auto task = distributed_task_manager_->getNextTask(
-                        config.queue().batch_queue_name,
-                        config.queue().visibility_timeout
-                    );
-                    
-                    if (task) {
-                        processDistributedTask(*task);
-                    } else {
-                        // No task available, sleep briefly
-                        std::this_thread::sleep_for(
-                            std::chrono::milliseconds(config.queue().poll_interval_ms)
-                        );
-                    }
-                } catch (const std::exception& e) {
-                    LOG_ERROR("Error in distributed task worker {}: {}", i, e.what());
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                }
-            }
-            
-            LOG_INFO("Distributed task worker {} stopped", i); });
-    }
-
-    LOG_INFO("Started {} distributed task workers", num_workers);
-#endif
-}
-
-void Server::stopDistributedTaskWorkers()
-{
-    workers_running_.store(false);
-
-    for (auto &thread : task_worker_threads_)
-    {
-        if (thread.joinable())
-        {
-            thread.join();
-        }
-    }
-    task_worker_threads_.clear();
-
-    LOG_INFO("Distributed task workers stopped");
-}
-
-void Server::processDistributedTask(const nlohmann::json &task)
-{
-#ifdef WITH_CLUSTER
-    std::string task_id = task["task_id"];
-    std::string task_type = task["type"];
-    std::string file_path = task["file_path"];
-    std::string filename = task["filename"];
-
-    LOG_INFO("Processing distributed task {}: {} ({})", task_id, filename, task_type);
-
-    try
-    {
-        // Update task status to processing
-        auto &task_manager = TaskManager::instance();
-        task_manager.set_task_status(task_id, {{"task_id", task_id},
-                                               {"progress", 10},
-                                               {"message", "Processing started in distributed worker"},
-                                               {"error", nullptr},
-                                               {"complete", false},
-                                               {"mode", "batch"},
-                                               {"instance_id", instance_id_},
-                                               {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-                                                                 std::chrono::system_clock::now().time_since_epoch())
-                                                                 .count()}});
-
-        // Process the file
-        file_processor_->process_file(task_id, file_path, filename);
-
-        // Mark task as complete
-        if (distributed_task_manager_)
-        {
-            distributed_task_manager_->markTaskComplete(task_id);
-        }
-
-        LOG_INFO("Distributed task {} completed successfully", task_id);
-    }
-    catch (const std::exception &e)
-    {
-        LOG_ERROR("Distributed task {} failed: {}", task_id, e.what());
-
-        // Update task status with error
-        try
-        {
-            auto &task_manager = TaskManager::instance();
-            task_manager.set_task_status(task_id, {{"task_id", task_id},
-                                                   {"progress", 0},
-                                                   {"message", "Processing failed in distributed worker"},
-                                                   {"error", e.what()},
-                                                   {"complete", true},
-                                                   {"mode", "batch"},
-                                                   {"instance_id", instance_id_},
-                                                   {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
-                                                                     std::chrono::system_clock::now().time_since_epoch())
-                                                                     .count()}});
-
-            // Mark task as failed in distributed queue
-            if (distributed_task_manager_)
-            {
-                distributed_task_manager_->markTaskFailed(task_id, e.what());
-            }
-        }
-        catch (const std::exception &db_error)
-        {
-            LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
-        }
-    }
-#endif
-}
