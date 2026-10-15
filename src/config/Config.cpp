@@ -173,6 +173,7 @@ bool Config::loadFromFile(const std::string &config_path)
             new_data.ai.api_key = ai["api_key"].as<std::string>(new_data.ai.api_key);
             new_data.ai.verify_ssl = ai["verify_ssl"].as<bool>(new_data.ai.verify_ssl);
             new_data.ai.timeout_seconds = ai["timeout_seconds"].as<long>(new_data.ai.timeout_seconds);
+            new_data.ai.connect_timeout_seconds = ai["connect_timeout_seconds"].as<long>(new_data.ai.connect_timeout_seconds);
         }
 
         if (root["external_influence"])

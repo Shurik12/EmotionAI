@@ -176,7 +176,8 @@ private:
 		std::string model{"deepseek-v4-flash"};
 		std::string api_key;
 		bool verify_ssl{true};
-		long timeout_seconds{30};
+		long timeout_seconds{10};
+		long connect_timeout_seconds{5};
 	};
 
 	struct ConfigData
