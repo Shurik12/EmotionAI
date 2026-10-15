@@ -44,7 +44,6 @@ public:
 	const auto &model() const { return data_.model; }
 	const auto &logging() const { return data_.logging; }
 	const auto &cluster() const { return data_.cluster; }
-	const auto &queue() const { return data_.queue; }
 	const auto &storage() const { return data_.storage; }
 	const auto &ai() const { return data_.ai; }
 	const auto &externalInfluence() const { return data_.external_influence; }
@@ -138,15 +137,6 @@ private:
 		bool auto_cleanup{true};
 	};
 
-	struct QueueConfig
-	{
-		std::string batch_queue_name{"tasks:batch"};
-		int visibility_timeout{300}; // 5 minutes
-		int max_retries{3};
-		int batch_size{50};
-		int poll_interval_ms{100};
-	};
-
 	struct TaskManagementConfig
 	{
 		int cache_ttl{300}; // 5 minutes in seconds
@@ -191,7 +181,6 @@ private:
 		MtcnnConfig mtcnn;
 		ModelConfig model;
 		ClusterConfig cluster;
-		QueueConfig queue;
 		TaskManagementConfig task_management;
 		StorageConfig storage;
 		AIConfig ai;
