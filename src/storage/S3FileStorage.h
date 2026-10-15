@@ -94,6 +94,8 @@ private:
         std::string bucket_name;
         std::string region;
         std::string endpoint;
+        std::string access_key;
+        std::string secret_key;
         bool use_ssl;
         std::atomic<bool> connected{false};
     };
