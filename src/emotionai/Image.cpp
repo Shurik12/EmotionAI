@@ -1,6 +1,7 @@
 #include <spdlog/spdlog.h>
 #include <fmt/format.h>
 #include <emotiefflib/facial_analysis.h>
+#include <mutex>
 
 #include <common/base64.h>
 #include <config/Config.h>
@@ -135,27 +136,44 @@ cv::Mat downscaleImageToWidth(const cv::Mat &inputImage, int targetWidth)
 
 std::vector<cv::Mat> Image::recognizeFaces(const cv::Mat &frame, int downscaleWidth)
 {
-	auto &config = Config::instance();
+	// The three Caffe networks are immutable per process; load them once and
+	// share across calls. A mutex serialises concurrent detect() calls since
+	// the underlying Caffe/CV-DNN inference is not thread-safe on the same net.
+	static std::mutex detector_mutex;
+	static std::unique_ptr<MTCNNDetector> cached_detector;
+	static std::string cached_models_dir;
 
-	// Get MTCNN configuration from config
-	std::string models_dir = config.model().face_detection_models_path;
+	std::string models_dir = Config::instance().model().face_detection_models_path;
 
-	ProposalNetwork::Config pConfig;
-	pConfig.protoText = (fs::path(models_dir) / "det1.prototxt").string();
-	pConfig.caffeModel = (fs::path(models_dir) / "det1.caffemodel").string();
-	pConfig.threshold = 0.6f;
+	MTCNNDetector *detector;
+	{
+		std::lock_guard<std::mutex> lock(detector_mutex);
+		if (!cached_detector || cached_models_dir != models_dir)
+		{
+			ProposalNetwork::Config pConfig;
+			pConfig.protoText = (fs::path(models_dir) / "det1.prototxt").string();
+			pConfig.caffeModel = (fs::path(models_dir) / "det1.caffemodel").string();
+			pConfig.threshold = 0.6f;
 
-	RefineNetwork::Config rConfig;
-	rConfig.protoText = (fs::path(models_dir) / "det2.prototxt").string();
-	rConfig.caffeModel = (fs::path(models_dir) / "det2.caffemodel").string();
-	rConfig.threshold = 0.7f;
+			RefineNetwork::Config rConfig;
+			rConfig.protoText = (fs::path(models_dir) / "det2.prototxt").string();
+			rConfig.caffeModel = (fs::path(models_dir) / "det2.caffemodel").string();
+			rConfig.threshold = 0.7f;
 
-	OutputNetwork::Config oConfig;
-	oConfig.protoText = (fs::path(models_dir) / "det3.prototxt").string();
-	oConfig.caffeModel = (fs::path(models_dir) / "det3.caffemodel").string();
-	oConfig.threshold = 0.7f;
+			OutputNetwork::Config oConfig;
+			oConfig.protoText = (fs::path(models_dir) / "det3.prototxt").string();
+			oConfig.caffeModel = (fs::path(models_dir) / "det3.caffemodel").string();
+			oConfig.threshold = 0.7f;
 
-	MTCNNDetector detector(pConfig, rConfig, oConfig);
+			cached_detector = std::make_unique<MTCNNDetector>(pConfig, rConfig, oConfig);
+			cached_models_dir = models_dir;
+			LOG_INFO("MTCNN detector loaded from {}", models_dir);
+		}
+		detector = cached_detector.get();
+	}
+
+	// Hold the lock for the entire detect() call.
+	std::lock_guard<std::mutex> lock(detector_mutex);
 
 	auto scaledFrame = downscaleImageToWidth(frame, downscaleWidth);
 	if (scaledFrame.empty())
@@ -166,7 +184,7 @@ std::vector<cv::Mat> Image::recognizeFaces(const cv::Mat &frame, int downscaleWi
 	double downcastRatioW = static_cast<double>(frame.cols) / scaledFrame.cols;
 	double downcastRatioH = static_cast<double>(frame.rows) / scaledFrame.rows;
 
-	std::vector<Face> faces = detector.detect(scaledFrame, 20.f, 0.709f);
+	std::vector<Face> faces = detector->detect(scaledFrame, 20.f, 0.709f);
 	std::vector<cv::Mat> cvFaces;
 	cvFaces.reserve(faces.size());
 
