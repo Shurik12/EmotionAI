@@ -39,8 +39,18 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || 'Upload failed');
+      const bodyText = await response.text().catch(() => '');
+      let message = '';
+      try {
+        message = JSON.parse(bodyText)?.message || '';
+      } catch {
+        // Some endpoints reply with a plain-text error (e.g. the 413 from the
+        // body-size guard), so fall back to a status-based translation key.
+      }
+      if (!message) {
+        message = response.status === 413 ? 'errors.fileTooLarge' : 'errors.uploadFailed';
+      }
+      throw new Error(message);
     }
 
     return response.json();

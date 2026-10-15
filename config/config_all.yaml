@@ -10,7 +10,7 @@ paths:
   frontend: "./frontend"
 
 app:
-  max_content_length: 52428800  # 50MB in bytes
+  max_content_length: 314572800  # 300MB in bytes
   allowed_extensions: ["png", "jpg", "jpeg", "mp4", "avi", "webm", "mp3"]
   task_expiration: 3600  # 1 hour in seconds
   application_expiration: 2592000  # 30 days in seconds
