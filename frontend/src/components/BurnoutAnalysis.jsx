@@ -45,6 +45,7 @@ export const BurnoutAnalysis = ({ data }) => {
       prosodic_flattening: t('burnout.components.prosodicFlattening'),
       negative_activation: t('burnout.components.negativeActivation'),
       positive_affect_loss: t('burnout.components.positiveAffectLoss'),
+      voice_activity_drop: t('burnout.components.voiceActivityDrop'),
       'Positive Affect Loss': t('burnout.components.positiveAffectLoss'),
       'Prosodic Flattening': t('burnout.components.prosodicFlattening'),
       'Pause/Tempo Changes': t('burnout.components.pauseTempo'),

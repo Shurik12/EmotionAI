@@ -1,11 +1,14 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+import { analyticsHeaders } from '../utils/clientId';
+
 export const apiClient = {
   async request(endpoint, options = {}) {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...analyticsHeaders(),
         ...options.headers,
       },
     });
@@ -31,6 +34,7 @@ export const apiClient = {
 
     const response = await fetch(`${API_BASE}${endpoints[mode]}`, {
       method: 'POST',
+      headers: analyticsHeaders(),
       body: formData,
     });
 
@@ -63,6 +67,7 @@ export const apiClient = {
 
     const response = await fetch(`${API_BASE}/focus/session/${sessionId}/frame`, {
       method: 'POST',
+      headers: analyticsHeaders(),
       body: formData,
     });
 

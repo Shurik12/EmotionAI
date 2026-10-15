@@ -251,6 +251,13 @@ bool Config::loadFromFile(const std::string &config_path)
             cfg.base_disgust = bo["base_disgust"].as<double>(cfg.base_disgust);
         }
 
+        if (root["analytics"])
+        {
+            const auto &analytics = root["analytics"];
+            new_data.analytics.enabled = analytics["enabled"].as<bool>(new_data.analytics.enabled);
+            new_data.analytics.path = analytics["path"].as<std::string>(new_data.analytics.path);
+        }
+
         data_ = std::move(new_data);
         loaded_.store(true);
 
@@ -318,6 +325,13 @@ bool Config::loadFromFile(const std::string &config_path)
             spdlog::info("  Base URL: {}", new_data.ai.base_url);
             spdlog::info("  Model: {}", new_data.ai.model);
         }
+
+        spdlog::info("Analytics configuration:");
+        spdlog::info("  Enabled: {}", new_data.analytics.enabled);
+        spdlog::info("  Event log: {}",
+                     new_data.analytics.path.empty()
+                         ? (fs::path(new_data.paths.logs) / "analytics.jsonl").string()
+                         : new_data.analytics.path);
 
         return true;
     }

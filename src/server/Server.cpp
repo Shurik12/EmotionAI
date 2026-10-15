@@ -19,6 +19,7 @@
 #include <ai/AIClient.h>
 #include <focus/FocusSessionManager.h>
 #include <metrics/MetricsCollector.h>
+#include <analytics/AnalyticsLogger.h>
 
 #include <storage/FileStorageFactory.h>
 #include <audio/BurnoutModels.h>
@@ -40,6 +41,66 @@ namespace
     const std::vector<std::string> STATIC_EXTENSIONS = {
         ".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
         ".woff", ".woff2", ".ttf", ".eot", ".map", ".json", ".txt"};
+
+    // First value of a header (keys are stored lower-case).
+    std::string headerValue(const std::map<std::string, std::string> &headers,
+                            const std::string &key)
+    {
+        auto it = headers.find(key);
+        return it == headers.end() ? std::string() : it->second;
+    }
+
+    // Human-facing call type for the analytics "tool call" metric. Derived from
+    // the normalized endpoint so a route rename cannot silently change it.
+    std::string callTypeForEndpoint(const std::string &endpoint)
+    {
+        if (endpoint == "/api/upload")
+            return "image_upload";
+        if (endpoint == "/api/upload_burnout")
+            return "audio_burnout";
+        if (endpoint == "/api/upload_external_influence")
+            return "external_influence";
+        if (endpoint == "/api/burnout/analyze")
+            return "burnout_analyze";
+        if (endpoint == "/api/external-influence/analyze")
+            return "external_influence_analyze";
+        if (endpoint == "/api/focus/session")
+            return "focus_session_create";
+        if (endpoint == "/api/focus/session/:id/frame")
+            return "focus_frame";
+        if (endpoint == "/api/focus/session/:id/close")
+            return "focus_session_close";
+        if (endpoint == "/api/focus/session/:id")
+            return "focus_session_get";
+        if (endpoint == "/api/focus/breakdown")
+            return "focus_breakdown";
+        if (endpoint == "/api/progress/:id" || endpoint == "/api/progress")
+            return "task_progress";
+        if (endpoint == "/api/burnout/baseline/:id")
+            return "baseline_get";
+        if (endpoint == "/api/burnout/baseline")
+            return "baseline_put";
+        if (endpoint == "/api/metrics")
+            return "metrics_scrape";
+        if (endpoint == "/api/health")
+            return "health_check";
+        if (endpoint.rfind("/static", 0) == 0)
+            return "static";
+        if (endpoint.rfind("/api/", 0) == 0)
+            return "api_other";
+        return "page";
+    }
+
+    // The Focus session id embedded in the path, or "" for other routes.
+    std::string focusSessionIdFromPath(const std::string &path)
+    {
+        const std::string prefix = "/api/focus/session/";
+        if (path.rfind(prefix, 0) != 0)
+            return "";
+        const std::string rest = path.substr(prefix.size());
+        const size_t slash = rest.find('/');
+        return slash == std::string::npos ? rest : rest.substr(0, slash);
+    }
 }
 
 Server::Server() = default;
@@ -190,6 +251,12 @@ void Server::initialize()
     loadConfiguration();
     ensureDirectoriesExist();
     initializeComponents();
+
+    // Structured analytics event log (contest requirement 5.1). Enabled by
+    // default; `analytics.enabled: false` in config.yaml turns it off.
+    AnalyticsLogger::instance().initialize(Config::instance().analytics().path,
+                                           Config::instance().analytics().enabled);
+
     setupRoutes();
     createSocket();
     setupEpoll();
@@ -350,6 +417,12 @@ void Server::acceptNewConnection()
     }
 
     auto context = std::make_shared<ClientContext>(client_fd);
+    char ip_buf[INET_ADDRSTRLEN] = {0};
+    if (client_addr.sin_family == AF_INET &&
+        inet_ntop(AF_INET, &client_addr.sin_addr, ip_buf, sizeof(ip_buf)))
+    {
+        context->client_ip = ip_buf;
+    }
     clients_[client_fd] = context;
 
     // Metrics: increment active connections
@@ -575,6 +648,9 @@ void Server::processRequest(const std::shared_ptr<ClientContext> &context)
             if (exact_it != get_routes_.end())
             {
                 exact_it->second(context);
+                // The exact-match branch returns before the common tail, so
+                // record here too (otherwise GET routes never reach metrics).
+                finalizeRequest(context, start_time);
                 return;
             }
 
@@ -627,27 +703,72 @@ void Server::processRequest(const std::shared_ptr<ClientContext> &context)
             sendErrorResponse(context->fd, 405, "Method not allowed");
         }
 
-        // Record metrics with the actual status code sent to the client.
-        auto end_time = std::chrono::steady_clock::now();
-        double duration = std::chrono::duration<double>(end_time - start_time).count();
-        int status = context->last_status_code > 0 ? context->last_status_code : 200;
-        MetricsCollector::instance().recordRequest(
-            context->method, MetricsCollector::normalizePath(context->path), status, duration);
+        // Record metrics and the analytics event with the actual status code
+        // sent to the client.
+        finalizeRequest(context, start_time);
     }
     catch (const std::exception &e)
     {
-        auto end_time = std::chrono::steady_clock::now();
-        double duration = std::chrono::duration<double>(end_time - start_time).count();
-
-        // sendErrorResponse will set last_status_code to 500, but we record
-        // the metric here so the exception path is also captured.
+        // Set the 500 first so finalizeRequest records the real code even if
+        // the error response itself fails to send.
         context->last_status_code = 500;
-        MetricsCollector::instance().recordRequest(
-            context->method, MetricsCollector::normalizePath(context->path), 500, duration);
+        finalizeRequest(context, start_time);
 
         LOG_ERROR("Error processing request: {}", e.what());
         sendErrorResponse(context->fd, 500, "Internal server error");
     }
+}
+
+void Server::finalizeRequest(const std::shared_ptr<ClientContext> &context,
+                             std::chrono::steady_clock::time_point start_time)
+{
+    const auto end_time = std::chrono::steady_clock::now();
+    const double duration_seconds =
+        std::chrono::duration<double>(end_time - start_time).count();
+    const int status = context->last_status_code > 0 ? context->last_status_code : 200;
+    const std::string endpoint = MetricsCollector::normalizePath(context->path);
+
+    // Aggregate Prometheus counters.
+    MetricsCollector::instance().recordRequest(context->method, endpoint, status,
+                                               duration_seconds);
+
+    auto &analytics = AnalyticsLogger::instance();
+    if (!analytics.enabled())
+        return;
+
+    const std::string user_agent = headerValue(context->headers, "user-agent");
+    const std::string client_id = headerValue(context->headers, "x-client-id");
+    const std::string referer = [&]
+    {
+        const std::string explicit_referer = headerValue(context->headers, "x-referrer");
+        return explicit_referer.empty() ? headerValue(context->headers, "referer")
+                                        : explicit_referer;
+    }();
+    const std::string traffic_header = headerValue(context->headers, "x-traffic-source");
+
+    // Path first; fall back to an id a handler stashed (the session id for a
+    // create, which only exists after the handler runs).
+    std::string session_id = focusSessionIdFromPath(context->path);
+    if (session_id.empty())
+    {
+        auto it = context->params.find("session_id");
+        if (it != context->params.end())
+            session_id = it->second;
+    }
+
+    analytics.logRequest(
+        AnalyticsLogger::anonymousUserId(client_id, context->client_ip, user_agent),
+        session_id,
+        context->client_ip,
+        user_agent,
+        referer,
+        AnalyticsLogger::parseTrafficSource(traffic_header, referer),
+        context->method,
+        context->path,
+        endpoint,
+        callTypeForEndpoint(endpoint),
+        status,
+        duration_seconds * 1000.0);
 }
 
 void Server::sendHttpResponse(int client_fd, int status_code, const std::string &content_type, const std::string &body)
@@ -1379,6 +1500,9 @@ void Server::handleFocusSessionCreate(const std::shared_ptr<ClientContext> &cont
     try
     {
         const std::string session_id = FocusSessionManager::instance().createSession();
+        // Expose the generated id to finalizeRequest so the analytics event for
+        // this call carries the same session_id as the frame/close events.
+        context->params["session_id"] = session_id;
         LOG_INFO("Focus session created: {}", session_id);
         sendHttpResponse(context->fd, 201, "application/json",
                          fmt::format(R"({{"session_id": "{}"}})", session_id));
@@ -1485,10 +1609,33 @@ void Server::handleFocusSessionGet(const std::shared_ptr<ClientContext> &context
 // model is slow in practice, raise those limits in config.yaml.
 void Server::handleFocusBreakdown(const std::shared_ptr<ClientContext> &context, const std::string &body)
 {
+    const auto start_time = std::chrono::steady_clock::now();
+
+    // LLM-cost analytics: the model call is the only "tool" here, so it gets
+    // its own event with token usage, attributed to the same anonymized user as
+    // the surrounding HTTP request.
+    const std::string user_agent = headerValue(context->headers, "user-agent");
+    const std::string user_id = AnalyticsLogger::anonymousUserId(
+        headerValue(context->headers, "x-client-id"), context->client_ip, user_agent);
+
+    auto log_llm = [&](const std::string &session_id, const std::string &model,
+                       int prompt_tokens, int completion_tokens, int total_tokens,
+                       int status)
+    {
+        const double duration_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - start_time).count();
+        AnalyticsLogger::instance().logLlmCall(user_id, session_id, "focus_breakdown",
+                                               model, prompt_tokens, completion_tokens,
+                                               total_tokens, status, duration_ms);
+    };
+
     try
     {
+        const std::string model = Config::instance().ai().model;
+
         if (!ai_client_ || !ai_client_->isEnabled())
         {
+            log_llm("", model, 0, 0, 0, 503);
             sendErrorResponse(context->fd, 503, "AI breakdown is not configured");
             return;
         }
@@ -1507,6 +1654,7 @@ void Server::handleFocusBreakdown(const std::shared_ptr<ClientContext> &context,
         const std::string text = request.value("text", "");
         const std::string duration = request.value("duration", "");
         const std::string lang = request.value("lang", "ru");
+        const std::string session_id = request.value("session_id", "");
 
         if (text.empty())
         {
@@ -1518,25 +1666,30 @@ void Server::handleFocusBreakdown(const std::shared_ptr<ClientContext> &context,
         if (result.is_null())
         {
             // The client falls back to its local templates on 502.
+            log_llm(session_id, model, 0, 0, 0, 502);
             sendErrorResponse(context->fd, 502, "AI breakdown unavailable");
             return;
         }
 
-        // Record token usage for cost tracking
+        // Record token usage for cost tracking (aggregate + per-call event).
+        int prompt_tokens = 0, completion_tokens = 0, total_tokens = 0;
         if (result.contains("usage"))
         {
             const auto &u = result["usage"];
-            MetricsCollector::instance().recordAiCall(
-                u.value("prompt_tokens", 0),
-                u.value("completion_tokens", 0),
-                u.value("total_tokens", 0));
+            prompt_tokens = u.value("prompt_tokens", 0);
+            completion_tokens = u.value("completion_tokens", 0);
+            total_tokens = u.value("total_tokens", 0);
+            MetricsCollector::instance().recordAiCall(prompt_tokens, completion_tokens,
+                                                      total_tokens);
         }
 
+        log_llm(session_id, model, prompt_tokens, completion_tokens, total_tokens, 200);
         sendHttpResponse(context->fd, 200, "application/json", result.dump());
     }
     catch (const std::exception &e)
     {
         LOG_ERROR("Exception in focus breakdown: {}", e.what());
+        log_llm("", Config::instance().ai().model, 0, 0, 0, 500);
         sendErrorResponse(context->fd, 500, "Internal server error");
     }
 }

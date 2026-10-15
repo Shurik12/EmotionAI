@@ -78,6 +78,13 @@ ai:
   verify_ssl: true
   timeout_seconds: 30
 
+# Structured analytics event log (contest requirement 5.1). One JSON object per
+# line: anonymized user id, UTC timestamp, traffic source, call type,
+# result/error code, and LLM token usage. Empty `path` -> <paths.logs>/analytics.jsonl.
+analytics:
+  enabled: true
+  path: "logs/analytics.jsonl"
+
 # Audio burnout analysis. Every key is optional; values below are the
 # built-in defaults, calibrated on the current benchmark/control set with
 # tests/benchmark/BurnoutBenchmark.cpp. The default baseline was previously a

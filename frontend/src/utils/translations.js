@@ -584,6 +584,7 @@ export const translations = {
         pauseTempo: 'Изменение темпа речи и паузы',
         negativeActivation: 'Эмоциональное напряжение',
         positiveAffectLoss: 'Снижение положительной эмоциональной окраски',
+        voiceActivityDrop: 'Снижение речевой активности',
       },
 
       states: {
@@ -1413,6 +1414,7 @@ export const translations = {
         pauseTempo: 'Pause/Tempo Changes',
         negativeActivation: 'Negative Activation',
         positiveAffectLoss: 'Positive Affect Loss',
+        voiceActivityDrop: 'Reduced Voice Activity',
       },
       
       states: {
