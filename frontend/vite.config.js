@@ -51,7 +51,6 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-            'vendor': ['axios'],
           },
         },
       },
@@ -59,7 +58,7 @@ export default defineConfig(({ mode }) => {
     },
 
     optimizeDeps: {
-      include: ['react', 'react-dom', 'react-router-dom', 'axios'],
+      include: ['react', 'react-dom', 'react-router-dom'],
     },
 
     esbuild: {
