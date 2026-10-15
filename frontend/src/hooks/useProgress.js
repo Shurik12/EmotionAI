@@ -18,27 +18,26 @@ export const useProgress = () => {
       try {
         const data = await apiClient.getProgress(taskId);
         
-        let message = data.message || 'detector.processing';
-        
-        // Handle specific messages from the server
-        if (data.message) {
-          if (data.message.includes('frame') || data.message.includes('segment')) {
-            message = data.message;
-          } else if (data.message === 'Burnout analysis complete') {
-            message = 'detector.burnoutComplete';
-          } else if (data.message === 'External influence analysis complete') {
-            message = 'detector.externalInfluenceComplete';
-          } else if (data.message === 'Processing audio...' || data.message === 'Processing audio for burnout analysis'
-              || data.message === 'Processing audio for external influence analysis') {
-            message = 'detector.processingAudio';
-          } else if (data.message === 'Video processing...') {
-            message = 'detector.processingVideo';
-          } else if (data.message === 'Image processing...') {
-            message = 'detector.processingImage';
-          } else if (data.message === 'File uploaded, starting analysis...') {
-            message = 'detector.startingProcessing';
+        // Map server progress messages to translation keys. Unknown
+        // messages fall back to a generic key so no raw English ever
+        // reaches the UI in RU mode.
+        const mapMessage = (msg) => {
+          if (!msg) return 'detector.processing';
+          if (msg.includes('frame') || msg.includes('segment')) {
+            // Per-frame / per-segment messages are already localized
+            // server-side via the translation system; pass through.
+            return msg;
           }
-        }
+          const lower = msg.toLowerCase();
+          if (lower.includes('burnout') && lower.includes('complete')) return 'detector.burnoutComplete';
+          if (lower.includes('external influence') && lower.includes('complete')) return 'detector.externalInfluenceComplete';
+          if (lower.includes('audio')) return 'detector.processingAudio';
+          if (lower.includes('video')) return 'detector.processingVideo';
+          if (lower.includes('image')) return 'detector.processingImage';
+          if (lower.includes('uploaded') || lower.includes('starting')) return 'detector.startingProcessing';
+          return 'detector.fileProcessing';
+        };
+        const message = mapMessage(data.message);
         
         setProgress({
           text: message,
