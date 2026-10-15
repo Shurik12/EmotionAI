@@ -66,6 +66,7 @@ private:
         std::map<std::string, std::string> headers;
         std::map<std::string, std::string> params;
         bool headers_complete;
+        bool body_too_large{false};
         size_t content_length;
 
         ClientContext(int socket_fd) : fd(socket_fd), headers_complete(false), content_length(0) {}

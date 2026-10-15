@@ -516,7 +516,14 @@ void Server::handleClientData(int client_fd)
             if (context->headers_complete &&
                 (context->content_length == 0 || context->buffer.length() >= context->content_length))
             {
-                processRequest(context);
+                if (context->body_too_large)
+                {
+                    sendErrorResponse(context->fd, 413, "Request body too large");
+                }
+                else
+                {
+                    processRequest(context);
+                }
                 return;
             }
         }
@@ -602,6 +609,17 @@ void Server::parseHttpRequest(const std::shared_ptr<ClientContext> &context)
 
     context->headers_complete = true;
     context->buffer = context->buffer.substr(header_end + 4);
+
+    // Enforce the configured body-size cap. Without this, a client can
+    // declare an arbitrarily large Content-Length and the server will
+    // buffer the entire body into memory.
+    const auto max_content_length = Config::instance().app().max_content_length;
+    if (context->content_length > static_cast<unsigned long>(max_content_length))
+    {
+        LOG_WARN("Rejecting {} {} — Content-Length {} exceeds max_content_length {}",
+                 context->method, context->path, context->content_length, max_content_length);
+        context->body_too_large = true;
+    }
 
     LOG_DEBUG("Request parsed: {} {} (content-length: {})",
               context->method, context->path, context->content_length);
@@ -739,7 +757,7 @@ void Server::processRequest(const std::shared_ptr<ClientContext> &context)
 void Server::sendHttpResponse(int client_fd, int status_code, const std::string &content_type, const std::string &body)
 {
     static const std::map<int, std::string> STATUS_TEXTS = {
-        {200, "OK"}, {201, "Created"}, {202, "Accepted"}, {400, "Bad Request"}, {404, "Not Found"}, {405, "Method Not Allowed"}, {500, "Internal Server Error"}, {502, "Bad Gateway"}, {503, "Service Unavailable"}};
+        {200, "OK"}, {201, "Created"}, {202, "Accepted"}, {400, "Bad Request"}, {404, "Not Found"}, {405, "Method Not Allowed"}, {413, "Payload Too Large"}, {500, "Internal Server Error"}, {502, "Bad Gateway"}, {503, "Service Unavailable"}};
 
     std::string status_text = STATUS_TEXTS.count(status_code) ? STATUS_TEXTS.at(status_code) : "Unknown";
 
