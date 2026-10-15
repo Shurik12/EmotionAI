@@ -1,5 +1,6 @@
 export const translations = {
   ru: {
+    privacy_error: 'Не удалось загрузить политику конфиденциальности',
     common: {
       processing: 'Обработка...',
       analyze: 'Анализировать',
@@ -829,6 +830,7 @@ export const translations = {
     },
   },
   en: {
+    privacy_error: 'Failed to load the privacy policy',
     common: {
       processing: 'Processing...',
       analyze: 'Analyze',
