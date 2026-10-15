@@ -767,19 +767,34 @@ nlohmann::json Audio::add_burnout_analysis(
         // Default baseline is the empirically calibrated population median,
         // used only when the caller did not supply a stored per-user baseline.
         const nlohmann::json default_baseline = cfg.defaultBaselineJson();
-        
+
         // Run burnout analysis
         audio::BurnoutAnalyzer analyzer;
-        double audio_quality = result.value("duration_seconds", 1.0) / 5.0;
-        audio_quality = std::min(1.0, std::max(0.5, audio_quality));
-        double baseline_reliability = baseline.empty() ? 0.3 : 0.7;
-        
+
+        // audio_quality is a proxy for how long the recording is. A clip of a
+        // few seconds is far less reliable than a full call, so ramp it 0..1
+        // over the configured threshold instead of using a clamped constant.
+        // (duration_seconds is set by the caller: the window length on the
+        // multi-window path, the true duration on the single-shot path.)
+        const double duration = result.value("duration_seconds", 0.0);
+        const double threshold = cfg.duration_confidence_threshold_s > 0.0
+            ? cfg.duration_confidence_threshold_s : 30.0;
+        const double audio_quality = std::min(1.0, std::max(0.0, duration / threshold));
+        const double baseline_reliability = baseline.empty() ? 0.3 : 0.7;
+
         const nlohmann::json& baseline_to_use = baseline.empty() ? default_baseline : baseline;
-        
+
+        // The analyzer's confidence term uses history.size() as "how many
+        // independent samples scored". On the multi-window path that's the
+        // number of usable windows; on the single-shot path it's 1.
+        const int windows_scored = result.value("burnout_windows_scored", 1);
+        std::vector<nlohmann::json> history(static_cast<size_t>(
+            std::max(1, windows_scored)));
+
         auto burnout_result = analyzer.analyze(
             result,
             baseline_to_use,
-            {}, // history
+            history,
             audio_quality,
             baseline_reliability
         );
@@ -924,7 +939,10 @@ nlohmann::json Audio::process_audio_with_burnout(
         }},
         {"additional_probs", std::move(agg_probs)},
         {"model", "wavlm-emotion-russian-resd"},
-        {"duration_seconds", window_seconds},
+        // The true recording length, not the (fixed) window length. Confidence
+        // ramps with duration, so a 2-minute call must not score the same as a
+        // 5-second clip. window_seconds is the per-window WavLM ceiling only.
+        {"duration_seconds", duration},
         {"sample_rate", TARGET_SR},
         {"windows_total", window_count},
         {"windows_scored", static_cast<int>(window_probs.size())}

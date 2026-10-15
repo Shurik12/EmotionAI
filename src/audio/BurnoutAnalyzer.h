@@ -139,11 +139,38 @@ private:
     // Get the dominant factor
     std::string getTopFactor(const std::unordered_map<std::string, double>& components);
     
-    // Determine state with history-aware logic
+    // Confidence is a data-driven proxy for how reliable THIS recording's
+    // score is, not a fixed constant: a long call with several usable windows
+    // and a stored per-user baseline is far more trustworthy than a 2 s clip
+    // scored against the population default. The three terms are:
+    //   duration_confidence_weight      * (recording duration ramped 0..1)
+    //   windows_confidence_weight       * (scored windows ramped 0..1 over >=3)
+    //   baseline_reliability_confidence * baseline_reliability
+    // The weights sum to 1.0 so confidence stays in [0,1]. Public so tests
+    // can pin the invariant and the UI can document the model.
+public:
+    static constexpr double duration_confidence_weight = 0.40;
+    static constexpr double windows_confidence_weight = 0.20;
+    static constexpr double baseline_reliability_confidence = 0.40;
+private:
+
+    // Determine state from a SINGLE recording.
+    //
+    // NOTE: this intentionally has NO history parameter. The earlier
+    // multi-recording logic (distinguishing SUSTAINED_STRESS / BURNOUT_LIKE
+    // from SHORT_STRESS using prior recordings) was unreachable dead code:
+    // every caller passed an empty history, so those states could never be
+    // produced and the 0.50-0.65 band silently fell through to SUSTAINED_STRESS.
+    // Until per-user history is persisted and threaded through, a single
+    // recording only supports: NORMAL (low risk), LOW_AFFECT_UNSPECIFIC
+    // (a specific low-risk pattern), SHORT_STRESS (mild-elevated), and
+    // SUSTAINED_STRESS (persistently elevated). BURNOUT_LIKE remains a valid
+    // enum value for API stability but is unreachable from a single recording
+    // by design — chronic-vs-acute classification needs history, which is not
+    // yet wired (see docs/code-review-burnout.md, finding H1).
     State determineState(
         double risk,
-        const std::unordered_map<std::string, double>& components,
-        const std::vector<nlohmann::json>& history
+        const std::unordered_map<std::string, double>& components
     );
     
     // Generate recommendation KEYS for frontend translations

@@ -242,6 +242,7 @@ bool Config::loadFromFile(const std::string &config_path)
                 cfg.aggregation = bo["aggregation"].as<std::string>(cfg.aggregation);
 
             cfg.min_voice_activity_ratio = bo["min_voice_activity_ratio"].as<double>(cfg.min_voice_activity_ratio);
+            cfg.duration_confidence_threshold_s = bo["duration_confidence_threshold_s"].as<double>(cfg.duration_confidence_threshold_s);
 
             cfg.base_pitch_variation = bo["base_pitch_variation"].as<double>(cfg.base_pitch_variation);
             cfg.base_pitch_range = bo["base_pitch_range"].as<double>(cfg.base_pitch_range);
