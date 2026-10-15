@@ -7,14 +7,33 @@ import { ExternalInfluenceResults } from './ExternalInfluenceResults';
 import { getEmotionEntries, getBurnoutAnalysis } from '../utils/helpers';
 import { getFeatureColor } from '../utils/constants';
 
-export const DetectorResults = ({ results }) => {
-  const { t } = useLanguage();
-  
+const MODE_LABEL_KEYS = {
+  image: 'detector.modes.standard',
+  video: 'detector.modes.standard',
+  audio: 'detector.modes.standard',
+  burnout: 'detector.modes.burnout',
+  audio_burnout: 'detector.modes.burnout',
+  external_influence: 'detector.modes.externalInfluence',
+  audio_external_influence: 'detector.modes.externalInfluence',
+};
+
+const formatDate = (lang) => {
+  const locale = lang === 'ru' ? 'ru-RU' : 'en-US';
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date());
+  } catch {
+    return new Date().toLocaleString();
+  }
+};
+
+export const DetectorResults = ({ results, fileName, mode }) => {
+  const { t, language } = useLanguage();
+
   if (!results) return null;
 
-  console.log('Results received:', results); // Debug log
-
-  // Determine the actual result data
   const getResultData = () => {
     // If results has a 'result' property with the data
     if (results.result && typeof results.result === 'object') {
@@ -48,9 +67,44 @@ export const DetectorResults = ({ results }) => {
     }
   };
 
+  const handlePrint = () => {
+    // Let the results render fully before opening the print dialog.
+    window.setTimeout(() => window.print(), 0);
+  };
+
+  const modeLabelKey = MODE_LABEL_KEYS[results.type] || 'detector.modes.standard';
+  const metaRows = [
+    { label: t('detector.reportDate'), value: formatDate(language) },
+    fileName ? { label: t('detector.reportFile'), value: fileName } : null,
+    { label: t('detector.reportMode'), value: t(modeLabelKey) },
+  ].filter(Boolean);
+
   return (
-    <div className="results-container">
+    <div className="results-container" id="detector-results">
+      <div className="print-only">
+        <div className="print-report-header">
+          <h2>{t('detector.reportTitle')}</h2>
+          <div className="print-report-meta">
+            {metaRows.map((row) => (
+              <div key={row.label} className="print-report-meta-row">
+                <span className="print-report-meta-label">{row.label}</span>
+                <span className="print-report-meta-value">{row.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="print-report-hint">{t('detector.printHint')}</p>
+      </div>
+
       {renderResults()}
+
+      <button
+        type="button"
+        className="btn no-print export-pdf-btn"
+        onClick={handlePrint}
+      >
+        {t('detector.exportPdf')}
+      </button>
     </div>
   );
 };

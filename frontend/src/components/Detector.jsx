@@ -194,7 +194,7 @@ export const Detector = () => {
         </div>
       </section>
 
-      {results && <DetectorResults results={results} />}
+      {results && <DetectorResults results={results} fileName={fileName} mode={mode} />}
     </div>
   );
 };
