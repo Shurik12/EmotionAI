@@ -1007,11 +1007,13 @@ std::pair<cv::Mat, nlohmann::json> FileProcessor::process_image(const cv::Mat& i
 {
     std::lock_guard<std::mutex> lock(model_mutex_);
 
+    // Error responses must use the same JSON shape as the success path so
+    // the frontend (which reads main_prediction.label/probability and
+    // additional_probs) and the video-averaging logic handle them uniformly.
     if (!fer_ || !model_loaded_) {
         LOG_WARN("Emotion model not loaded");
         return {image.clone(), {
-            {"emotion", "unknown"},
-            {"confidence", 0.0},
+            {"main_prediction", {{"index", -1}, {"label", "unknown"}, {"probability", 0.0}}},
             {"additional_probs", nlohmann::json::object()}
         }};
     }
@@ -1022,9 +1024,7 @@ std::pair<cv::Mat, nlohmann::json> FileProcessor::process_image(const cv::Mat& i
     } catch (const std::exception& e) {
         LOG_ERROR("Image processing error: {}", e.what());
         return {image.clone(), {
-            {"emotion", "error"},
-            {"confidence", 0.0},
-            {"error", e.what()},
+            {"main_prediction", {{"index", -1}, {"label", "error"}, {"probability", 0.0}}},
             {"additional_probs", nlohmann::json::object()}
         }};
     }
