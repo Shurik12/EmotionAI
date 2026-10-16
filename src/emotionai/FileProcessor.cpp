@@ -17,6 +17,7 @@
 #include <audio/LibrosaFeatureExtractor.h>
 #include <audio/BurnoutAnalyzer.h>
 #include <audio/ExternalInfluenceAnalyzer.h>
+#include <ai/AIClient.h>
 #include "FileProcessor.h"
 
 namespace fs = std::filesystem;
@@ -800,6 +801,34 @@ nlohmann::json FileProcessor::analyze_external_influence(
 }
 
 //=============================================================================
+// Image/video LLM second stage
+//=============================================================================
+void FileProcessor::addAIAnalysis(nlohmann::json& target,
+                                  const nlohmann::json& emotions,
+                                  const std::string& task_id)
+{
+    if (!ai_client_ || !emotions.is_object() || emotions.empty()) {
+        return;
+    }
+
+    try {
+        LOG_INFO("Requesting AI interpretation: Task={}", task_id);
+        auto analysis = ai_client_->assessDepression(emotions);
+
+        if (analysis.is_object() && analysis.contains("verdict")) {
+            target["ai_analysis"] = analysis;
+            LOG_INFO("AI interpretation added: Task={}, verdict={}",
+                     task_id, analysis.value("verdict", ""));
+        } else {
+            LOG_WARN("AI interpretation unavailable: Task={}", task_id);
+        }
+    } catch (const std::exception& e) {
+        // Best-effort stage: never fail the emotion analysis because of it.
+        LOG_ERROR("AI interpretation failed: Task={}, Error={}", task_id, e.what());
+    }
+}
+
+//=============================================================================
 // Image Processing
 //=============================================================================
 nlohmann::json FileProcessor::process_image_file(const std::string& task_id, 
@@ -828,6 +857,11 @@ nlohmann::json FileProcessor::process_image_file(const std::string& task_id,
     // scoring has a consistent input regardless of file type (image/video).
     std::vector<nlohmann::json> frame_results = {nlohmann::json{{"result", emotion_result}}};
     nlohmann::json avg_emotions = calculate_average_emotions(frame_results);
+
+    // Second stage: LLM interpretation of the detected emotion probabilities.
+    addAIAnalysis(emotion_result,
+                  emotion_result.value("additional_probs", nlohmann::json::object()),
+                  task_id);
 
     return {
         {"type", "image"},
@@ -952,7 +986,7 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
         }
     }
 
-    return {
+    nlohmann::json video_result = {
         {"type", "video"},
         {"frames_processed", processed_count},
         {"results", results},
@@ -965,6 +999,12 @@ nlohmann::json FileProcessor::process_video_file(const std::string& task_id,
         {"fps", fps},
         {"duration", total_frames / fps}
     };
+
+    // Second stage: one LLM interpretation over the averaged emotions (not per
+    // frame) so a long video costs a single extra model call.
+    addAIAnalysis(video_result, avg_emotions, task_id);
+
+    return video_result;
 }
 
 FileProcessor::FrameResult FileProcessor::process_video_frame(const cv::Mat& frame, 

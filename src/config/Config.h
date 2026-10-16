@@ -161,6 +161,10 @@ private:
 	struct AIConfig
 	{
 		bool enabled{false};
+		// Per-feature switches. `enabled` is the master switch (provider +
+		// credentials); these gate the individual consumers of the LLM.
+		bool focus_enabled{true};      // Focus task breakdown (/api/focus/breakdown)
+		bool depression_enabled{true}; // image/video second-stage interpretation
 		// OpenAI-compatible endpoint. The client posts to
 		// {base_url}/chat/completions with "Authorization: Bearer <api_key>".
 		std::string base_url{"https://shared1.multitool.works:4000/v1"};
@@ -169,6 +173,9 @@ private:
 		bool verify_ssl{true};
 		long timeout_seconds{10};
 		long connect_timeout_seconds{5};
+		// Larger budget for the image/video interpretation (verbose reasoning
+		// model, runs off the epoll thread).
+		long media_timeout_seconds{60};
 	};
 
 	struct AnalyticsConfig

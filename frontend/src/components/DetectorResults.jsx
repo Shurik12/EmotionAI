@@ -4,7 +4,7 @@ import { EmotionBar } from './EmotionBar';
 import { EmotionLineChart } from './DetectorCharts';
 import { BurnoutAnalysis } from './BurnoutAnalysis';
 import { ExternalInfluenceResults } from './ExternalInfluenceResults';
-import { getEmotionEntries, getBurnoutAnalysis } from '../utils/helpers';
+import { getEmotionEntries, getBurnoutAnalysis, getVerdictInfo } from '../utils/helpers';
 import { getFeatureColor } from '../utils/constants';
 
 const MODE_LABEL_KEYS = {
@@ -148,6 +148,47 @@ export const ValenceArousal = ({ features }) => {
   );
 };
 
+// Second-stage LLM interpretation of an image/video result. The data is the
+// backend "ai_analysis" block: {verdict, probability, reasoning, scores}.
+const AIAnalysis = ({ data }) => {
+  const { t } = useLanguage();
+  if (!data || !data.verdict) return null;
+
+  const verdictInfo = getVerdictInfo(data.verdict);
+  const probability =
+    typeof data.probability === 'number' ? data.probability : parseFloat(data.probability);
+  const scores = data.scores && typeof data.scores === 'object' ? data.scores : {};
+
+  return (
+    <div className="ai-analysis">
+      <h4>{t('detector.aiAnalysis') || 'AI interpretation'}</h4>
+      <div className={`ai-verdict ${verdictInfo.class}`}>
+        <span className="ai-verdict-icon">{verdictInfo.icon}</span>
+        <span className="ai-verdict-text">{t(`detector.aiVerdict.${data.verdict}`)}</span>
+        {Number.isFinite(probability) && (
+          <span className="ai-probability">
+            {t('detector.aiProbability') || 'Probability'}: {(probability * 100).toFixed(0)}%
+          </span>
+        )}
+      </div>
+      {data.reasoning && <p className="ai-reasoning">{data.reasoning}</p>}
+      {Object.keys(scores).length > 0 && (
+        <details className="ai-scores">
+          <summary>{t('detector.aiScores') || 'Scores'}</summary>
+          <ul>
+            {Object.entries(scores).map(([key, value]) => (
+              <li key={key}>
+                <span>{t(`detector.aiScoreLabels.${key}`)}</span>
+                <span>{value}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+};
+
 const ImageResults = ({ results, resultData }) => {
   const { t } = useLanguage();
   const { emotions, features } = getEmotionEntries(resultData?.additional_probs);
@@ -178,7 +219,9 @@ const ImageResults = ({ results, resultData }) => {
       )}
       
       <ValenceArousal features={features} />
-      
+
+      {resultData?.ai_analysis && <AIAnalysis data={resultData.ai_analysis} />}
+
       {burnout && <BurnoutAnalysis data={burnout} />}
     </div>
   );
@@ -228,6 +271,8 @@ const VideoResults = ({ results, resultData }) => {
           ))}
         </div>
       )}
+
+      {resultData?.ai_analysis && <AIAnalysis data={resultData.ai_analysis} />}
 
       <div className="video-frames">
         {firstFrame && <VideoFrame frame={firstFrame} index={0} />}

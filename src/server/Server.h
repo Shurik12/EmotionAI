@@ -79,11 +79,15 @@ private:
     std::map<std::string, std::function<void(const std::shared_ptr<ClientContext> &)>> get_routes_;
     std::map<std::string, std::function<void(const std::shared_ptr<ClientContext> &)>> options_routes_;
 
-    // Common components
+    // Common components.
+    // Declaration order matters: members are destroyed in reverse, and
+    // FileProcessor holds a non-owning pointer to the AI client, so the
+    // thread pool (which runs FileProcessor tasks) and the processor must be
+    // destroyed before ai_client_.
     std::shared_ptr<DragonflyManager> dragonfly_manager_;
+    std::unique_ptr<emotionai::ai::AIClient> ai_client_;
     std::unique_ptr<FileProcessor> file_processor_;
     std::unique_ptr<ThreadPool> thread_pool_;
-    std::unique_ptr<emotionai::ai::AIClient> ai_client_;
 
     // Cluster components
     std::string instance_id_;
