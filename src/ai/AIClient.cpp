@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <vector>
 
 namespace emotionai
 {
@@ -52,7 +53,8 @@ namespace emotionai
 
         std::string AIClient::chatCompletion(const std::string &systemPrompt,
                                              const std::string &userPrompt,
-                                             TokenUsage *usage)
+                                             TokenUsage *usage,
+                                             long timeoutSecondsOverride)
         {
             if (!m_config.enabled)
                 return "";
@@ -83,7 +85,9 @@ namespace emotionai
             curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
             curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_str.c_str());
             curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, m_config.verifySsl ? 1L : 0L);
-            curl_easy_setopt(curl, CURLOPT_TIMEOUT, m_config.timeoutSeconds);
+            const long timeout = timeoutSecondsOverride > 0 ? timeoutSecondsOverride
+                                                            : m_config.timeoutSeconds;
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
             curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, m_config.connectTimeoutSeconds);
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
@@ -184,6 +188,132 @@ namespace emotionai
 
             return nlohmann::json{
                 {"steps", steps},
+                {"usage", nlohmann::json{
+                     {"prompt_tokens", usage.promptTokens},
+                     {"completion_tokens", usage.completionTokens},
+                     {"total_tokens", usage.totalTokens}}}};
+        }
+
+        nlohmann::json AIClient::assessDepression(const nlohmann::json &emotions)
+        {
+            if (!m_config.enabled || !emotions.is_object() || emotions.empty())
+                return nlohmann::json();
+
+            // Keep only the emotion probabilities; drop derived features
+            // (valence/arousal) so the model always sees a stable schema.
+            static const std::vector<std::string> keys = {
+                "anger", "contempt", "disgust", "fear",
+                "happiness", "neutral", "sadness", "surprise"};
+
+            nlohmann::json filtered = nlohmann::json::object();
+            for (const auto &key : keys)
+            {
+                if (!emotions.contains(key))
+                    continue;
+                const auto &value = emotions[key];
+                if (value.is_number())
+                {
+                    filtered[key] = value.get<double>();
+                }
+                else if (value.is_string())
+                {
+                    try
+                    {
+                        filtered[key] = std::stod(value.get<std::string>());
+                    }
+                    catch (...)
+                    {
+                    }
+                }
+            }
+
+            if (filtered.empty())
+                return nlohmann::json();
+
+            const std::string systemPrompt = R"(Ты - AI ассистент для анализа эмоций сотрудника. На основе вероятностей эмоций оцени риск депрессивного состояния.
+
+Правила анализа:
+
+1. Вычисли показатели:
+- Valence = happiness - (anger + disgust + fear + sadness + surprise) / 5
+- Intensity = 1 - neutral
+- NA (Negative Affect) = sadness + fear + disgust + anger
+
+2. Рассчитай баллы по таблице:
+
+| Признак | Условие | Баллы |
+|---------|---------|-------|
+| Valence | <= -0.20 | 2 |
+| Valence | -0.20 < Valence <= 0 | 1 |
+| Intensity | <= -0.20 | 2 |
+| Intensity | -0.20 < Intensity <= -0.10 | 1 |
+| Joy (happiness) | <= 0.10 | 2 |
+| Joy (happiness) | 0.10-0.20 | 1 |
+| NA | >= 0.50 | 2 |
+| NA | 0.35-0.49 | 1 |
+| Disgust | >= 0.15 | 1 |
+
+3. Определи вердикт по сумме баллов:
+- 0-2 балла → verdict = "low" (Низкая вероятность депрессии)
+- 3-5 баллов → verdict = "monitor" (Требуется наблюдение)
+- 6+ баллов → verdict = "high" (Высокая вероятность депрессии)
+
+4. Вероятность (probability):
+- Для low: 0.1-0.3
+- Для monitor: 0.4-0.7
+- Для high: 0.8-0.95
+
+5. Reasoning (на русском, кратко, по шаблону):
+
+Для low:
+"На текущем видео не выявлен выраженный депрессивный аффективный паттерн. Эмоциональная экспрессивность сохранена, положительный аффект представлен, выраженного негативного смещения и признаков эмоционального уплощения не наблюдается."
+
+Для monitor:
+"Выявлены отдельные визуальные маркеры, ассоциированные с депрессивным аффективным паттерном: [указать конкретные признаки - сниженная доля положительного аффекта, умеренное негативное смещение, признаки эмоционального уплощения, рост паттернов презрения и/или отвращения]. Такое сочетание требует наблюдения в динамике и более частых контактов со специалистом."
+
+Для high:
+"Выявлена выраженная комбинация визуальных аффективных признаков, ассоциированных с депрессивной симптоматикой: [указать конкретные признаки - отрицательное смещение валентности, дефицит положительного аффекта, признаки эмоционального уплощения, доминирование негативных паттернов]. Такая комбинация повышает вероятность клинически значимого депрессивного состояния и требует очной оценки профильным специалистом."
+
+Ответь строго в формате JSON без дополнительного текста:
+{
+    "verdict": "low" или "monitor" или "high",
+    "probability": число от 0 до 1,
+    "reasoning": "объяснение на русском языке",
+    "scores": {
+        "valence_score": число,
+        "intensity_score": число,
+        "joy_score": число,
+        "na_score": число,
+        "disgust_score": число,
+        "total_score": число
+    }
+})";
+
+            const std::string userPrompt =
+                "Эмоции (вероятности от 0 до 1):\n" + filtered.dump(2) +
+                "\n\nТвой ответ (только JSON):";
+
+            TokenUsage usage;
+            const std::string content = chatCompletion(systemPrompt, userPrompt, &usage,
+                                                       m_config.mediaTimeoutSeconds);
+            if (content.empty())
+                return nlohmann::json();
+
+            const nlohmann::json parsed = extractJson(content);
+            if (!parsed.is_object())
+                return nlohmann::json();
+
+            const std::string verdict = parsed.value("verdict", "");
+            if (verdict != "low" && verdict != "monitor" && verdict != "high")
+                return nlohmann::json();
+
+            return nlohmann::json{
+                {"verdict", verdict},
+                {"probability", parsed.value("probability", 0.0)},
+                {"reasoning", parsed.value("reasoning", "")},
+                {"scores", parsed.contains("scores") && parsed["scores"].is_object()
+                               ? parsed["scores"]
+                               : nlohmann::json::object()},
                 {"usage", nlohmann::json{
                      {"prompt_tokens", usage.promptTokens},
                      {"completion_tokens", usage.completionTokens},

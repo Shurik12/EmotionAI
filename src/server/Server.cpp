@@ -206,10 +206,23 @@ void Server::initializeComponents()
             aiConfig.verifySsl = config.ai().verify_ssl;
             aiConfig.timeoutSeconds = config.ai().timeout_seconds;
             aiConfig.connectTimeoutSeconds = config.ai().connect_timeout_seconds;
+            aiConfig.mediaTimeoutSeconds = config.ai().media_timeout_seconds;
 
             ai_client_ = std::make_unique<emotionai::ai::AIClient>(aiConfig);
 
             LOG_INFO("AI client initialized: model={}", aiConfig.model);
+
+            // Second stage for image/video analysis: attach the (non-owning)
+            // client to FileProcessor only when the feature is enabled.
+            if (config.ai().depression_enabled)
+            {
+                file_processor_->setAIClient(ai_client_.get());
+                LOG_INFO("AI image/video interpretation enabled");
+            }
+            else
+            {
+                LOG_INFO("AI image/video interpretation disabled (ai.depression_enabled=false)");
+            }
         }
         else
         {
@@ -1720,6 +1733,13 @@ void Server::handleFocusBreakdown(const std::shared_ptr<ClientContext> &context,
     try
     {
         const std::string model = Config::instance().ai().model;
+
+        if (!Config::instance().ai().focus_enabled)
+        {
+            log_llm("", model, 0, 0, 0, 503);
+            sendErrorResponse(context->fd, 503, "AI breakdown is disabled");
+            return;
+        }
 
         if (!ai_client_ || !ai_client_->isEnabled())
         {

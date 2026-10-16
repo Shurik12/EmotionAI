@@ -17,6 +17,10 @@ namespace emotionai
             bool verifySsl{true};
             long timeoutSeconds{10};
             long connectTimeoutSeconds{5};
+            // The image/video interpretation is more verbose (the model emits a
+            // reasoning trace) and runs on a worker thread, so it gets a larger
+            // budget than the epoll-thread Focus breakdown.
+            long mediaTimeoutSeconds{60};
         };
 
         struct TokenUsage
@@ -48,12 +52,27 @@ namespace emotionai
                                          const std::string &duration,
                                          const std::string &lang);
 
+            // Second-stage interpretation of an image/video emotion result.
+            //
+            // `emotions` is an object of per-emotion probabilities in [0,1]
+            // (the "additional_probs" block, or the averaged emotions of a
+            // video). Returns
+            //   {"verdict": "low"|"monitor"|"high", "probability": 0..1,
+            //    "reasoning": "...", "scores": {...},
+            //    "usage": {"prompt_tokens": N, ...}}
+            // or a null json on any failure, so the caller can simply skip the
+            // second stage. Only emotion probabilities are sent — never pixel
+            // data, frames or files.
+            nlohmann::json assessDepression(const nlohmann::json &emotions);
+
         private:
             // Returns the assistant message content, or "" on failure.
             // If usage is non-null, fills it with token counts from the response.
+            // `timeoutSecondsOverride` > 0 replaces the configured timeout.
             std::string chatCompletion(const std::string &systemPrompt,
                                        const std::string &userPrompt,
-                                       TokenUsage *usage = nullptr);
+                                       TokenUsage *usage = nullptr,
+                                       long timeoutSecondsOverride = 0);
 
             AIConfig m_config;
         };

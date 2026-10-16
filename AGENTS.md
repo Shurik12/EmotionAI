@@ -132,7 +132,25 @@ synchronous (inline in the epoll handler). **Privacy invariant:** only the task 
 block duration are sent to the model — never camera frames, emotions or personal data; a
 disabled/unavailable model returns 502/503 and the frontend falls back to the deterministic
 local templates in `frontend/src/utils/taskBreakdown.js`. The old GigaChat emotion analysis
-was removed entirely with EMO-19.
+was removed with EMO-19.
+
+**Image/video has a second, LLM-backed stage (recovered).** After the emotion model scores an
+image (or a video's averaged emotions), `FileProcessor::addAIAnalysis` sends the per-emotion
+probabilities to the same `ai:` provider via `AIClient::assessDepression`, which returns a
+depression-risk verdict `{verdict: low|monitor|high, probability, reasoning, scores}` stored as
+`result.ai_analysis` (image: inside `result.result`; video: next to `average_emotions`). The
+frontend renders it in `DetectorResults.jsx` (`AIAnalysis`) using `getVerdictInfo`. The stage is
+**best-effort**: a failed/absent model call only logs a warning and never fails the emotion
+analysis, and it runs once per upload (per image, per video — **not** per frame). It is gated by
+`ai.depression_enabled`; the Focus breakdown is gated independently by `ai.focus_enabled` (both
+under the master `ai.enabled`). Only emotion probabilities are sent — never pixels, frames or
+files. It uses its **own timeout** `ai.media_timeout_seconds` (default 60 s) rather than the
+Focus `ai.timeout_seconds` (30 s): the provider is a reasoning model (~700–1100 reasoning
+tokens → 13 s from the host but ~26 s from inside the container), so 30 s is too tight and every
+call silently timed out. It runs on a worker thread, so the longer bound does not stall the
+epoll loop (unlike the Focus path). `FileProcessor` holds a **non-owning** `AIClient*` (owned by `Server`), which is why the
+`Server` member order places `ai_client_` before `file_processor_`/`thread_pool_` so it outlives
+them at shutdown. The deleted GigaChat implementation lived in `src/gigachat/` (see `a166c35^`).
 
 **Contest analytics is a JSONL event log, not just Prometheus.** `src/analytics/AnalyticsLogger`
 appends one JSON object per line to `logs/analytics.jsonl` (config section `analytics:`
@@ -229,7 +247,7 @@ The codebase is **inconsistent** — match the file you are editing rather than 
 | `src/server/` | epoll HTTP server, routing, `ThreadPool` |
 | `src/emotionai/` | `Image`, `Audio`, `FileProcessor` — inference orchestration |
 | `src/focus/` | `FocusSessionManager` — in-memory Focus camera session (emotional dynamics); nothing persisted |
-| `src/ai/` | `AIClient` — OpenAI-compatible model client for the Focus task breakdown |
+| `src/ai/` | `AIClient` — OpenAI-compatible model client for the Focus task breakdown and the image/video LLM second stage |
 | `src/mtcnn/` | face detection (pnet/rnet/onet) |
 | `src/audio/` | `LibrosaFeatureExtractor` (FFTW3-based), `BurnoutAnalyzer` |
 | `src/analytics/` | `AnalyticsLogger` — append-only JSONL event log for contest analytics (see below) |

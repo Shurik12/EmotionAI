@@ -17,6 +17,14 @@
 #include <audio/BurnoutModels.h>
 #include <audio/BurnoutAnalyzer.h>
 
+namespace emotionai
+{
+    namespace ai
+    {
+        class AIClient;
+    }
+}
+
 class FileProcessor
 {
 public:
@@ -92,6 +100,14 @@ public:
     );
     // ===========================================
 
+    // ============ Image/video LLM second stage ============
+    // Optional, non-owning. When set, image and video results get an
+    // additional "ai_analysis" block (depression-risk verdict) computed from
+    // the emotion probabilities. The client is owned by Server, which only
+    // attaches it when ai.enabled and ai.depression_enabled are both true.
+    void setAIClient(emotionai::ai::AIClient* client) { ai_client_ = client; }
+    // ======================================================
+
     // Getters
     EmotiEffLib::EmotiEffLibRecognizer* get_emotion_recognizer() const { return fer_.get(); }
     torch::jit::Module* get_audio_torch_model() { return audio_torch_model_.get(); }
@@ -106,6 +122,7 @@ private:
     // Dependencies
     std::shared_ptr<DragonflyManager> dragonfly_manager_;
     std::shared_ptr<FileStorage> file_storage_;
+    emotionai::ai::AIClient* ai_client_{nullptr}; // non-owning, owned by Server
 
     // Models
     std::unique_ptr<EmotiEffLib::EmotiEffLibRecognizer> fer_;
@@ -130,6 +147,12 @@ private:
     nlohmann::json process_image_file(const std::string& task_id, const std::string& filepath, const std::string& filename);
     nlohmann::json process_video_file(const std::string& task_id, const std::string& filepath, const std::string& filename);
     std::pair<cv::Mat, nlohmann::json> process_image(const cv::Mat& image);
+
+    // Adds target["ai_analysis"] from the given per-emotion probabilities.
+    // No-op when no AI client is attached or the model returns nothing.
+    void addAIAnalysis(nlohmann::json& target,
+                       const nlohmann::json& emotions,
+                       const std::string& task_id);
 
     // Frame processing helpers
     struct FrameResult {

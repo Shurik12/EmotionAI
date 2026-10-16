@@ -66,17 +66,25 @@ model:
   audio_model_path: "models/audio_model.pt"
   face_detection_models_path: "models/"
 
-# AI Configuration (OpenAI-compatible provider, used for the Razuma Focus
-# task breakdown). The client posts to {base_url}/chat/completions with
-# "Authorization: Bearer <api_key>". Only the task text and the block
-# duration are sent — never camera frames.
+# AI Configuration (OpenAI-compatible provider). The client posts to
+# {base_url}/chat/completions with "Authorization: Bearer <api_key>".
+# `enabled` is the master switch; the two feature flags below gate the users:
+#   focus_enabled      -> Focus task breakdown (/api/focus/breakdown). Only the
+#                         task text and block duration are sent.
+#   depression_enabled -> image/video second stage: the detected emotion
+#                         probabilities are interpreted into a depression-risk
+#                         verdict {verdict, probability, reasoning, scores}.
+#                         Never camera frames, pixels or files.
 ai:
-  enabled: false # Set to true to enable
+  enabled: false # Set to true to enable (master switch)
+  focus_enabled: true       # Focus task breakdown
+  depression_enabled: true  # image/video second-stage interpretation
   base_url: "https://shared1.multitool.works:4000/v1"
   model: "deepseek-v4-flash"
   api_key: ""
   verify_ssl: true
-  timeout_seconds: 30
+  timeout_seconds: 30        # Focus breakdown (runs on the epoll thread)
+  media_timeout_seconds: 60  # image/video interpretation (worker thread, verbose reasoning)
 
 # Structured analytics event log (contest requirement 5.1). One JSON object per
 # line: anonymized user id, UTC timestamp, traffic source, call type,
