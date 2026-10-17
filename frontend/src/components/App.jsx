@@ -46,7 +46,7 @@ const AppContent = () => {
         return <Contact />;
       case 'focus':
         return <Focus />;
-      case 'review':
+      case 'checkout':
         return <Review />;
       default:
         return <Home />;

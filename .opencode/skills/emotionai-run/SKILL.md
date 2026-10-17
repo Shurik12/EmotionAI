@@ -84,7 +84,7 @@ tmux ls                                       # emotionai, emotionai-front
 - `POST /api/review` (multipart: `file`, `self_score` 1..10) → `{task_id}`;
   прогресс: `GET /api/progress/<id>`; готово, когда `complete: true` **и** есть
   объект `review` `{self_score, model_score, delta, verdict, adjusted_score}`.
-- Страница: `http://localhost:3000/review`.
+- Страница: `http://localhost:3000/checkout`.
 - Работает для **видео и изображений**; аудио не поддерживается (нет
   `average_emotions`, аудио-модель может быть не загружена).
 - Оценка по VA-головам модели (`valence`/`arousal`, диапазон ~[-1,1]).
