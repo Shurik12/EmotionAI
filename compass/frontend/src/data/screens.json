@@ -1,0 +1,478 @@
+[
+  {
+    "id": "P01",
+    "title": "Приглашение в клинику",
+    "description": "Начало наблюдения",
+    "section": "4",
+    "path": "#/screens/P01"
+  },
+  {
+    "id": "P02",
+    "title": "Согласия и доступ",
+    "description": "Отдельные разрешения",
+    "section": "4, 13",
+    "path": "#/screens/P02"
+  },
+  {
+    "id": "P03",
+    "title": "Сегодня",
+    "description": "Задачи на день",
+    "section": "4",
+    "path": "#/screens/P03"
+  },
+  {
+    "id": "P04",
+    "title": "Быстрая запись",
+    "description": "Настроение, тревога, сон, дела",
+    "section": "4",
+    "path": "#/screens/P04"
+  },
+  {
+    "id": "P05",
+    "title": "Приём препаратов",
+    "description": "Приём, пропуск и причина",
+    "section": "2, 4",
+    "path": "#/screens/P05"
+  },
+  {
+    "id": "P06",
+    "title": "Выбор формата записи",
+    "description": "Текст, голос или видеокружочек",
+    "section": "4",
+    "path": "#/screens/P06"
+  },
+  {
+    "id": "P07",
+    "title": "Голосовая запись",
+    "description": "Запись и остановка",
+    "section": "4",
+    "path": "#/screens/P07"
+  },
+  {
+    "id": "P08",
+    "title": "Видеокружочек",
+    "description": "Круглый предпросмотр",
+    "section": "4",
+    "path": "#/screens/P08"
+  },
+  {
+    "id": "P09",
+    "title": "Проверка записи",
+    "description": "Просмотр, повтор и удаление",
+    "section": "4",
+    "path": "#/screens/P09"
+  },
+  {
+    "id": "P10",
+    "title": "Отправка и анализ",
+    "description": "Все статусы доставки",
+    "section": "4",
+    "path": "#/screens/P10"
+  },
+  {
+    "id": "P11",
+    "title": "Запись отправлена",
+    "description": "Итог и следующий шаг",
+    "section": "4",
+    "path": "#/screens/P11"
+  },
+  {
+    "id": "P12",
+    "title": "Дневник",
+    "description": "История записей",
+    "section": "4",
+    "path": "#/screens/P12"
+  },
+  {
+    "id": "P13",
+    "title": "Отдельная запись",
+    "description": "Ответы и статус",
+    "section": "4",
+    "path": "#/screens/P13"
+  },
+  {
+    "id": "P14",
+    "title": "Динамика самочувствия",
+    "description": "Графики и комментарии",
+    "section": "1, 4",
+    "path": "#/screens/P14"
+  },
+  {
+    "id": "P15",
+    "title": "Клинические опросники",
+    "description": "Расписание PHQ-9 и GAD-7",
+    "section": "6",
+    "path": "#/screens/P15"
+  },
+  {
+    "id": "P16",
+    "title": "PHQ-9",
+    "description": "Все 9 вопросов",
+    "section": "6",
+    "path": "#/screens/P16"
+  },
+  {
+    "id": "P17",
+    "title": "GAD-7",
+    "description": "Все 7 вопросов",
+    "section": "6",
+    "path": "#/screens/P17"
+  },
+  {
+    "id": "P18",
+    "title": "Голосовой ответ",
+    "description": "Подтверждение распознанного варианта",
+    "section": "6",
+    "path": "#/screens/P18"
+  },
+  {
+    "id": "P19",
+    "title": "Неполная анкета",
+    "description": "Возврат к пропущенным вопросам",
+    "section": "6",
+    "path": "#/screens/P19"
+  },
+  {
+    "id": "P20",
+    "title": "Результат опроса",
+    "description": "Сумма и передача врачу",
+    "section": "6",
+    "path": "#/screens/P20"
+  },
+  {
+    "id": "P21",
+    "title": "Уточнение безопасности",
+    "description": "Срочная развилка",
+    "section": "8",
+    "path": "#/screens/P21"
+  },
+  {
+    "id": "P22",
+    "title": "Срочная помощь",
+    "description": "Инструкция и контакты",
+    "section": "8–9",
+    "path": "#/screens/P22"
+  },
+  {
+    "id": "P23",
+    "title": "Мой план",
+    "description": "Только подтверждённые назначения",
+    "section": "4",
+    "path": "#/screens/P23"
+  },
+  {
+    "id": "P24",
+    "title": "Назначение",
+    "description": "Режим приёма и памятка",
+    "section": "4, 10",
+    "path": "#/screens/P24"
+  },
+  {
+    "id": "P25",
+    "title": "Новая жалоба",
+    "description": "Нежелательное явление",
+    "section": "2",
+    "path": "#/screens/P25"
+  },
+  {
+    "id": "P26",
+    "title": "Переписка с врачом",
+    "description": "Сообщения и статусы",
+    "section": "2, 4",
+    "path": "#/screens/P26"
+  },
+  {
+    "id": "P27",
+    "title": "Запрос на связь",
+    "description": "Причина и срок ответа",
+    "section": "4",
+    "path": "#/screens/P27"
+  },
+  {
+    "id": "P28",
+    "title": "Уведомления",
+    "description": "План, напоминания, ответы",
+    "section": "4",
+    "path": "#/screens/P28"
+  },
+  {
+    "id": "P29",
+    "title": "Профиль и мои данные",
+    "description": "Согласия, выгрузка, удаление",
+    "section": "13",
+    "path": "#/screens/P29"
+  },
+  {
+    "id": "P30",
+    "title": "Нет доступа к записи",
+    "description": "Камера или микрофон недоступны",
+    "section": "4",
+    "path": "#/screens/P30"
+  },
+  {
+    "id": "P31",
+    "title": "Нет соединения",
+    "description": "Повтор отправки и помощь",
+    "section": "9",
+    "path": "#/screens/P31"
+  },
+  {
+    "id": "P32",
+    "title": "Пустой дневник",
+    "description": "Первое заполнение",
+    "section": "4",
+    "path": "#/screens/P32"
+  },
+  {
+    "id": "D01",
+    "title": "Очередь задач",
+    "description": "Приоритеты, сроки и статусы",
+    "section": "5",
+    "path": "#/screens/D01"
+  },
+  {
+    "id": "D02",
+    "title": "Пациенты",
+    "description": "Связанные с врачом карточки",
+    "section": "5",
+    "path": "#/screens/D02"
+  },
+  {
+    "id": "D03",
+    "title": "Приглашение пациента",
+    "description": "Создание связи",
+    "section": "3",
+    "path": "#/screens/D03"
+  },
+  {
+    "id": "D04",
+    "title": "Сводка пациента",
+    "description": "Состояние и задачи",
+    "section": "5",
+    "path": "#/screens/D04"
+  },
+  {
+    "id": "D05",
+    "title": "Временная шкала",
+    "description": "Записи, шкалы и терапия",
+    "section": "5",
+    "path": "#/screens/D05"
+  },
+  {
+    "id": "D06",
+    "title": "Анамнез",
+    "description": "Подтверждённые и неизвестные сведения",
+    "section": "5",
+    "path": "#/screens/D06"
+  },
+  {
+    "id": "D07",
+    "title": "Импорт истории болезни",
+    "description": "PDF, DOCX, текст, сканы",
+    "section": "5",
+    "path": "#/screens/D07"
+  },
+  {
+    "id": "D08",
+    "title": "Проверка извлечения",
+    "description": "Исходный фрагмент и противоречия",
+    "section": "5",
+    "path": "#/screens/D08"
+  },
+  {
+    "id": "D09",
+    "title": "Шкалы и расписание",
+    "description": "Результаты и план опросов",
+    "section": "6",
+    "path": "#/screens/D09"
+  },
+  {
+    "id": "D10",
+    "title": "Клинические критерии",
+    "description": "Подтверждения, пробелы, гипотезы",
+    "section": "6",
+    "path": "#/screens/D10"
+  },
+  {
+    "id": "D11",
+    "title": "Результат Razuma",
+    "description": "Признаки, качество и динамика",
+    "section": "7",
+    "path": "#/screens/D11"
+  },
+  {
+    "id": "D12",
+    "title": "Медиа и первоисточник",
+    "description": "Запись и расшифровка",
+    "section": "5, 7",
+    "path": "#/screens/D12"
+  },
+  {
+    "id": "D13",
+    "title": "Варианты помощи",
+    "description": "Справочная поддержка выбора",
+    "section": "10",
+    "path": "#/screens/D13"
+  },
+  {
+    "id": "D14",
+    "title": "Карточка Авиандра",
+    "description": "Показания и условия выбора",
+    "section": "10–11",
+    "path": "#/screens/D14"
+  },
+  {
+    "id": "D15",
+    "title": "Проверка безопасности",
+    "description": "Противопоказания и взаимодействия",
+    "section": "10",
+    "path": "#/screens/D15"
+  },
+  {
+    "id": "D16",
+    "title": "Проект плана",
+    "description": "Назначения, наблюдение и комментарии",
+    "section": "5, 10",
+    "path": "#/screens/D16"
+  },
+  {
+    "id": "D17",
+    "title": "Подтверждение решения",
+    "description": "Предпросмотр для пациента",
+    "section": "3, 5",
+    "path": "#/screens/D17"
+  },
+  {
+    "id": "D18",
+    "title": "Направление к психиатру",
+    "description": "Необходимость отдельно от срочности",
+    "section": "8",
+    "path": "#/screens/D18"
+  },
+  {
+    "id": "D19",
+    "title": "Приверженность",
+    "description": "Принято, пропущено, неизвестно",
+    "section": "2",
+    "path": "#/screens/D19"
+  },
+  {
+    "id": "D20",
+    "title": "Нежелательное явление",
+    "description": "Оценка и действия врача",
+    "section": "2",
+    "path": "#/screens/D20"
+  },
+  {
+    "id": "D21",
+    "title": "Срочное событие",
+    "description": "Причина и исходные данные",
+    "section": "8–9",
+    "path": "#/screens/D21"
+  },
+  {
+    "id": "D22",
+    "title": "Доставка и передача задачи",
+    "description": "Получение, повторы, резервный врач",
+    "section": "9",
+    "path": "#/screens/D22"
+  },
+  {
+    "id": "D23",
+    "title": "Действия и закрытие",
+    "description": "Контакт, решение и основание",
+    "section": "9",
+    "path": "#/screens/D23"
+  },
+  {
+    "id": "D24",
+    "title": "Переписка с пациентом",
+    "description": "Ответ и утверждённые изменения",
+    "section": "5",
+    "path": "#/screens/D24"
+  },
+  {
+    "id": "D25",
+    "title": "Документы",
+    "description": "Истории болезни и отчёты",
+    "section": "5",
+    "path": "#/screens/D25"
+  },
+  {
+    "id": "D26",
+    "title": "Клинический источник",
+    "description": "Редакция, раздел и ссылка",
+    "section": "3, 10",
+    "path": "#/screens/D26"
+  },
+  {
+    "id": "D27",
+    "title": "Журнал решений",
+    "description": "Авторы, версии, отклонённые подсказки",
+    "section": "5",
+    "path": "#/screens/D27"
+  },
+  {
+    "id": "D28",
+    "title": "Отчёт за период",
+    "description": "Сводка для приёма и выгрузки",
+    "section": "1",
+    "path": "#/screens/D28"
+  },
+  {
+    "id": "D29",
+    "title": "Режим наблюдения",
+    "description": "Часы ответа и резервный врач",
+    "section": "9",
+    "path": "#/screens/D29"
+  },
+  {
+    "id": "D30",
+    "title": "Реестр правил и источников",
+    "description": "Шкалы, препараты, лицензии",
+    "section": "3, 12",
+    "path": "#/screens/D30"
+  },
+  {
+    "id": "D31",
+    "title": "Проверка обновления",
+    "description": "Черновик, утверждение и откат",
+    "section": "12",
+    "path": "#/screens/D31"
+  },
+  {
+    "id": "D32",
+    "title": "Анализ недоступен",
+    "description": "Качество, API, недостаток данных",
+    "section": "7, 12",
+    "path": "#/screens/D32"
+  },
+  {
+    "id": "U01",
+    "title": "Выбор кабинета",
+    "description": "Переключение демонстрационных ролей",
+    "section": "3",
+    "path": "#/screens/U01"
+  },
+  {
+    "id": "U02",
+    "title": "Вход врача",
+    "description": "Рабочая учётная запись",
+    "section": "13",
+    "path": "#/screens/U02"
+  },
+  {
+    "id": "U03",
+    "title": "Подтверждение входа",
+    "description": "Многофакторная аутентификация",
+    "section": "13",
+    "path": "#/screens/U03"
+  },
+  {
+    "id": "U04",
+    "title": "Нет доступа",
+    "description": "Чужая карточка или истёкшая сессия",
+    "section": "3, 13",
+    "path": "#/screens/U04"
+  }
+]
