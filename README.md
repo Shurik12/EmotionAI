@@ -92,6 +92,7 @@ src/
 └── common/      base64, uuid, httplib, librosa helpers
 
 frontend/        React 18 + Vite 5 SPA
+compass/frontend/  clinical "Клинический компас" SPA (React 18 + Vite 5, hash routing)
 training/        PyTorch training and dataset prep scripts
 tests/           unit, integration, end-to-end, benchmarks
 config/          YAML profiles, nginx vhost, systemd unit
@@ -268,11 +269,30 @@ the raw key in the UI). Static images live in `frontend/public/static/` and are 
 `/static/...`; photos ship as `.webp`.
 
 ```bash
-make build_frontend         # npm install + vite build -> frontend/dist
+make build_frontend         # npm install + vite build -> frontend/dist (landing + Compass)
 cd frontend && npm run dev  # dev server on :3000, proxies /api to API_URL (default http://localhost:5000)
 ```
 
 Details in [frontend/README.md](frontend/README.md).
+
+### Compass prototype
+
+`compass/frontend/` is a second, independent SPA: the "Клинический компас" clinical UX prototype
+(68 demo screens, doctor/patient roles, camera recorder). React 18 + Vite 5 + TypeScript, hash
+routing (`/#/screens/P03`), no server of its own and no Node in production.
+
+```bash
+make build_compass          # npm install + vite build -> frontend/dist/compass
+```
+
+The output deliberately lands inside the landing's `dist`, so the existing `update_vm`/CI deploy
+ships it to `https://razuma.tech/compass/` without touching nginx, C++ or the deploy scripts.
+`make build_frontend` builds both (landing first, then Compass on top of the emptied dist).
+To preview locally the way nginx serves it: `cd frontend/dist && python3 -m http.server 8080` and
+open `http://localhost:8080/compass/`. The C++ binary itself answers `/compass/` with the landing
+page — expected, since production serves this path through nginx.
+
+Details in [compass/frontend/README.md](compass/frontend/README.md).
 
 ---
 
