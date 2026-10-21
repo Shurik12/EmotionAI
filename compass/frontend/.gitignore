@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env.local
+*.tsbuildinfo
+
+# The repo root ignores `data/` (runtime server data); this one is app source.
+!src/data/

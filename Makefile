@@ -1,7 +1,8 @@
 MODELS_DIR := contrib/emotiefflib/models
 
 .PHONY: help install python_env models configure build_backend build_frontend build benchmark benchmark_focus benchmark_ai_cost test \
-        test_integration up up-build down re-up clean clean-data balance
+        test_integration up up-build down re-up clean clean-data balance \
+        build_landing build_compass
 
 help: ## List targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F'## ' \
@@ -22,8 +23,16 @@ configure: ## Configure CMake with Ninja
 build_backend: configure ## Build the C++ server
 	cmake --build build
 
-build_frontend: ## Build the React app into frontend/dist
+build_landing: ## Build the landing SPA into frontend/dist (clears the directory)
 	cd frontend && npm install && npm run build
+
+build_compass: ## Build the Compass SPA into frontend/dist/compass
+	cd compass/frontend && npm install && npm run build
+
+# Landing must build first: its Vite build empties frontend/dist, which would
+# delete compass/. The explicit order also keeps `make -j build` safe.
+build_frontend: build_landing ## Build the landing, then Compass on top of it
+	$(MAKE) build_compass
 
 build: build_backend build_frontend ## Configure and build everything
 
@@ -76,7 +85,7 @@ balance: ## Check Multitool API balance
 	@./balance
 
 clean: ## Remove build output, .venv, node_modules, caches
-	rm -rf build frontend/dist frontend/node_modules .venv
+	rm -rf build frontend/dist frontend/node_modules compass/frontend/node_modules .venv
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 
 clean-data: ## Remove runtime server data (uploads, storage, results, logs)

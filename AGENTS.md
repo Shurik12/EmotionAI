@@ -19,7 +19,7 @@ make help             # self-documenting target list, generated from the Makefil
 make install          # apt deps + submodules + libtorch/onnxruntime into contrib/ + emotiefflib patch
 make python_env       # .venv + pyproject.toml (uv sync)
 make models           # export C++ model headers from contrib/emotiefflib/models
-make build            # configure (CMake+Ninja) + build_backend + build_frontend
+make build            # configure (CMake+Ninja) + build_backend + build_frontend (landing + Compass)
 make test             # build + run the unit suite (needs libgtest-dev/libgmock-dev)
 make test_integration # also build/run integration+e2e (needs DragonflyDB + models)
 make benchmark        # build the offline burnout benchmark (tests/benchmark)
@@ -219,6 +219,37 @@ spec is re-issued.
   The former Vitest/Testing Library/jsdom and ESLint/Prettier stack was removed — its newer versions
   required Node ≥ 22 while the project targets Node 20, and it produced `npm warn EBADENGINE` noise.
 
+## Compass SPA (`compass/frontend`)
+
+A second, independent SPA — the "Клинический компас" clinical UX prototype (68 demo screens,
+doctor/patient roles, media recorder). React 18 + Vite 5 + TypeScript on Node 20, deliberately
+aligned with `frontend/`; it has its own `node_modules` and shares no code with the landing.
+
+- **No Next.js, no server.** The delivered archive was a Next 16 App Router app; it was re-exported
+  as a pure SPA. There are no route handlers and no Node in production — the only artifact is static.
+  The prototype's 128 KB state machine and HTML templates in `src/prototype/engine.js` are kept
+  as-is (typed by `engine.d.ts`); `Compass.tsx` renders its HTML with `html-react-parser`. Replacing
+  the 68 screens with TSX components is a per-screen task for later — don't "clean up" engine.js.
+- **Hash routing on purpose.** `/#/screens/P03`, `/#/capture`, hand-rolled in `App.tsx` (no
+  `react-router`). That is what makes an SPA rewrite unnecessary: any static host serving directory
+  indexes works, including a subdirectory.
+- **The build lands inside the landing's dist.** `make build_compass` writes
+  `frontend/dist/compass/` (`base: './'`, so assets resolve under `/compass/`). Deployment needs no
+  new step: `update_vm` and CI already copy all of `frontend/dist/*` to the VM, so the app shows up at
+  `https://razuma.tech/compass/` — nginx, C++ and the deploy scripts are untouched.
+- **Build order matters.** The landing's Vite build empties `frontend/dist`, which would delete
+  `compass/`; `make build_frontend` therefore builds the landing first and then calls
+  `make build_compass`. `make build` (hence `update_vm`/CI) inherits the order.
+- **The C++ binary does not serve it locally.** `/compass/` has no static extension, so
+  `Server::handleServeReactFile` answers with the landing's `index.html` (and `.html` is not in
+  `STATIC_EXTENSIONS`). Check it the way nginx serves it:
+  `cd frontend/dist && python3 -m http.server 8080`, then `http://localhost:8080/compass/`.
+  Production is unaffected.
+- **Checks:** `cd compass/frontend && npm run typecheck && npm run build && node tools/check-engine.mjs`
+  (`check-engine.mjs` is framework-free and covers all 68 screens, roles, the demo OTP and HTML
+  escaping). `tools/browser-smoke.cjs` needs Playwright plus a Chromium download; `tools/migrate.mjs`
+  was dropped with the Next adapter.
+
 ## Code conventions
 
 The codebase is **inconsistent** — match the file you are editing rather than imposing one style.
@@ -256,6 +287,7 @@ The codebase is **inconsistent** — match the file you are editing rather than 
 | `src/storage/` | `FileStorage` interface + Local / NFS / S3 (MinIO) |
 | `src/metrics/` | Prometheus collector and middleware |
 | `frontend/src/` | React 18 + Vite 5 SPA; landing = `components/Home.jsx` + `styles/components/landing.css`; i18n = `utils/translations.js` |
+| `compass/frontend/` | second SPA: clinical "Клинический компас" prototype (React 18 + Vite 5 + TS, hash routing), builds into `frontend/dist/compass/` |
 | `config/` | YAML profiles, `nginx` vhost template, `service` systemd unit |
 | `docker/` | five compose variants, one per deployment topology |
 | `training/` | PyTorch training and dataset prep |
