@@ -28,6 +28,8 @@ training/processed_images/
 
 # Environment variables (API keys, secrets)
 .env
+# Local dev-only overrides (e.g. Vite API_URL → localhost:80); not for the repo
+.env.development
 
 # CodeGraph index (regenerated locally, not source)
 .codegraph/
