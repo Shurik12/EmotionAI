@@ -24,7 +24,7 @@ build_backend: configure ## Build the C++ server
 	cmake --build build
 
 build_landing: ## Build the landing SPA into frontend/dist (clears the directory)
-	cd frontend && npm install && npm run build
+	cd frontend && npm ci && npm run build
 
 build_compass: ## Build the Compass SPA into frontend/dist/compass
 	cd compass/frontend && npm ci && npm run build
