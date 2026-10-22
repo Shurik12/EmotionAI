@@ -9,6 +9,13 @@ e.action('role:patient');assert.equal(page,'P03');e.action('role:doctor');assert
 e.navigate('U03');e.bind('form.otp','000000');e.action('verifyotp');assert.equal(page,'U03');e.bind('form.otp','123456');e.action('verifyotp');assert.equal(page,'D01');
 e.navigate('P06');e.bind('form.diaryText','<script>alert(1)</script>');e.navigate('D04');assert.ok(!html.includes('<script>'));
 
+// P08 is no longer the demo video-note recorder: it mounts the real depression
+// analyzer, which the React side replaces by the data-react attribute.
+e.navigate('P08');
+assert.ok(html.includes('data-react="depression-analyzer"'),'P08 must mount the depression analyzer');
+assert.ok(html.includes('Анализ признаков депрессии'),'P08 must be titled as the depression screen');
+assert.ok(!html.includes('Пример видеокружочка'),'P08 must not render the old video-note recorder');
+
 // Every icon the engine emits must be mapped explicitly in src/components/icons.ts.
 // A namespace import from lucide-react would let a typo degrade silently into an
 // invisible <span/>, and would also pull every icon into the bundle.
