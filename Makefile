@@ -27,7 +27,8 @@ build_landing: ## Build the landing SPA into frontend/dist (clears the directory
 	cd frontend && npm install && npm run build
 
 build_compass: ## Build the Compass SPA into frontend/dist/compass
-	cd compass/frontend && npm install && npm run build
+	cd compass/frontend && npm ci && npm run build
+	test -f frontend/dist/compass/index.html
 
 # Landing must build first: its Vite build empties frontend/dist, which would
 # delete compass/. The explicit order also keeps `make -j build` safe.
