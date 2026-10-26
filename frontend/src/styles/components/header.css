@@ -155,17 +155,14 @@
     gap: 9px;
   }
 
-  .brand-mark {
-    width: 27px;
-    height: 34px;
-  }
-
+  /* The Skolkovo badge squeezes the wordmark on phones: keep the text only. */
+  .brand-skolkovo,
   .brand-divider {
-    height: 28px;
+    display: none;
   }
 
-  .brand-skolkovo {
-    width: 88px;
+  .brand-mark {
+    font-size: 24px;
   }
 
   .header-cta {

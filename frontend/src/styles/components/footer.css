@@ -80,7 +80,7 @@
 
 @media (max-width: 760px) {
   .footer {
-    padding: 30px 0 34px;
+    padding: 30px var(--layout-padding-x) 34px;
   }
 
   .footer__legal {
