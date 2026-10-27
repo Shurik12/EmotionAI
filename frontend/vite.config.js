@@ -42,8 +42,11 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       assetsDir: 'static',
-      sourcemap: true,
+      // No .map files: with sourcemap maps are bigger than the bundle itself and
+      // publish the whole original source at razuma.tech/static/*.js.map.
+      sourcemap: false,
       minify: 'esbuild',
+      target: 'es2020',
       rollupOptions: {
         input: {
           main: path.resolve(__dirname, 'index.html'),

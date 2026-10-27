@@ -62,6 +62,8 @@ HTTPS или localhost и разрешение браузера.
 - `src/styles.css` — стили исходного UX.
 - `reference/original-ux.html` — исходник для сверки, не используется как iframe.
 - `../../frontend/dist/compass/` — статическая сборка (создаётся вне этого каталога).
+- `docs/export-requirements.md` — требования к переэкспорту из генератора: стек, версии
+  зависимостей, конфигурация Vite и TypeScript, приёмка.
 
 ## Проверки
 

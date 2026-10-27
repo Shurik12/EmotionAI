@@ -11,8 +11,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node tools/check-engine.mjs",
-    "test:browser": "node tools/browser-smoke.cjs"
+    "test": "node tools/check-engine.mjs && node tools/check-ux.mjs",
+    "test:browser": "node tools/browser-smoke.cjs",
+    "test:ux:browser": "node tools/browser-ux.mjs"
   },
   "dependencies": {
     "html-react-parser": "6.1.9",
