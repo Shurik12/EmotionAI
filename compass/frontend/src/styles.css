@@ -74,3 +74,178 @@
 #razuma-ux-root .rz-report-components{margin-top:14px}
 #razuma-ux-root .rz-report-block .rz-report-block{margin-top:14px}
 #razuma-ux-root .rz-report-block+.rz-report-block{margin-top:14px}
+
+
+/* UX refresh, 2026-10-26. Scoped to engine's allowlist; never P08 or /capture. */
+#razuma-ux-root .rz-refresh{
+ --rz-bg:#f6f3ed;--rz-surface:#fffdf9;--rz-ink:#24262b;--rz-muted:#566775;
+ --rz-line:#d9ddd9;--rz-brand:#bc482f;--rz-onbrand:#fff;--rz-soft:#f5e8e1;
+ font-size:15px;line-height:1.5;
+}
+#razuma-ux-root .rz-refresh .rz-app{border-radius:22px;background:var(--rz-bg)}
+#razuma-ux-root .rz-refresh .rz-apphead{padding:18px 24px}
+#razuma-ux-root .rz-refresh .rz-layout{grid-template-columns:180px minmax(0,1fr)}
+#razuma-ux-root .rz-refresh .rz-main{padding:28px}
+#razuma-ux-root .rz-refresh .rz-sidebar{padding-top:22px;background:#fffdf9}
+#razuma-ux-root .rz-refresh .rz-sidebar .rz-nav{min-height:44px}
+#razuma-ux-root .rz-refresh .rz-sidebar .rz-nav.active{background:#f1e4dc;font-weight:600}
+#razuma-ux-root .rz-refresh .rz-panel{padding:22px;border-radius:16px;box-shadow:0 3px 18px #24262b03}
+#razuma-ux-root .rz-refresh h1{font-size:36px;line-height:1.15;letter-spacing:-1.2px;color:#431e24;font-weight:650}
+#razuma-ux-root .rz-refresh h2{font-size:21px;letter-spacing:-.5px;color:#431e24;font-weight:650}
+#razuma-ux-root .rz-refresh .rz-btn{border-radius:12px;min-height:44px;padding:10px 14px;font-weight:500}
+#razuma-ux-root .rz-refresh .rz-btn.soft{color:#235862;background:#e9efee}
+#razuma-ux-root .rz-refresh .rz-btn.rz-help{color:var(--rz-red);border-color:var(--rz-red);background:var(--rz-surface);font-weight:600}
+#razuma-ux-root .rz-refresh .rz-btn:focus-visible,
+#razuma-ux-root .rz-refresh a:focus-visible{outline:3px solid #235862;outline-offset:4px}
+/* The teal ring is 1.4-1.7:1 on the dark panels below; a light ring keeps the
+   indicator visible where the patch puts the primary record calls. */
+#razuma-ux-root .rz-refresh .rz-media-panel :focus-visible,
+#razuma-ux-root .rz-refresh .rz-prepare :focus-visible,
+#razuma-ux-root .rz-refresh .rz-clinical-summary :focus-visible{outline-color:#fffdf9}
+#razuma-ux-root .rz-refresh .rz-titlebar{margin-bottom:24px}
+#razuma-ux-root .rz-refresh .rz-field input:not([type=range]),
+#razuma-ux-root .rz-refresh .rz-field select,
+#razuma-ux-root .rz-refresh .rz-field textarea{border-radius:10px;min-height:44px}
+#razuma-ux-root .rz-refresh .rz-eyebrow{display:block;font-size:11px;font-weight:700;letter-spacing:1.7px;color:#566775}
+#razuma-ux-root .rz-refresh .rz-welcome{position:relative;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);border:1px solid #e4dfd6;border-radius:20px;overflow:hidden;background:#fffdf9;min-height:420px}
+#razuma-ux-root .rz-refresh .rz-welcome-copy{padding:34px 28px;position:relative;z-index:1}
+#razuma-ux-root .rz-refresh .rz-welcome h1{font-size:clamp(34px,3.3vw,48px);line-height:1.07;letter-spacing:-1.8px;margin:18px 0!important}
+#razuma-ux-root .rz-refresh .rz-welcome-sub{font-size:17px;color:#566775;max-width:460px}
+#razuma-ux-root .rz-refresh .rz-record-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:26px}
+#razuma-ux-root .rz-refresh .rz-record-btn{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:17px 13px;min-height:64px;background:#fffdf9;border:1px solid #d3b8ac;border-radius:12px;color:#431e24;text-decoration:none;font-size:15px;font-weight:650;box-shadow:0 3px 8px #43201207}
+#razuma-ux-root .rz-refresh .rz-record-btn:hover{border-color:#bc482f;background:#faf0e7}
+#razuma-ux-root .rz-refresh .rz-record-btn svg{width:22px;height:22px;flex:none;color:#bc482f}
+#razuma-ux-root .rz-refresh .rz-record-btn>span:first-of-type{flex:1}
+#razuma-ux-root .rz-refresh .rz-media-hint{font-size:12px;line-height:1.5;color:#566775;margin-top:10px!important}
+#razuma-ux-root .rz-refresh .rz-analysis-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+#razuma-ux-root .rz-refresh .rz-analyze-link{background:transparent;border:0;padding:5px 0;color:#235862;font-weight:650;text-decoration:underline;text-underline-offset:4px}
+#razuma-ux-root .rz-refresh .rz-analysis-row>span{font-size:12px;color:#566775;max-width:180px}
+#razuma-ux-root .rz-refresh .rz-welcome-art{background:radial-gradient(ellipse at 80% 14%,#547780 0,transparent 50%),linear-gradient(145deg,#203b46 10%,#2a4850 50%,#a34b33 100%);position:relative;display:flex;align-items:center;isolation:isolate}
+#razuma-ux-root .rz-refresh .rz-welcome-art:before{content:"";position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:36px 36px;mask-image:linear-gradient(0deg,transparent,#000);pointer-events:none}
+#razuma-ux-root .rz-refresh .rz-signal{display:block;width:100%;height:auto;overflow:visible;pointer-events:none}
+#razuma-ux-root .rz-refresh .rz-orbit{stroke:#ffffff25;stroke-width:1}
+#razuma-ux-root .rz-refresh .rz-signal-line{stroke:#efb99b;stroke-width:1;opacity:.7}
+#razuma-ux-root .rz-refresh .rz-signal-bar{stroke:#a7ced0;stroke-width:2;stroke-linecap:round}
+#razuma-ux-root .rz-refresh .rz-signal-disc{fill:#a7ced022}
+#razuma-ux-root .rz-refresh .rz-signal-disc.secondary{fill:#e39e7330}
+#razuma-ux-root .rz-refresh .rz-signal-node{fill:#fff1db;stroke:#efb99b;stroke-width:5}
+#razuma-ux-root .rz-refresh .rz-art-label{position:absolute;bottom:28px;left:25px;right:15px;font-size:11px;letter-spacing:1.5px;color:#fff6e8}
+#razuma-ux-root .rz-refresh .rz-art-label small{display:block;margin-top:8px;color:#d1dfdf;font-size:10px;letter-spacing:0}
+#razuma-ux-root .rz-refresh .rz-live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#e4aa8b;margin-right:6px}
+#razuma-ux-root .rz-refresh .rz-process{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:20px 0 24px}
+#razuma-ux-root .rz-refresh .rz-process>span{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#235862}
+#razuma-ux-root .rz-refresh .rz-process svg{width:18px;height:18px}
+#razuma-ux-root .rz-refresh .rz-process small{margin-left:auto;max-width:240px;font-size:11px}
+#razuma-ux-root .rz-refresh .rz-home-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+#razuma-ux-root .rz-refresh .rz-home-card{position:relative;display:flex;flex-direction:column;margin:0;padding-top:78px;overflow:hidden}
+#razuma-ux-root .rz-refresh .rz-home-card p{color:#566775;min-height:48px}
+#razuma-ux-root .rz-refresh .rz-home-card h2{margin-bottom:8px!important}
+#razuma-ux-root .rz-refresh .rz-home-card .rz-actions{margin-top:auto;padding-top:22px}
+#razuma-ux-root .rz-refresh .rz-home-card .rz-btn{justify-content:space-between;width:100%}
+#razuma-ux-root .rz-refresh .rz-home-card .rz-btn:after{content:"↗";margin-left:10px}
+#razuma-ux-root .rz-refresh .rz-tile-icon{position:absolute;left:22px;top:22px;width:42px;height:42px;display:grid;place-items:center;border-radius:12px;color:#bc482f;background:#f4e4d8}
+#razuma-ux-root .rz-refresh .rz-tile-icon svg{width:22px;height:22px}
+#razuma-ux-root .rz-refresh .rz-tile-icon.teal{background:#e4eeed;color:#235862}
+#razuma-ux-root .rz-refresh .rz-tile-icon.slate{background:#e9edef;color:#566775}
+#razuma-ux-root .rz-refresh .rz-home-bottom{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
+#razuma-ux-root .rz-refresh .rz-home-bottom>.rz-panel{margin:0}
+#razuma-ux-root .rz-refresh .rz-home-bottom .rz-item{flex-wrap:wrap;align-items:flex-start}
+#razuma-ux-root .rz-refresh .rz-diary-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:22px;align-items:start}
+#razuma-ux-root .rz-refresh .rz-diary-form{min-width:0}
+#razuma-ux-root .rz-refresh .rz-range-field{padding-bottom:19px;border-bottom:1px solid #e5e5de}
+#razuma-ux-root .rz-refresh .rz-range-field>span{display:flex;align-items:center;gap:5px;font-size:16px;font-weight:600}
+#razuma-ux-root .rz-refresh .rz-range-field output{margin-left:auto;font-size:26px;color:#431e24}
+#razuma-ux-root .rz-refresh input[type=range]{min-height:38px;cursor:pointer}
+#razuma-ux-root .rz-refresh .rz-field-hint{font-size:13px;color:#566775;margin:-5px 0 22px!important}
+#razuma-ux-root .rz-refresh .rz-media-panel{position:relative;overflow:hidden;padding:28px;border-radius:18px;background:linear-gradient(150deg,#203b46,#283e44 38%,#a64d34);color:#fffdf9}
+#razuma-ux-root .rz-refresh .rz-media-panel .rz-eyebrow{color:#b8d1d1}
+#razuma-ux-root .rz-refresh .rz-media-panel h2{font-size:32px;color:#fffdf9;line-height:1.1;margin:22px 0 14px!important}
+#razuma-ux-root .rz-refresh .rz-media-panel>p{color:#e5e6e0}
+#razuma-ux-root .rz-refresh .rz-media-panel .rz-record-actions{grid-template-columns:1fr;margin-top:0}
+#razuma-ux-root .rz-refresh .rz-media-panel .rz-media-hint{color:#dee8e5}
+#razuma-ux-root .rz-refresh .rz-media-panel .rz-analyze-link{color:#fffdf9;margin-top:5px}
+#razuma-ux-root .rz-refresh .rz-communication{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:22px;align-items:start}
+#razuma-ux-root .rz-refresh .rz-contact-head{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+#razuma-ux-root .rz-refresh .rz-contact-head h2{margin-bottom:4px!important}
+#razuma-ux-root .rz-refresh .rz-contact-head .rz-avatar{color:#235862;background:#e3eeec;width:48px;height:48px}
+#razuma-ux-root .rz-refresh .rz-conversation>.rz-note{margin-bottom:22px}
+#razuma-ux-root .rz-refresh .rz-message{padding:16px;line-height:1.65;background:#eef1f0}
+#razuma-ux-root .rz-refresh .rz-message.mine{background:#f3e3d9}
+#razuma-ux-root .rz-refresh .rz-prepare{padding:26px;border-radius:16px;background:linear-gradient(135deg,#863c30,#bc5438);color:#fff6ed;overflow:hidden}
+#razuma-ux-root .rz-refresh .rz-prepare .rz-eyebrow{color:#f7d9c7}
+#razuma-ux-root .rz-refresh .rz-prepare h2{font-size:30px;line-height:1.1;color:#fff6ed;margin:20px 0 15px!important}
+#razuma-ux-root .rz-refresh .rz-prepare p{font-size:15px}
+#razuma-ux-root .rz-refresh .rz-prepare .rz-signal{margin:0 -20%;width:140%;height:180px}
+#razuma-ux-root .rz-refresh .rz-prepare .rz-actions{margin-top:8px}
+#razuma-ux-root .rz-refresh .rz-clinical-summary{position:relative;display:flex;overflow:hidden;padding:28px 32px;border-radius:16px;margin:20px 0;background:linear-gradient(105deg,#843c30,#b9553b 65%,#244954);color:#fff9ee;min-height:180px}
+#razuma-ux-root .rz-refresh .rz-clinical-summary>div{position:relative;z-index:1;max-width:72%}
+#razuma-ux-root .rz-refresh .rz-clinical-summary h2{color:#fff9ee;font-size:30px;margin:14px 0 10px!important}
+#razuma-ux-root .rz-refresh .rz-clinical-summary p{margin-top:7px!important}
+#razuma-ux-root .rz-refresh .rz-clinical-summary .rz-eyebrow{color:#f4d7c9;font-size:10px}
+#razuma-ux-root .rz-refresh .rz-clinical-summary .rz-signal{position:absolute;right:-100px;top:-50px;height:320px;width:480px;opacity:.48}
+#razuma-ux-root .rz-refresh .rz-clinical-metrics .rz-panel{margin:0}
+#razuma-ux-root .rz-refresh .rz-clinical-metrics .rz-metric{font-size:54px;font-weight:650;letter-spacing:-2px;color:#431e24;line-height:1.2;margin-bottom:8px}
+#razuma-ux-root .rz-refresh .rz-clinical-metrics .rz-metric span{font-size:20px;letter-spacing:-.5px}
+#razuma-ux-root .rz-refresh .rz-clinical-detail{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;margin-top:16px}
+#razuma-ux-root .rz-refresh .rz-clinical-detail .rz-panel{margin:0}
+#razuma-ux-root .rz-refresh .rz-analysis-panel{position:relative;overflow:hidden}
+#razuma-ux-root .rz-refresh .rz-analysis-copy{max-width:90%;margin:16px 0!important;position:relative;z-index:1}
+#razuma-ux-root .rz-refresh .rz-analysis-panel .rz-signal{position:absolute;right:-150px;bottom:0;width:370px;opacity:.17}
+#razuma-ux-root .rz-refresh .rz-analysis-panel .rz-actions{position:relative;z-index:1}
+#razuma-ux-root .rz-refresh .rz-clinical-detail+.rz-panel{margin-top:16px}
+@media(max-width:1100px){
+ #razuma-ux-root .rz-refresh .rz-layout{grid-template-columns:160px minmax(0,1fr)}
+ #razuma-ux-root .rz-refresh .rz-main{padding:22px}
+ #razuma-ux-root .rz-refresh .rz-welcome{grid-template-columns:1fr}
+ #razuma-ux-root .rz-refresh .rz-welcome-art{display:none}
+ #razuma-ux-root .rz-refresh .rz-home-bottom{grid-template-columns:1fr}
+ #razuma-ux-root .rz-refresh .rz-diary-layout,#razuma-ux-root .rz-refresh .rz-communication{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px}
+ #razuma-ux-root .rz-refresh .rz-media-panel{padding:20px}
+ #razuma-ux-root .rz-refresh .rz-media-panel h2{font-size:27px}
+ #razuma-ux-root .rz-refresh .rz-prepare{padding:20px}
+}
+@media(max-width:760px){
+ #razuma-ux-root .rz-refresh .rz-layout{grid-template-columns:1fr}
+ #razuma-ux-root .rz-refresh .rz-main{padding:18px}
+ #razuma-ux-root .rz-refresh .rz-welcome-copy{padding:24px}
+ #razuma-ux-root .rz-refresh .rz-home-cards{grid-template-columns:1fr}
+ #razuma-ux-root .rz-refresh .rz-home-card{padding:24px 24px 24px 84px}
+ #razuma-ux-root .rz-refresh .rz-home-card p{min-height:0}
+ #razuma-ux-root .rz-refresh .rz-home-card .rz-actions{padding-top:16px}
+ #razuma-ux-root .rz-refresh .rz-diary-layout,#razuma-ux-root .rz-refresh .rz-communication,#razuma-ux-root .rz-refresh .rz-clinical-detail{grid-template-columns:1fr}
+ #razuma-ux-root .rz-refresh .rz-media-panel{order:-1;padding:20px}
+ #razuma-ux-root .rz-refresh .rz-media-panel>p,#razuma-ux-root .rz-refresh .rz-media-panel>.rz-signal,#razuma-ux-root .rz-refresh .rz-media-panel>.rz-eyebrow{display:none}
+ #razuma-ux-root .rz-refresh .rz-media-panel h2{font-size:23px;margin:0 0 15px!important}
+ #razuma-ux-root .rz-refresh .rz-media-panel h2 br{display:none}
+ #razuma-ux-root .rz-refresh .rz-media-panel .rz-record-actions{grid-template-columns:1fr 1fr}
+ #razuma-ux-root .rz-refresh .rz-media-panel .rz-media-hint{display:block}
+ #razuma-ux-root .rz-refresh .rz-clinical-summary>div{max-width:100%}
+ #razuma-ux-root .rz-refresh .rz-clinical-summary .rz-signal{opacity:.14}
+ #razuma-ux-root .rz-refresh .rz-process small{width:100%;max-width:none;margin-left:0}
+ #razuma-ux-root .rz-refresh .rz-bottomnav button{min-height:44px}
+}
+@media(max-width:460px){
+ #razuma-ux-root .rz-refresh .rz-apphead{padding:14px}
+ #razuma-ux-root .rz-refresh .rz-apphead>.rz-row{gap:4px;width:100%;justify-content:space-between}
+ #razuma-ux-root .rz-refresh .rz-apphead .rz-btn{padding:8px;font-size:12px}
+ #razuma-ux-root .rz-refresh .rz-apphead .rz-btn.ghost{font-size:0;min-width:44px;gap:0}
+ #razuma-ux-root .rz-refresh .rz-main{padding:14px}
+ #razuma-ux-root .rz-refresh .rz-welcome-copy{padding:20px 18px}
+ #razuma-ux-root .rz-refresh h1{font-size:29px;letter-spacing:-.8px}
+ #razuma-ux-root .rz-refresh .rz-welcome h1{font-size:32px;letter-spacing:-1px}
+ #razuma-ux-root .rz-refresh .rz-welcome-sub{font-size:15px}
+ #razuma-ux-root .rz-refresh .rz-record-actions{grid-template-columns:1fr;margin-top:20px}
+ #razuma-ux-root .rz-refresh .rz-record-btn{padding:13px 16px;min-height:54px}
+ #razuma-ux-root .rz-refresh .rz-welcome{min-height:0}
+ #razuma-ux-root .rz-refresh .rz-process{gap:10px}
+ #razuma-ux-root .rz-refresh .rz-process>span{font-size:11px;gap:4px}
+ #razuma-ux-root .rz-refresh .rz-process svg{width:15px;height:15px}
+ #razuma-ux-root .rz-refresh .rz-media-panel .rz-record-actions{grid-template-columns:1fr}
+ #razuma-ux-root .rz-refresh .rz-panel{padding:18px}
+ #razuma-ux-root .rz-refresh .rz-home-card{padding:20px 20px 20px 77px}
+ #razuma-ux-root .rz-refresh .rz-home-card .rz-tile-icon{left:18px}
+ #razuma-ux-root .rz-refresh .rz-clinical-summary{padding:22px}
+ #razuma-ux-root .rz-refresh .rz-clinical-summary h2{font-size:26px}
+ /* Touch targets: the 37px chips are below 40px once the pointer is a finger. */
+ #razuma-ux-root .rz-refresh .rz-chip{display:inline-flex;align-items:center;min-height:44px}
+}
