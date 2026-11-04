@@ -322,21 +322,21 @@ bool Config::loadFromFile(const std::string &config_path)
         }
 
         spdlog::info("AI configuration:");
-        spdlog::info("  Enabled: {}", new_data.ai.enabled);
-        if (new_data.ai.enabled)
+        spdlog::info("  Enabled: {}", data_.ai.enabled);
+        if (data_.ai.enabled)
         {
-            spdlog::info("  Base URL: {}", new_data.ai.base_url);
-            spdlog::info("  Model: {}", new_data.ai.model);
-            spdlog::info("  Focus breakdown: {}", new_data.ai.focus_enabled);
-            spdlog::info("  Image/video interpretation: {}", new_data.ai.depression_enabled);
+            spdlog::info("  Base URL: {}", data_.ai.base_url);
+            spdlog::info("  Model: {}", data_.ai.model);
+            spdlog::info("  Focus breakdown: {}", data_.ai.focus_enabled);
+            spdlog::info("  Image/video interpretation: {}", data_.ai.depression_enabled);
         }
 
         spdlog::info("Analytics configuration:");
-        spdlog::info("  Enabled: {}", new_data.analytics.enabled);
+        spdlog::info("  Enabled: {}", data_.analytics.enabled);
         spdlog::info("  Event log: {}",
-                     new_data.analytics.path.empty()
-                         ? (fs::path(new_data.paths.logs) / "analytics.jsonl").string()
-                         : new_data.analytics.path);
+                     data_.analytics.path.empty()
+                         ? (fs::path(data_.paths.logs) / "analytics.jsonl").string()
+                         : data_.analytics.path);
 
         return true;
     }

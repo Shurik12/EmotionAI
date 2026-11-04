@@ -144,10 +144,10 @@ frontend renders it in `DetectorResults.jsx` (`AIAnalysis`) using `getVerdictInf
 analysis, and it runs once per upload (per image, per video — **not** per frame). It is gated by
 `ai.depression_enabled`; the Focus breakdown is gated independently by `ai.focus_enabled` (both
 under the master `ai.enabled`). Only emotion probabilities are sent — never pixels, frames or
-files. It uses its **own timeout** `ai.media_timeout_seconds` (default 60 s) rather than the
+files. It uses its **own timeout** `ai.media_timeout_seconds` (default 120 s) rather than the
 Focus `ai.timeout_seconds` (30 s): the provider is a reasoning model (~700–1100 reasoning
-tokens → 13 s from the host but ~26 s from inside the container), so 30 s is too tight and every
-call silently timed out. It runs on a worker thread, so the longer bound does not stall the
+tokens → 13 s from the host but ~26 s from inside the container), and 60 s still timed out
+under provider load, so every call silently dropped the verdict. It runs on a worker thread, so the longer bound does not stall the
 epoll loop (unlike the Focus path). `FileProcessor` holds a **non-owning** `AIClient*` (owned by `Server`), which is why the
 `Server` member order places `ai_client_` before `file_processor_`/`thread_pool_` so it outlives
 them at shutdown. The deleted GigaChat implementation lived in `src/gigachat/` (see `a166c35^`).
@@ -240,11 +240,10 @@ aligned with `frontend/`; it has its own `node_modules` and shares no code with 
 - **Build order matters.** The landing's Vite build empties `frontend/dist`, which would delete
   `compass/`; `make build_frontend` therefore builds the landing first and then calls
   `make build_compass`. `make build` (hence `update_vm`/CI) inherits the order.
-- **The C++ binary does not serve it locally.** `/compass/` has no static extension, so
-  `Server::handleServeReactFile` answers with the landing's `index.html` (and `.html` is not in
-  `STATIC_EXTENSIONS`). Check it the way nginx serves it:
-  `cd frontend/dist && python3 -m http.server 8080`, then `http://localhost:8080/compass/`.
-  Production is unaffected.
+- **The C++ binary serves it locally too.** `Server::handleServeCompass` maps `/compass` (301 to
+  `/compass/`), `/compass/` and other `/compass/...` paths to `frontend/compass/`; `/compass/assets/*`
+  still goes through the normal static-asset branch. Before this, `/compass/` matched the landing
+  React fallback. `cd frontend/dist && python3 -m http.server 8080` remains a nginx-like check.
 - **Checks:** `cd compass/frontend && npm run typecheck && npm run build && node tools/check-engine.mjs`
   (`check-engine.mjs` is framework-free and covers all 68 screens, roles, the demo OTP and HTML
   escaping). `tools/browser-smoke.cjs` needs Playwright plus a Chromium download; `tools/migrate.mjs`

@@ -117,7 +117,8 @@ private:
     // request (called from every exit path of processRequest).
     void finalizeRequest(const std::shared_ptr<ClientContext> &context,
                          std::chrono::steady_clock::time_point start_time);
-    void sendHttpResponse(int client_fd, int status_code, const std::string &content_type, const std::string &body);
+    void sendHttpResponse(int client_fd, int status_code, const std::string &content_type,
+                          const std::string &body, const std::string &extra_headers = "");
     void sendFileResponse(int client_fd, const fs::path &file_path);
 
     // Route handlers
@@ -131,6 +132,7 @@ private:
     void handleStorageInfo(const std::shared_ptr<ClientContext> &context);
     void handleHealthCheck(const std::shared_ptr<ClientContext> &context);
     void handleServeStatic(const std::shared_ptr<ClientContext> &context);
+    void handleServeCompass(const std::shared_ptr<ClientContext> &context);
     void handleServeReactFile(const std::shared_ptr<ClientContext> &context);
     void handleRoot(const std::shared_ptr<ClientContext> &context);
     void handleOptions(const std::shared_ptr<ClientContext> &context);
