@@ -20,7 +20,7 @@ namespace emotionai
             // The image/video interpretation is more verbose (the model emits a
             // reasoning trace) and runs on a worker thread, so it gets a larger
             // budget than the epoll-thread Focus breakdown.
-            long mediaTimeoutSeconds{60};
+            long mediaTimeoutSeconds{120};
         };
 
         struct TokenUsage

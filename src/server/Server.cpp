@@ -709,6 +709,15 @@ void Server::processRequest(const std::shared_ptr<ClientContext> &context)
                     ? sendFileResponse(context->fd, file_path)
                     : sendErrorResponse(context->fd, 404, "File not found");
             }
+            // Compass SPA (built into frontend/compass). Its hash router only
+            // requests /compass/ and /compass/assets/*, but serve any existing
+            // file under the prefix and fall back to its own index.html.
+            else if (context->path == "/compass" ||
+                     context->path == "/compass/" ||
+                     context->path.rfind("/compass/", 0) == 0)
+            {
+                handleServeCompass(context);
+            }
             // React routes
             else
             {
@@ -788,7 +797,7 @@ void Server::finalizeRequest(const std::shared_ptr<ClientContext> &context,
         duration_seconds * 1000.0);
 }
 
-void Server::sendHttpResponse(int client_fd, int status_code, const std::string &content_type, const std::string &body)
+void Server::sendHttpResponse(int client_fd, int status_code, const std::string &content_type, const std::string &body, const std::string &extra_headers)
 {
     // Record the actual status code so processRequest can report the real
     // code to the metrics collector instead of a hardcoded 200.
@@ -796,13 +805,14 @@ void Server::sendHttpResponse(int client_fd, int status_code, const std::string 
         it->second->last_status_code = status_code;
 
     static const std::map<int, std::string> STATUS_TEXTS = {
-        {200, "OK"}, {201, "Created"}, {202, "Accepted"}, {400, "Bad Request"}, {404, "Not Found"}, {405, "Method Not Allowed"}, {413, "Payload Too Large"}, {500, "Internal Server Error"}, {502, "Bad Gateway"}, {503, "Service Unavailable"}};
+        {200, "OK"}, {201, "Created"}, {202, "Accepted"}, {301, "Moved Permanently"}, {400, "Bad Request"}, {404, "Not Found"}, {405, "Method Not Allowed"}, {413, "Payload Too Large"}, {500, "Internal Server Error"}, {502, "Bad Gateway"}, {503, "Service Unavailable"}};
 
     std::string status_text = STATUS_TEXTS.count(status_code) ? STATUS_TEXTS.at(status_code) : "Unknown";
 
     std::string response = fmt::format(
         "HTTP/1.1 {} {}\r\n"
         "Content-Type: {}\r\n"
+        "{}"
         "Access-Control-Allow-Origin: *\r\n"
         "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n"
         "Access-Control-Allow-Headers: Content-Type, Authorization\r\n"
@@ -810,7 +820,7 @@ void Server::sendHttpResponse(int client_fd, int status_code, const std::string 
         "Connection: close\r\n"
         "\r\n"
         "{}",
-        status_code, status_text, content_type, body.length(), body);
+        status_code, status_text, content_type, extra_headers, body.length(), body);
 
     // Send with retry logic for partial sends
     const char *data = response.c_str();
@@ -1290,6 +1300,50 @@ void Server::handleServeStatic(const std::shared_ptr<ClientContext> &context)
     catch (const std::exception &e)
     {
         LOG_ERROR("Exception serving static file: {}", e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
+void Server::handleServeCompass(const std::shared_ptr<ClientContext> &context)
+{
+    try
+    {
+        // Keep relative asset URLs (./assets/...) under /compass/.
+        if (context->path == "/compass")
+        {
+            sendHttpResponse(context->fd, 301, "text/plain; charset=utf-8", "",
+                             "Location: /compass/\r\n");
+            return;
+        }
+
+        if (context->path.find("..") != std::string::npos)
+        {
+            sendErrorResponse(context->fd, 404, "Page not found");
+            return;
+        }
+
+        // Serve an explicitly requested file (e.g. /compass/index.html) first;
+        // everything else falls back to the Compass SPA entry point.
+        fs::path requested = static_files_root_ / context->path.substr(1);
+        if (fs::exists(requested) && fs::is_regular_file(requested))
+        {
+            sendFileResponse(context->fd, requested);
+            return;
+        }
+
+        fs::path index_path = static_files_root_ / "compass" / "index.html";
+        if (fs::exists(index_path))
+        {
+            sendFileResponse(context->fd, index_path);
+        }
+        else
+        {
+            sendErrorResponse(context->fd, 404, "Page not found");
+        }
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Exception serving Compass file: {}", e.what());
         sendErrorResponse(context->fd, 500, "Internal server error");
     }
 }

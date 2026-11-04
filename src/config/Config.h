@@ -175,7 +175,7 @@ private:
 		long connect_timeout_seconds{5};
 		// Larger budget for the image/video interpretation (verbose reasoning
 		// model, runs off the epoll thread).
-		long media_timeout_seconds{60};
+		long media_timeout_seconds{120};
 	};
 
 	struct AnalyticsConfig

@@ -724,7 +724,8 @@ nlohmann::json FileProcessor::process_external_influence(
             }
 
             if (emotion.contains("error")) {
-                LOG_WARN("External influence: fragment {} inference failed: {}", i, emotion["error"]);
+                LOG_WARN("External influence: fragment {} inference failed: {}", i,
+                         emotion["error"].get<std::string>());
                 fragment_record["error"] = emotion["error"];
                 fragment_records.push_back(std::move(fragment_record));
                 continue;

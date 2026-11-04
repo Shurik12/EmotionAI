@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { modeLabel, type DetectorMode, type ProgressPayload } from '@/lib/detectorApi';
 import {
+  aiScoreLabel,
   burnoutComment,
   burnoutComponent,
   burnoutLevel,
@@ -188,7 +189,7 @@ export function DetectorReport({ payload, fileName, mode, previewUrl, onClose }:
               <ul>
                 {Object.entries(ai.scores as Record<string, unknown>).map(([key, value]) => (
                   <li key={key}>
-                    <span>{key}</span>
+                    <span>{aiScoreLabel(key)}</span>
                     <span>{String(value)}</span>
                   </li>
                 ))}
@@ -198,7 +199,7 @@ export function DetectorReport({ payload, fileName, mode, previewUrl, onClose }:
         </div>
       ) : (
         <p className="rz-note neutral rz-report-noai">
-          ИИ-интерпретация недоступна: второй этап анализа отключён на сервере. Данные эмоций — ниже.
+          ИИ-интерпретация недоступна: сервис не ответил или второй этап отключён. Данные эмоций — ниже.
         </p>
       )}
 

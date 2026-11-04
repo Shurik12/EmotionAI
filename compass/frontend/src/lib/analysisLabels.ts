@@ -151,6 +151,21 @@ export const burnoutState = (code: unknown): string =>
     code,
   );
 
+/** Display labels for the AI interpretation score keys. */
+export const aiScoreLabel = (code: string): string =>
+  label(
+    {
+      valence_score: 'Валентность',
+      intensity_score: 'Интенсивность',
+      joy_score: 'Радость',
+      na_score: 'Негативный аффект',
+      disgust_score: 'Отвращение',
+      total_score: 'Итого',
+    },
+    code,
+    code,
+  );
+
 /** `top_factor` is an English display name chosen by the backend, not a code. */
 export const burnoutTopFactor = (name: string): string =>
   label(

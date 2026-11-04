@@ -83,4 +83,4 @@ ai:
   api_key: ""
   verify_ssl: true
   timeout_seconds: 30        # Focus breakdown (epoll thread)
-  media_timeout_seconds: 60  # image/video interpretation (worker thread)
+  media_timeout_seconds: 120  # image/video interpretation (worker thread)
