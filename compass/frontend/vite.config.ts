@@ -6,13 +6,13 @@ import { fileURLToPath, URL } from 'node:url';
 // existing deploy (scp frontend/dist/* to the VM) ships it to
 // https://razuma.tech/compass/ without touching nginx or the deploy scripts.
 //
-// `base: './'` plus hash routing means no SPA rewrite is required. That is also a
-// constraint: relative asset URLs resolve against the document URL, so every route
-// must stay on `compass/index.html` (i.e. `#/...`). Adding a pushState route such as
-// `/compass/screens/P03` would look for its assets under `/compass/screens/`.
+// `base: '/compass/'` makes all asset URLs absolute (e.g. /compass/assets/...),
+// so a hard refresh on a deep history route like /compass/P03 still
+// resolves assets correctly — the server's /compass/ SPA fallback then serves
+// compass/index.html, which loads /compass/assets/*.
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: './',
+  base: '/compass/',
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: {
     outDir: fileURLToPath(new URL('../../frontend/dist/compass', import.meta.url)),

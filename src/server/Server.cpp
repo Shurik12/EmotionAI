@@ -709,8 +709,8 @@ void Server::processRequest(const std::shared_ptr<ClientContext> &context)
                     ? sendFileResponse(context->fd, file_path)
                     : sendErrorResponse(context->fd, 404, "File not found");
             }
-            // Compass SPA (built into frontend/compass). Its hash router only
-            // requests /compass/ and /compass/assets/*, but serve any existing
+            // Compass SPA (built into frontend/compass). History routing requests
+            // /compass/<screen> and /compass/assets/*, so serve any existing
             // file under the prefix and fall back to its own index.html.
             else if (context->path == "/compass" ||
                      context->path == "/compass/" ||

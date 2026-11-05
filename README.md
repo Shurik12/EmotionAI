@@ -278,8 +278,8 @@ Details in [frontend/README.md](frontend/README.md).
 ### Compass prototype
 
 `compass/frontend/` is a second, independent SPA: the "Клинический компас" clinical UX prototype
-(68 demo screens, doctor/patient roles, camera recorder). React 18 + Vite 5 + TypeScript, hash
-routing (`/#/screens/P03`), no server of its own and no Node in production.
+(68 demo screens, doctor/patient roles, camera recorder). React 18 + Vite 5 + TypeScript, history
+routing (`/compass/P03`), no server of its own and no Node in production.
 
 ```bash
 make build_compass          # npm install + vite build -> frontend/dist/compass

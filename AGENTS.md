@@ -230,11 +230,11 @@ aligned with `frontend/`; it has its own `node_modules` and shares no code with 
   The prototype's 128 KB state machine and HTML templates in `src/prototype/engine.js` are kept
   as-is (typed by `engine.d.ts`); `Compass.tsx` renders its HTML with `html-react-parser`. Replacing
   the 68 screens with TSX components is a per-screen task for later — don't "clean up" engine.js.
-- **Hash routing on purpose.** `/#/screens/P03`, `/#/capture`, hand-rolled in `App.tsx` (no
-  `react-router`). That is what makes an SPA rewrite unnecessary: any static host serving directory
-  indexes works, including a subdirectory.
+- **History routing on purpose.** `/compass/P03`, `/compass/capture`, hand-rolled in `App.tsx` (no
+  `react-router`). The C++ server's `/compass/...` fallback serves `compass/index.html` for deep links,
+  so a hard refresh on `/compass/P03` works and any static host with an SPA fallback can serve it.
 - **The build lands inside the landing's dist.** `make build_compass` writes
-  `frontend/dist/compass/` (`base: './'`, so assets resolve under `/compass/`). Deployment needs no
+  `frontend/dist/compass/` (`base: '/compass/'`, so assets resolve under `/compass/`). Deployment needs no
   new step: `update_vm` and CI already copy all of `frontend/dist/*` to the VM, so the app shows up at
   `https://razuma.tech/compass/` — nginx, C++ and the deploy scripts are untouched.
 - **Build order matters.** The landing's Vite build empties `frontend/dist`, which would delete

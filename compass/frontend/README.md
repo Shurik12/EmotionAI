@@ -32,7 +32,7 @@ cd ../../frontend/dist && python3 -m http.server 8080   # http://localhost:8080/
 Открывайте через HTTP(S), а не двойным щелчком по HTML через file://. Для камеры и микрофона нужны
 HTTPS или localhost и разрешение браузера.
 
-Примеры адресов: `/#/screens/P03`, `/#/screens/D01`, `/#/capture`. Список всех экранов — `docs/screens.md` и встроенный каталог.
+Примеры адресов: `/compass/P03`, `/compass/D01`, `/compass/capture`. Список всех экранов — `docs/screens.md` и встроенный каталог.
 
 ## Что работает
 

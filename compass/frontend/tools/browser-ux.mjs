@@ -40,7 +40,11 @@ if (!fs.existsSync(path.join(DIST, 'index.html'))) {
 const serve = () =>
   new Promise((resolve) => {
     const server = http.createServer((req, res) => {
-      const wanted = path.join(DIST, decodeURIComponent(req.url.split('?')[0]));
+      // The build uses base '/compass/' (assets are /compass/assets/...), while
+      // DIST is the compass root. Strip the prefix so the files resolve.
+      const urlPath = decodeURIComponent(req.url.split('?')[0]);
+      const rel = urlPath.startsWith('/compass/') ? urlPath.slice('/compass/'.length) : urlPath.replace(/^\/+/, '');
+      const wanted = path.join(DIST, rel);
       const file = wanted.startsWith(DIST) && fs.existsSync(wanted) && fs.statSync(wanted).isFile()
         ? wanted
         : path.join(DIST, 'index.html');
@@ -82,7 +86,7 @@ const main = async () => {
   page.on('console', (m) => m.type() === 'error' && problems.push(`console.error: ${m.text()}`));
 
   const open = async (id) => {
-    await page.goto(`${base}#/screens/${id}`, { waitUntil: 'networkidle' });
+    await page.goto(`${base}compass/${id}`, { waitUntil: 'networkidle' });
     await page.locator('h1').first().waitFor();
   };
 
@@ -138,16 +142,19 @@ const main = async () => {
 
   /* The diary keeps what was typed after leaving the step and coming back. */
   const text = `Проверка сохранения ${Date.now()}`;
-  await page.locator('textarea[data-bind="form.diaryText"]').fill(text);
-  await page.goto(`${base}#/screens/P05`, { waitUntil: 'networkidle' });
-  await page.locator('h1').first().waitFor();
   await open('P04');
+  await page.locator('textarea[data-bind="form.diaryText"]').fill(text);
+  // Client-side navigation only: a full reload intentionally resets the engine.
+  await page.locator('[data-action="nav:P05"]').click();
+  await page.locator('h1').first().waitFor();
+  await page.goBack();
+  await page.locator('h1').first().waitFor();
   assert.equal(await page.locator('textarea[data-bind="form.diaryText"]').inputValue(), text, 'the diary lost its text');
 
   /* The refreshed home links into the untouched P08 uploader. */
   await open('P03');
   await page.locator('[data-action="nav:P08"]').first().click();
-  await page.waitForURL('**/screens/P08');
+  await page.waitForURL('**/compass/P08');
   await page.getByRole('button', { name: 'Выбрать файл', exact: true }).waitFor();
   assert.equal(await page.locator('.rz-refresh').count(), 0, 'P08 must stay outside the refresh');
   assert.equal(await page.locator('.rz-analyzer').count(), 1, 'P08 lost the analyzer');
