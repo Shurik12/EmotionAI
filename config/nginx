@@ -60,6 +60,19 @@ server {
         add_header X-Frame-Options "SAMEORIGIN" always;
     }
 
+    # Compass SPA (frontend/build/compass). It uses history routing, so deep
+    # links like /compass/capture and /compass/P03 must load the Compass entry
+    # point, NOT the landing fallback below — otherwise the landing SPA boots
+    # for an unknown path and renders its home page.
+    location ^~ /compass/ {
+        try_files $uri $uri/ /compass/index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    location = /compass {
+        return 301 /compass/;
+    }
+
     # Frontend static files
     location / {
         try_files $uri $uri/ /index.html;

@@ -17,7 +17,7 @@
 | Язык | TypeScript 5.9, `strict`, компоненты — `.tsx` |
 | Рантайм Node.js | 20 (в CI `actions/setup-node@v7`, `node-version: 20`), npm 10 |
 | Пакетный менеджер | `npm ci` по закоммиченному `package-lock.json` (`lockfileVersion: 3`) |
-| Роутинг | только hash-роуты, реализованы руками в `src/App.tsx` |
+| Роутинг | history-роуты `/compass/<ID>` и `/compass/capture`, реализованы руками в `src/App.tsx` |
 | Иконки | `lucide-react` через явную карту `src/components/icons.ts` |
 | Стили | обычный CSS в `src/styles.css` |
 | Графики | SVG-компонент `src/components/Chart.tsx` |
@@ -67,7 +67,7 @@
 compass/frontend/
   index.html                    # единственная точка входа
   src/main.tsx                  # createRoot(...).render(<App/>) + import './styles.css'
-  src/App.tsx                   # hash-роутинг: /screens/P03 | /capture | редирект
+  src/App.tsx                   # history-роутинг: /compass/P03 | /compass/capture | редирект
   src/components/               # компоненты UI; icons.ts — карта иконок
   src/prototype/engine.js       # логика 68 экранов (JS), + engine.d.ts
   src/data/screens.json         # реестр экранов (68 записей)
@@ -95,7 +95,7 @@ compass/frontend/
 ```ts
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: './',
+  base: '/compass/',
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: {
     outDir: fileURLToPath(new URL('../../frontend/dist/compass', import.meta.url)),
@@ -109,8 +109,11 @@ export default defineConfig(({ mode }) => ({
 }));
 ```
 
-- **`base: './'` обязателен.** Сборка лежит в подкаталоге `/compass/` и грузится с
-  `compass/index.html`; относительные пути — единственное, что работает без правки nginx.
+- **`base: '/compass/'` обязателен.** Сборка лежит в подкаталоге `/compass/`, а роуты — реальные
+  пути (`/compass/P03`), поэтому ассеты должны быть абсолютными: на `/compass/P03` относительные
+  пути искались бы в `/compass/P03/assets/`. Хостинг при этом обязан отдавать `compass/index.html`
+  на любой `/compass/...` — у C++-бинарника это `handleServeCompass`, у nginx отдельный
+  `location ^~ /compass/` (см. `config/nginx`).
 - **`outDir` — `../../frontend/dist/compass`**, а не локальный `dist/`. Так существующий деплой
   (`scp frontend/dist/*` на VM) публикует Compass по адресу `https://razuma.tech/compass/`.
 - **`sourcemap: false`.** Лендинг собирается со `sourcemap: true`; для Compass это означало бы
@@ -148,10 +151,15 @@ export default defineConfig(({ mode }) => ({
 
 ## 6. Роутинг — жёсткое ограничение
 
-- Только hash: `/#/screens/P03`, `/#/capture`. Навигация — `location.hash`, `hashchange`.
-- **Никаких pushState/History-роутов** вида `/compass/screens/P03`: при `base: './'` ассеты
-  резолвятся относительно документа, и такой роут ищет их в `/compass/screens/`.
-- Пустой хеш → редирект на `/screens/P03`; неизвестный id → экран «Экран не найден», не пустая
+- Только History API: `/compass/P03`, `/compass/capture`. Навигация — `history.pushState`/
+  `replaceState` + `popstate`; хеш не используется.
+- **Никаких hash-роутов.** Сборка использует `base: '/compass/'`, поэтому ассеты резолвятся
+  абсолютно и работают на любой глубине пути.
+- Хостинг обязан отдавать `compass/index.html` на любой `/compass/...` (SPA-fallback): иначе
+  `/compass/capture` и `/compass/P03` попадают в fallback лендинга и открывается главная страница
+  лендинга. C++-бинарник делает это в `handleServeCompass`, nginx — через
+  `location ^~ /compass/ { try_files $uri $uri/ /compass/index.html; }`.
+- Пустой путь (`/compass/`) → `/P03`; неизвестный id → экран «Экран не найден», не пустая
   страница.
 - Список экранов — `src/data/screens.json` (68 записей, id вида `P03`, `D01`, `U01`); новые экраны
   добавляются туда, иначе роут отбросит их как неизвестные.
@@ -176,9 +184,9 @@ export default defineConfig(({ mode }) => ({
 | Next.js (`next` в зависимостях) | Vite 5 + `@vitejs/plugin-react` (Next удалён) |
 | `app/`/`pages/` + серверные API-маршруты | плоский `src/` без серверного кода |
 | `next/link`, `next/image`, `next/font`, `use client`/`use server` | обычные `<a>`, `<img>`, `<style>` |
-| файловый роутинг Next | hash-роутинг в `src/App.tsx` |
+| файловый роутинг Next | history-роутинг `/compass/<ID>` в `src/App.tsx` |
 | `process.env.*` | `import.meta.env.VITE_*` |
-| `base: '/'`, локальный `dist/` | `base: './'`, `outDir: ../../frontend/dist/compass` |
+| `base: '/'`, локальный `dist/` | `base: '/compass/'`, `outDir: ../../frontend/dist/compass` |
 | `sourcemap: true` | `sourcemap: false` |
 | `import * as icons from 'lucide-react'` (бандл 1 002 630 B) | явная карта `icons.ts` (бандл ≈342 KiB), `check-engine.mjs` падает на неизвестной иконке |
 | TS «как получится» | `strict`, `tsc --noEmit` в `build` |
@@ -213,18 +221,20 @@ make build_frontend      # лендинг, затем compass; проверяе�
 - [ ] `make build_frontend` проходит (лендинг собирается первым, иначе его `vite build` очистит
       `frontend/dist` и удалит Compass);
 - [ ] проверка в браузере: `cd frontend/dist && python3 -m http.server 8080` →
-      `http://localhost:8080/compass/#/screens/P03` (по HTTP, не через `file://`: камера и микрофон
-      требуют HTTPS или localhost).
+      `http://localhost:8080/compass/P03` (по HTTP, не через `file://`: камера и микрофон
+      требуют HTTPS или localhost; у `http.server` нет SPA-fallback, поэтому для `/compass/P03`
+      нужен nginx-конфиг из раздела 6).
 
 ## 11. Ловушки экспорта (типовые)
 
 1. `import * as icons from 'lucide-react'` — бандл раздувается до 1 МБ. Только именованные импорты и
    карта.
-2. `base: '/'` — приложение «работает» локально и отдаёт 404 на все ассеты на `razuma.tech/compass/`.
+2. `base: './'` — ассеты разрешаются относительно документа, и на `/compass/P03` ищутся в
+   `/compass/P03/assets/`. Нужен абсолютный `base: '/compass/'`.
 3. `sourcemap: true`, скопированный из конфига лендинга, — публикация исходников.
-4. `react-router-dom` «для порядка» — лишние 40 KiB и конфликт с hash-роутингом и относительными
-   путями.
-5. PushState-роуты — ломают загрузку ассетов в подкаталоге (раздел 6).
+4. `react-router-dom` «для порядка» — лишние 40 KiB при ручном роутинге в `src/App.tsx`.
+5. Отсутствие SPA-fallback для `/compass/...` на хостинге — `/compass/capture` и `/compass/P03`
+   отдают `index.html` лендинга, и открывается его главная страница (раздел 6).
 6. `process.env` вместо `import.meta.env` — в бандле `undefined`, API-адрес теряется.
 7. Шрифты/картинки с внешних CDN — деплой должен оставаться самодостаточным статическим набором.
 8. Правка `frontend/dist/compass/*` руками — каталог пересоздаётся при каждой сборке.

@@ -92,7 +92,7 @@ src/
 └── common/      base64, uuid, httplib, librosa helpers
 
 frontend/        React 18 + Vite 5 SPA
-compass/frontend/  clinical "Клинический компас" SPA (React 18 + Vite 5, hash routing)
+compass/frontend/  clinical "Клинический компас" SPA (React 18 + Vite 5, history routing)
 training/        PyTorch training and dataset prep scripts
 tests/           unit, integration, end-to-end, benchmarks
 config/          YAML profiles, nginx vhost, systemd unit
@@ -286,11 +286,24 @@ make build_compass          # npm install + vite build -> frontend/dist/compass
 ```
 
 The output deliberately lands inside the landing's `dist`, so the existing `update_vm`/CI deploy
-ships it to `https://razuma.tech/compass/` without touching nginx, C++ or the deploy scripts.
+ships it to `https://razuma.tech/compass/` without touching C++ or the deploy scripts.
 `make build_frontend` builds both (landing first, then Compass on top of the emptied dist).
+
+Because Compass uses history routing, nginx needs its own SPA fallback — without it any deep link
+(`/compass/capture`, `/compass/P03`, a refresh on either) matches `location /` and is answered with
+the landing `index.html`, which then renders its home page. The vhost in `config/nginx` carries it:
+
+```nginx
+location ^~ /compass/ {
+    try_files $uri $uri/ /compass/index.html;
+}
+location = /compass { return 301 /compass/; }
+```
+
 To preview locally the way nginx serves it: `cd frontend/dist && python3 -m http.server 8080` and
-open `http://localhost:8080/compass/`. The C++ binary itself answers `/compass/` with the landing
-page — expected, since production serves this path through nginx.
+open `http://localhost:8080/compass/` (a plain static server has no fallback, so deep links need
+the server above). The C++ binary serves the same fallback locally through
+`Server::handleServeCompass`; production uses nginx, so the vhost must carry it too.
 
 Details in [compass/frontend/README.md](compass/frontend/README.md).
 
