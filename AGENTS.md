@@ -231,19 +231,26 @@ aligned with `frontend/`; it has its own `node_modules` and shares no code with 
   as-is (typed by `engine.d.ts`); `Compass.tsx` renders its HTML with `html-react-parser`. Replacing
   the 68 screens with TSX components is a per-screen task for later — don't "clean up" engine.js.
 - **History routing on purpose.** `/compass/P03`, `/compass/capture`, hand-rolled in `App.tsx` (no
-  `react-router`). The C++ server's `/compass/...` fallback serves `compass/index.html` for deep links,
-  so a hard refresh on `/compass/P03` works and any static host with an SPA fallback can serve it.
+  `react-router`). Because these are real URLs, the host must answer them with `compass/index.html`.
+  The C++ server does (`handleServeCompass`); production is bare-metal nginx serving static files,
+  where `location / { try_files $uri $uri/ /index.html; }` would answer with the **landing** and the
+  landing would render its home page — that was the "Записать видео opens the main page" bug. The
+  vhost therefore needs, before `location /`:
+  `location ^~ /compass/ { try_files $uri $uri/ /compass/index.html; }` plus
+  `location = /compass { return 301 /compass/; }` (`config/nginx` has both).
 - **The build lands inside the landing's dist.** `make build_compass` writes
   `frontend/dist/compass/` (`base: '/compass/'`, so assets resolve under `/compass/`). Deployment needs no
   new step: `update_vm` and CI already copy all of `frontend/dist/*` to the VM, so the app shows up at
-  `https://razuma.tech/compass/` — nginx, C++ and the deploy scripts are untouched.
+  `https://razuma.tech/compass/` — C++ and the deploy scripts are untouched, but the nginx fallback
+  above is a one-time vhost requirement, not part of the artifact copy.
 - **Build order matters.** The landing's Vite build empties `frontend/dist`, which would delete
   `compass/`; `make build_frontend` therefore builds the landing first and then calls
   `make build_compass`. `make build` (hence `update_vm`/CI) inherits the order.
 - **The C++ binary serves it locally too.** `Server::handleServeCompass` maps `/compass` (301 to
   `/compass/`), `/compass/` and other `/compass/...` paths to `frontend/compass/`; `/compass/assets/*`
   still goes through the normal static-asset branch. Before this, `/compass/` matched the landing
-  React fallback. `cd frontend/dist && python3 -m http.server 8080` remains a nginx-like check.
+  React fallback. `cd frontend/dist && python3 -m http.server 8080` checks static assets only —
+  plain `http.server` has no SPA fallback, so deep links 404 there.
 - **Checks:** `cd compass/frontend && npm run typecheck && npm run build && node tools/check-engine.mjs`
   (`check-engine.mjs` is framework-free and covers all 68 screens, roles, the demo OTP and HTML
   escaping). `tools/browser-smoke.cjs` needs Playwright plus a Chromium download; `tools/migrate.mjs`
@@ -286,7 +293,7 @@ The codebase is **inconsistent** — match the file you are editing rather than 
 | `src/storage/` | `FileStorage` interface + Local / NFS / S3 (MinIO) |
 | `src/metrics/` | Prometheus collector and middleware |
 | `frontend/src/` | React 18 + Vite 5 SPA; landing = `components/Home.jsx` + `styles/components/landing.css`; i18n = `utils/translations.js` |
-| `compass/frontend/` | second SPA: clinical "Клинический компас" prototype (React 18 + Vite 5 + TS, hash routing), builds into `frontend/dist/compass/` |
+| `compass/frontend/` | second SPA: clinical "Клинический компас" prototype (React 18 + Vite 5 + TS, history routing), builds into `frontend/dist/compass/` |
 | `config/` | YAML profiles, `nginx` vhost template, `service` systemd unit |
 | `docker/` | five compose variants, one per deployment topology |
 | `training/` | PyTorch training and dataset prep |
