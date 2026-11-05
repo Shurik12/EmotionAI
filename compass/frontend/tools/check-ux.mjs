@@ -95,7 +95,7 @@ function eachScreen(box, fn) {
   const box = mount();
   for (const id of ['P03', 'P04']) {
     box.e.navigate(id);
-    const buttons = box.html.match(/<a href="#\/capture" class="rz-record-btn"/g) || [];
+    const buttons = box.html.match(/<a href="\/compass\/capture" class="rz-record-btn"/g) || [];
     assert.equal(buttons.length, 2, `${id}: expected audio and video entry points`);
     assert.ok(box.html.includes('aria-describedby="rz-format-hint"'), `${id}: record buttons lost the format hint`);
     assert.ok(box.html.includes('data-action="nav:P08"'), `${id}: missing the link into P08`);
