@@ -75,10 +75,17 @@ model:
 #                         probabilities are interpreted into a depression-risk
 #                         verdict {verdict, probability, reasoning, scores}.
 #                         Never camera frames, pixels or files.
+#   depression_mode    -> how that second stage is produced:
+#                         "ai"    = send the probabilities to the LLM (needs the
+#                                   provider + key, runs off-thread).
+#                         "local" = run the built-in deterministic scorer. No
+#                                   provider, API key or network call — works
+#                                   even when `enabled` is false.
 ai:
   enabled: false # Set to true to enable (master switch)
   focus_enabled: true       # Focus task breakdown
   depression_enabled: true  # image/video second-stage interpretation
+  depression_mode: "ai"     # "ai" (LLM) or "local" (built-in scorer, no AI)
   base_url: "https://shared1.multitool.works:4000/v1"
   model: "deepseek-v4-flash"
   api_key: ""

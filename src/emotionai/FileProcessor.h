@@ -16,6 +16,7 @@
 #include <torch/script.h>
 #include <audio/BurnoutModels.h>
 #include <audio/BurnoutAnalyzer.h>
+#include <ai/DepressionScorer.h>
 
 namespace emotionai
 {

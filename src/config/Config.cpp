@@ -160,6 +160,7 @@ bool Config::loadFromFile(const std::string &config_path)
             new_data.ai.enabled = ai["enabled"].as<bool>(new_data.ai.enabled);
             new_data.ai.focus_enabled = ai["focus_enabled"].as<bool>(new_data.ai.focus_enabled);
             new_data.ai.depression_enabled = ai["depression_enabled"].as<bool>(new_data.ai.depression_enabled);
+            new_data.ai.depression_mode = ai["depression_mode"].as<std::string>(new_data.ai.depression_mode);
             new_data.ai.base_url = ai["base_url"].as<std::string>(new_data.ai.base_url);
             new_data.ai.model = ai["model"].as<std::string>(new_data.ai.model);
             new_data.ai.api_key = ai["api_key"].as<std::string>(new_data.ai.api_key);

@@ -78,6 +78,7 @@ ai:
   enabled: false
   focus_enabled: true
   depression_enabled: true
+  depression_mode: "ai"     # "ai" (LLM) or "local" (built-in scorer, no AI)
   base_url: "https://shared1.multitool.works:4000/v1"
   model: "deepseek-v4-flash"
   api_key: ""

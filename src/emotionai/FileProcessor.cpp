@@ -808,7 +808,31 @@ void FileProcessor::addAIAnalysis(nlohmann::json& target,
                                   const nlohmann::json& emotions,
                                   const std::string& task_id)
 {
-    if (!ai_client_ || !emotions.is_object() || emotions.empty()) {
+    if (!emotions.is_object() || emotions.empty()) {
+        return;
+    }
+
+    const auto& ai_cfg = Config::instance().ai();
+
+    // Interpretation mode: "ai" sends the emotion probabilities to the LLM;
+    // "local" runs the built-in deterministic scorer (no provider, no network,
+    // no API key). "local" is available even when the AI provider is
+    // disabled or its key is blocked.
+    if (ai_cfg.depression_mode == "local") {
+        auto analysis = emotionai::ai::DepressionScorer::assess(emotions);
+        if (analysis.is_object() && analysis.contains("verdict")) {
+            target["ai_analysis"] = analysis;
+            LOG_INFO("Local interpretation added: Task={}, verdict={}",
+                     task_id, analysis.value("verdict", ""));
+        } else {
+            LOG_WARN("Local interpretation unavailable: Task={}", task_id);
+        }
+        return;
+    }
+
+    // Default "ai" path: needs the LLM client.
+    if (!ai_client_) {
+        LOG_WARN("AI interpretation skipped (no client): Task={}", task_id);
         return;
     }
 
@@ -817,6 +841,8 @@ void FileProcessor::addAIAnalysis(nlohmann::json& target,
         auto analysis = ai_client_->assessDepression(emotions);
 
         if (analysis.is_object() && analysis.contains("verdict")) {
+            if (!analysis.contains("source"))
+                analysis["source"] = "llm";
             target["ai_analysis"] = analysis;
             LOG_INFO("AI interpretation added: Task={}, verdict={}",
                      task_id, analysis.value("verdict", ""));
