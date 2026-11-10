@@ -44,6 +44,32 @@ echo "  Updating EmotionAI on ${VM_HOST}"
 echo "============================================"
 
 # -------------------------------------------------------
+# 0. ABI compatibility preflight
+# -------------------------------------------------------
+# The binary links against the local glibc and shared libraries. A newer
+# build host (e.g. Ubuntu 26.04) produces a binary that cannot start on the
+# Ubuntu 24.04 VM ("GLIBC_2.43 not found", "libspdlog.so.1.15: cannot open
+# shared object file"), which looks like a dead API / failed upload. Refuse
+# before stopping the remote service; deploy from CI (which builds on
+# ubuntu-24.04) instead.
+echo ""
+echo "[0/4] Checking ABI compatibility with ${VM_HOST}..."
+LOCAL_GLIBC="$(getconf GNU_LIBC_VERSION | awk '{print $2}')"
+REMOTE_GLIBC="$(ssh "${VM_SSH}" "getconf GNU_LIBC_VERSION | awk '{print \$2}'")"
+if [ -z "${LOCAL_GLIBC}" ] || [ -z "${REMOTE_GLIBC}" ]; then
+    echo "ERROR: could not determine glibc versions (local='${LOCAL_GLIBC}', remote='${REMOTE_GLIBC}')"
+    exit 1
+fi
+NEWEST_GLIBC="$(printf '%s\n%s\n' "${LOCAL_GLIBC}" "${REMOTE_GLIBC}" | sort -V | tail -1)"
+if [ "${LOCAL_GLIBC}" != "${REMOTE_GLIBC}" ] && [ "${NEWEST_GLIBC}" = "${LOCAL_GLIBC}" ]; then
+    echo "ERROR: local glibc ${LOCAL_GLIBC} is newer than the VM's ${REMOTE_GLIBC}."
+    echo "       This binary would fail with status 127 (missing GLIBC / shared libs)."
+    echo "       Deploy via CI instead:"
+    echo "         gh workflow run ci.yml --repo Shurik12/EmotionAI --ref $(git branch --show-current) -f target=${VM_HOST}"
+    exit 1
+fi
+
+# -------------------------------------------------------
 # 1. Build locally
 # -------------------------------------------------------
 echo ""
