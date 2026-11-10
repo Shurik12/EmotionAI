@@ -814,18 +814,27 @@ void FileProcessor::addAIAnalysis(nlohmann::json& target,
 
     const auto& ai_cfg = Config::instance().ai();
 
-    // Interpretation mode: "ai" sends the emotion probabilities to the LLM;
-    // "local" runs the built-in deterministic scorer (no provider, no network,
-    // no API key). "local" is available even when the AI provider is
-    // disabled or its key is blocked.
-    if (ai_cfg.depression_mode == "local") {
-        auto analysis = emotionai::ai::DepressionScorer::assess(emotions);
-        if (analysis.is_object() && analysis.contains("verdict")) {
-            target["ai_analysis"] = analysis;
-            LOG_INFO("Local interpretation added: Task={}, verdict={}",
-                     task_id, analysis.value("verdict", ""));
-        } else {
-            LOG_WARN("Local interpretation unavailable: Task={}", task_id);
+    // Single tri-state switch: "false" disables the stage entirely, "local"
+    // runs the built-in deterministic scorer (no provider, no network, no API
+    // key), "ai" sends the probabilities to the LLM.
+    if (ai_cfg.isOff()) {
+        LOG_DEBUG("Interpretation disabled (ai.mode=false): Task={}", task_id);
+        return;
+    }
+
+    if (ai_cfg.isLocal()) {
+        try {
+            auto analysis = emotionai::ai::DepressionScorer::assess(emotions);
+            if (analysis.is_object() && analysis.contains("verdict")) {
+                target["ai_analysis"] = analysis;
+                LOG_INFO("Local interpretation added: Task={}, verdict={}",
+                         task_id, analysis.value("verdict", ""));
+            } else {
+                LOG_WARN("Local interpretation unavailable: Task={}", task_id);
+            }
+        } catch (const std::exception& e) {
+            // Best-effort stage: never fail the emotion analysis because of it.
+            LOG_ERROR("Local interpretation failed: Task={}, Error={}", task_id, e.what());
         }
         return;
     }

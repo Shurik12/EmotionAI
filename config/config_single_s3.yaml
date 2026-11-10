@@ -71,14 +71,10 @@ model:
   emotion_model_path: "models/enet_b0_8_va_mtl.pt" # enet_b2_7.pt
   face_detection_models_path: "models/"
 
-# AI Configuration (OpenAI-compatible provider). `enabled` is the master
-# switch; focus_enabled gates the Focus task breakdown, depression_enabled the
-# image/video second-stage interpretation.
+# AI Configuration (OpenAI-compatible provider). `mode` is the single switch:
+# "ai" (LLM provider), "local" (built-in scorer, no AI) or "false" (off).
 ai:
-  enabled: false
-  focus_enabled: true
-  depression_enabled: true
-  depression_mode: "ai"     # "ai" (LLM) or "local" (built-in scorer, no AI)
+  mode: "false"
   base_url: "https://shared1.multitool.works:4000/v1"
   model: "deepseek-v4-flash"
   api_key: ""

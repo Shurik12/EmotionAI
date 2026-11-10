@@ -10,10 +10,11 @@ namespace emotionai
 
         // Deterministic, dependency-free reimplementation of the depression-risk
         // interpretation that the LLM second stage (AIClient::assessDepression)
-        // otherwise produces. It encodes the exact scoring table that lives in
-        // that prompt (valence / intensity / joy / negative-affect / disgust),
-        // so an operator can run the same verdict with no AI provider, no API
-        // key and no outbound network call.
+        // otherwise produces. It encodes the scoring table that lives in that
+        // prompt (valence / joy / negative-affect / disgust), with the prompt's
+        // no-op Intensity row scored from `neutral` to capture emotional
+        // flattening. An operator can run the same verdict with no AI provider,
+        // no API key and no outbound network call.
         //
         // `assess` is pure: no I/O, no Config, no clock. Callers attach the
         // result as the same `ai_analysis` block the LLM path emits —

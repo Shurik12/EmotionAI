@@ -165,6 +165,34 @@ TEST(DepressionScorerTest, ScoresHaveFixedKeySet)
 }
 
 // ---------------------------------------------------------------------------
+// Reasoning must be user-facing prose: the internal score keys (valence,
+// negative_affect, ...) must not leak into the Russian or English text.
+// ---------------------------------------------------------------------------
+TEST(DepressionScorerTest, ReasoningUsesLocalizedMarkerLabels)
+{
+    // Flat-ish face -> flattening and joy markers fire, so the reasoning
+    // contains a substituted marker list rather than the fallback phrase.
+    const auto ru = DepressionScorer::assess(
+        makeEmotions(/*happiness*/ 0.05, /*neutral*/ 0.9), "ru");
+    ASSERT_FALSE(ru.is_null());
+    ASSERT_EQ(ru["verdict"], "monitor");
+    const std::string ru_reasoning = ru["reasoning"].get<std::string>();
+    EXPECT_NE(ru_reasoning.find("признаки эмоционального уплощения"), std::string::npos);
+    EXPECT_NE(ru_reasoning.find("дефицит положительного аффекта"), std::string::npos);
+    for (const char *raw : {"valence", "intensity", "joy", "negative_affect", "disgust"})
+    {
+        EXPECT_EQ(ru_reasoning.find(raw), std::string::npos) << "raw key leaked: " << raw;
+    }
+
+    const auto en = DepressionScorer::assess(
+        makeEmotions(/*happiness*/ 0.05, /*neutral*/ 0.9), "en");
+    ASSERT_FALSE(en.is_null());
+    const std::string en_reasoning = en["reasoning"].get<std::string>();
+    EXPECT_NE(en_reasoning.find("signs of emotional flattening"), std::string::npos);
+    EXPECT_NE(en_reasoning.find("deficit of positive affect"), std::string::npos);
+}
+
+// ---------------------------------------------------------------------------
 // Verdict bands are monotonic: more negative input never downgrades the verdict.
 // ---------------------------------------------------------------------------
 TEST(DepressionScorerTest, VerdictIsConsistentAcrossBands)

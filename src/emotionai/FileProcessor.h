@@ -101,11 +101,11 @@ public:
     );
     // ===========================================
 
-    // ============ Image/video LLM second stage ============
-    // Optional, non-owning. When set, image and video results get an
-    // additional "ai_analysis" block (depression-risk verdict) computed from
-    // the emotion probabilities. The client is owned by Server, which only
-    // attaches it when ai.enabled and ai.depression_enabled are both true.
+    // ============ Image/video second stage ============
+    // Optional, non-owning. The stage reads the single ai.mode switch from
+    // Config on every upload: "local" runs the built-in scorer with no client,
+    // "ai" needs this client, "false" disables the stage. The client is owned
+    // by Server and attached only for "ai" mode with a usable provider.
     void setAIClient(emotionai::ai::AIClient* client) { ai_client_ = client; }
     // ======================================================
 

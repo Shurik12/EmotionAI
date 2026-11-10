@@ -1,6 +1,8 @@
 #include "Config.h"
 #include <spdlog/spdlog.h>
 #include <fmt/format.h>
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -157,10 +159,58 @@ bool Config::loadFromFile(const std::string &config_path)
         if (root["ai"])
         {
             const auto &ai = root["ai"];
-            new_data.ai.enabled = ai["enabled"].as<bool>(new_data.ai.enabled);
-            new_data.ai.focus_enabled = ai["focus_enabled"].as<bool>(new_data.ai.focus_enabled);
-            new_data.ai.depression_enabled = ai["depression_enabled"].as<bool>(new_data.ai.depression_enabled);
-            new_data.ai.depression_mode = ai["depression_mode"].as<std::string>(new_data.ai.depression_mode);
+
+            // `ai.mode` is the single tri-state switch: "ai", "local" or
+            // "false" (YAML `false` arrives here as the scalar "false").
+            auto parse_mode = [](const YAML::Node &node, AIConfig::Mode &out)
+            {
+                if (!node || !node.IsScalar())
+                    return false;
+                std::string value = node.Scalar();
+                std::transform(value.begin(), value.end(), value.begin(),
+                               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                if (value == "ai" || value == "true" || value == "on" || value == "yes")
+                {
+                    out = AIConfig::Mode::Ai;
+                    return true;
+                }
+                if (value == "local")
+                {
+                    out = AIConfig::Mode::Local;
+                    return true;
+                }
+                if (value == "false" || value == "off" || value == "no" ||
+                    value == "none" || value == "0")
+                {
+                    out = AIConfig::Mode::Off;
+                    return true;
+                }
+                return false;
+            };
+
+            AIConfig::Mode mode = AIConfig::Mode::Off;
+            if (ai["mode"])
+            {
+                if (!parse_mode(ai["mode"], mode))
+                    spdlog::warn("Unknown ai.mode value, AI and local interpretation disabled");
+            }
+            else if (ai["enabled"] || ai["depression_mode"])
+            {
+                // Backwards compatibility with the old
+                // `enabled` + `depression_mode` pair. Local historically
+                // worked even when `enabled` was false, so it wins.
+                AIConfig::Mode parsed = AIConfig::Mode::Off;
+                const bool legacy_local =
+                    ai["depression_mode"] && parse_mode(ai["depression_mode"], parsed) &&
+                    parsed == AIConfig::Mode::Local;
+                if (legacy_local)
+                    mode = AIConfig::Mode::Local;
+                else if (ai["enabled"] && !parse_mode(ai["enabled"], mode) && ai["depression_mode"])
+                    parse_mode(ai["depression_mode"], mode);
+                spdlog::warn("ai.enabled/depression_mode are deprecated; use ai.mode: ai|local|false");
+            }
+            new_data.ai.mode = mode;
+
             new_data.ai.base_url = ai["base_url"].as<std::string>(new_data.ai.base_url);
             new_data.ai.model = ai["model"].as<std::string>(new_data.ai.model);
             new_data.ai.api_key = ai["api_key"].as<std::string>(new_data.ai.api_key);
@@ -323,14 +373,15 @@ bool Config::loadFromFile(const std::string &config_path)
         }
 
         spdlog::info("AI configuration:");
-        spdlog::info("  Enabled: {}", data_.ai.enabled);
-        if (data_.ai.enabled)
+        spdlog::info("  Mode: {}", data_.ai.modeName());
+        if (data_.ai.isAi())
         {
             spdlog::info("  Base URL: {}", data_.ai.base_url);
             spdlog::info("  Model: {}", data_.ai.model);
-            spdlog::info("  Focus breakdown: {}", data_.ai.focus_enabled);
-            spdlog::info("  Image/video interpretation: {}", data_.ai.depression_enabled);
         }
+        spdlog::info("  Focus breakdown: {}", data_.ai.focusEnabled());
+        spdlog::info("  Image/video interpretation: {}",
+                     data_.ai.interpretationEnabled());
 
         spdlog::info("Analytics configuration:");
         spdlog::info("  Enabled: {}", data_.analytics.enabled);
