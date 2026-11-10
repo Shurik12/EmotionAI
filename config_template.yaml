@@ -68,17 +68,18 @@ model:
 
 # AI Configuration (OpenAI-compatible provider). The client posts to
 # {base_url}/chat/completions with "Authorization: Bearer <api_key>".
-# `enabled` is the master switch; the two feature flags below gate the users:
-#   focus_enabled      -> Focus task breakdown (/api/focus/breakdown). Only the
-#                         task text and block duration are sent.
-#   depression_enabled -> image/video second stage: the detected emotion
-#                         probabilities are interpreted into a depression-risk
-#                         verdict {verdict, probability, reasoning, scores}.
-#                         Never camera frames, pixels or files.
+# `mode` is the single switch for everything AI-related:
+#   "ai"    -> use the LLM provider for the Focus task breakdown
+#              (/api/focus/breakdown) and the image/video interpretation.
+#              Only the task text/block duration and emotion probabilities are
+#              sent — never camera frames, pixels or files.
+#   "local" -> no provider, API key or network call. Image/video results get
+#              the built-in deterministic depression-risk verdict; the Focus
+#              breakdown returns 503 and the SPA falls back to its local
+#              templates.
+#   "false" -> both AI and local interpretation are off.
 ai:
-  enabled: false # Set to true to enable (master switch)
-  focus_enabled: true       # Focus task breakdown
-  depression_enabled: true  # image/video second-stage interpretation
+  mode: "false" # "ai", "local" or "false"
   base_url: "https://shared1.multitool.works:4000/v1"
   model: "deepseek-v4-flash"
   api_key: ""

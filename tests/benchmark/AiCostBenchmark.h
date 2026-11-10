@@ -16,7 +16,7 @@
 // file written by --benchmark_out.
 //
 // Prerequisites:
-//   - A running EmotionAI server with ai.enabled=true and a valid api_key.
+//   - A running EmotionAI server with ai.mode: ai and a valid api_key.
 //   - If the AI is not configured the benchmark is reported as skipped.
 class AiCostBenchmark
 {

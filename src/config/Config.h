@@ -160,11 +160,33 @@ private:
 
 	struct AIConfig
 	{
-		bool enabled{false};
-		// Per-feature switches. `enabled` is the master switch (provider +
-		// credentials); these gate the individual consumers of the LLM.
-		bool focus_enabled{true};      // Focus task breakdown (/api/focus/breakdown)
-		bool depression_enabled{true}; // image/video second-stage interpretation
+		// Single switch for everything AI-related:
+		//   Ai    -> use the LLM provider (Focus task breakdown + image/video
+		//            interpretation).
+		//   Local -> no provider, API key or network call: the image/video stage
+		//            runs the built-in deterministic scorer; Focus breakdown is
+		//            unavailable and the SPA falls back to its local templates.
+		//   Off   -> no AI and no local interpretation.
+		enum class Mode
+		{
+			Off,
+			Local,
+			Ai
+		};
+
+		Mode mode{Mode::Off};
+
+		bool isAi() const { return mode == Mode::Ai; }
+		bool isLocal() const { return mode == Mode::Local; }
+		bool isOff() const { return mode == Mode::Off; }
+		// Image/video second stage runs in both "ai" and "local" modes.
+		bool interpretationEnabled() const { return mode != Mode::Off; }
+		// The Focus breakdown has no local engine, so it needs the actual LLM.
+		bool focusEnabled() const { return mode == Mode::Ai; }
+		const char *modeName() const
+		{
+			return mode == Mode::Ai ? "ai" : (mode == Mode::Local ? "local" : "false");
+		}
 		// OpenAI-compatible endpoint. The client posts to
 		// {base_url}/chat/completions with "Authorization: Bearer <api_key>".
 		std::string base_url{"https://shared1.multitool.works:4000/v1"};
