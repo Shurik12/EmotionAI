@@ -75,7 +75,7 @@ make benchmark
 # Run Focus benchmarks and save a measurement to measurements/
 make benchmark_focus
 
-# Run LLM token-cost benchmark (needs ai.enabled=true + api_key in config.yaml)
+# Run LLM token-cost benchmark (needs ai.mode: ai + api_key in config.yaml)
 make benchmark_ai_cost
 ```
 

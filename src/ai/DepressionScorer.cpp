@@ -70,11 +70,12 @@ namespace emotionai
                 return v;
             }
 
-            // Mirrors the LLM prompt's metrics.
+            // Metrics derived exactly as the LLM prompt defines them. The
+            // prompt's Intensity = 1 - neutral is not stored: it is always in
+            // [0, 1] and the row is scored from `neutral` directly below.
             struct Derived
             {
                 double valence;
-                double intensity;
                 double negativeAffect;
             };
 
@@ -83,7 +84,6 @@ namespace emotionai
                 Derived d;
                 d.valence = v.happiness -
                             (v.anger + v.disgust + v.fear + v.sadness + v.surprise) / 5.0;
-                d.intensity = 1.0 - v.neutral;
                 d.negativeAffect = v.sadness + v.fear + v.disgust + v.anger;
                 return d;
             }
@@ -105,7 +105,8 @@ namespace emotionai
                 return 0;
             }
 
-            // The scoring table from the LLM prompt, transcribed verbatim.
+            // The scoring table from the LLM prompt (see flatteningScore() for
+            // the one deliberate deviation: its no-op Intensity row).
             struct Scores
             {
                 int valence_score{0};
@@ -182,20 +183,27 @@ namespace emotionai
             }
 
             // Which rows actually fired, so the reasoning can name the concrete
-            // markers (the LLM is instructed to do the same).
-            std::vector<std::string> firedMarkers(const Scores &s)
+            // markers (the LLM is instructed to do the same). The labels are
+            // already localized: the score keys are internal identifiers and
+            // must never leak into user-facing reasoning text.
+            std::vector<std::string> firedMarkers(const Scores &s, bool en)
             {
                 std::vector<std::string> markers;
                 if (s.valence_score > 0)
-                    markers.push_back("valence");
+                    markers.push_back(en ? "negative shift of valence"
+                                         : "отрицательное смещение валентности");
                 if (s.intensity_score > 0)
-                    markers.push_back("intensity");
+                    markers.push_back(en ? "signs of emotional flattening"
+                                         : "признаки эмоционального уплощения");
                 if (s.joy_score > 0)
-                    markers.push_back("joy");
+                    markers.push_back(en ? "deficit of positive affect"
+                                         : "дефицит положительного аффекта");
                 if (s.na_score > 0)
-                    markers.push_back("negative_affect");
+                    markers.push_back(en ? "elevated negative affect"
+                                         : "повышенный негативный аффект");
                 if (s.disgust_score > 0)
-                    markers.push_back("disgust");
+                    markers.push_back(en ? "elevated disgust patterns"
+                                         : "рост паттернов отвращения");
                 return markers;
             }
 
@@ -209,7 +217,7 @@ namespace emotionai
                 std::string marker_list;
                 if (!markers.empty())
                 {
-                    marker_list = en ? markers[0] : markers[0];
+                    marker_list = markers[0];
                     for (size_t i = 1; i < markers.size(); ++i)
                         marker_list += ", " + markers[i];
                 }
@@ -230,7 +238,7 @@ namespace emotionai
                         marker_list.empty()
                             ? (en ? "reduced positive affect and mild negative shift"
                                  : "сниженная доля положительного аффекта и умеренное негативное смещение")
-                            : (en ? marker_list : marker_list);
+                            : marker_list;
                     return en
                         ? "Isolated visual markers associated with a depressive affective pattern were detected: "
                           + specific +
@@ -246,7 +254,7 @@ namespace emotionai
                     marker_list.empty()
                         ? (en ? "negative valence shift and deficit of positive affect"
                              : "отрицательное смещение валентности и дефицит положительного аффекта")
-                        : (en ? marker_list : marker_list);
+                        : marker_list;
                 return en
                     ? "A pronounced combination of visual affective signs associated with depressive symptomatology "
                       "was detected: " +
@@ -277,7 +285,7 @@ namespace emotionai
 
             const std::string verdict = verdictFor(s.total_score);
             const double probability = probabilityFor(verdict, s.total_score);
-            const auto markers = firedMarkers(s);
+            const auto markers = firedMarkers(s, lang == "en");
             const std::string reasoning = buildReasoning(verdict, markers, lang);
 
             return nlohmann::json{

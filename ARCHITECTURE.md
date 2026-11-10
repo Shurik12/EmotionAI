@@ -174,7 +174,7 @@ Faithful port of the v6 spec (`Razuma_Focus_Developer_v6_Emotion_Rules`, profile
 
 | Section | Key | Default | Notes |
 |---------|-----|---------|-------|
-| `ai:` | `enabled` | `false` | Must be true + `api_key` set for breakdown |
+| `ai:` | `mode` | `false` | `ai` = LLM (needs `api_key`), `local` = built-in scorer, `false` = off |
 | `ai:` | `base_url` | `https://shared1.multitool.works:4000/v1` | OpenAI-compatible endpoint |
 | `ai:` | `model` | `deepseek-v4-flash` | |
 | `ai:` | `api_key` | *(empty)* | Gitignored in `config.yaml` |

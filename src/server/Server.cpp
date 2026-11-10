@@ -194,7 +194,7 @@ void Server::initializeComponents()
         // AI client (OpenAI-compatible) for the Focus task breakdown. Only the
         // task text and block duration are sent — never camera frames.
         auto &config = Config::instance();
-        if (config.ai().enabled && !config.ai().api_key.empty())
+        if (config.ai().isAi() && !config.ai().api_key.empty())
         {
             LOG_INFO("Initializing AI client...");
 
@@ -211,33 +211,36 @@ void Server::initializeComponents()
             ai_client_ = std::make_unique<emotionai::ai::AIClient>(aiConfig);
 
             LOG_INFO("AI client initialized: model={}", aiConfig.model);
-
-            // Second stage for image/video analysis. `depression_mode` decides
-            // how it is produced:
-            //   "local" -> built-in deterministic scorer (DepressionScorer); no
-            //              LLM client is attached, so it works with no provider,
-            //              key or network access.
-            //   "ai"    -> attach the (non-owning) LLM client so
-            //              FileProcessor can call AIClient::assessDepression.
-            if (config.ai().depression_mode == "local")
-            {
-                // Leave ai_client_ detached: addAIAnalysis takes the local path
-                // (it reads Config directly), so no client is needed.
-                LOG_INFO("Local (no-AI) image/video interpretation enabled (ai.depression_mode=local)");
-            }
-            else if (config.ai().depression_enabled)
-            {
-                file_processor_->setAIClient(ai_client_.get());
-                LOG_INFO("AI image/video interpretation enabled");
-            }
-            else
-            {
-                LOG_INFO("AI image/video interpretation disabled (ai.depression_enabled=false)");
-            }
         }
         else
         {
-            LOG_INFO("AI client disabled or missing api_key (ai.enabled={})", config.ai().enabled);
+            LOG_INFO("AI client not started (ai.mode={}, api_key={})",
+                     config.ai().modeName(), config.ai().api_key.empty() ? "missing" : "set");
+        }
+
+        // Second stage for image/video analysis. `ai.mode` decides how it is
+        // produced and is independent of the client above:
+        //   "local" -> built-in deterministic scorer (DepressionScorer); needs
+        //              no client, no key and no network.
+        //   "ai"    -> attach the (non-owning) LLM client so FileProcessor can
+        //              call AIClient::assessDepression.
+        //   "false" -> no interpretation at all.
+        if (config.ai().isOff())
+        {
+            LOG_INFO("Image/video interpretation disabled (ai.mode=false)");
+        }
+        else if (config.ai().isLocal())
+        {
+            LOG_INFO("Local (no-AI) image/video interpretation enabled (ai.mode=local)");
+        }
+        else if (ai_client_)
+        {
+            file_processor_->setAIClient(ai_client_.get());
+            LOG_INFO("AI image/video interpretation enabled");
+        }
+        else
+        {
+            LOG_WARN("Image/video interpretation unavailable: ai.mode=ai needs an enabled AI client");
         }
     }
     catch (const std::exception &e)
@@ -1799,10 +1802,10 @@ void Server::handleFocusBreakdown(const std::shared_ptr<ClientContext> &context,
     {
         const std::string model = Config::instance().ai().model;
 
-        if (!Config::instance().ai().focus_enabled)
+        if (!Config::instance().ai().focusEnabled())
         {
             log_llm("", model, 0, 0, 0, 503);
-            sendErrorResponse(context->fd, 503, "AI breakdown is disabled");
+            sendErrorResponse(context->fd, 503, "AI breakdown is disabled (ai.mode != ai)");
             return;
         }
 

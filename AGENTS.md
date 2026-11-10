@@ -126,8 +126,9 @@ on `visible: !document.hidden`.
 
 **Focus task breakdown is AI-backed (EMO-19).** `POST /api/focus/breakdown` takes
 `{text, duration, lang}` and returns `{steps: [...]}` from an OpenAI-compatible model
-(`src/ai/AIClient`, config section `ai:` — `base_url`, `model`, `api_key`, `verify_ssl`,
-`timeout_seconds`; default provider Multitool, model `deepseek-v4-flash`). The call is
+(`src/ai/AIClient`, config section `ai:` — `mode`, `base_url`, `model`, `api_key`, `verify_ssl`,
+`timeout_seconds`; default provider Multitool, model `deepseek-v4-flash`). It requires
+`ai.mode: ai` and a non-empty `api_key`. The call is
 synchronous (inline in the epoll handler). **Privacy invariant:** only the task text and the
 block duration are sent to the model — never camera frames, emotions or personal data; a
 disabled/unavailable model returns 502/503 and the frontend falls back to the deterministic
@@ -141,10 +142,11 @@ depression-risk verdict `{verdict: low|monitor|high, probability, reasoning, sco
 `result.ai_analysis` (image: inside `result.result`; video: next to `average_emotions`). The
 frontend renders it in `DetectorResults.jsx` (`AIAnalysis`) using `getVerdictInfo`. The stage is
 **best-effort**: a failed/absent model call only logs a warning and never fails the emotion
-analysis, and it runs once per upload (per image, per video — **not** per frame). It is gated by
-`ai.depression_enabled`; the Focus breakdown is gated independently by `ai.focus_enabled` (both
-under the master `ai.enabled`). Only emotion probabilities are sent — never pixels, frames or
-files. It uses its **own timeout** `ai.media_timeout_seconds` (default 120 s) rather than the
+analysis, and it runs once per upload (per image, per video — **not** per frame). It is controlled
+by the single `ai.mode` switch (`ai` = LLM, `local` = built-in deterministic scorer, `false` =
+off); `local` also disables the Focus breakdown, whose SPA falls back to its local templates. Only
+emotion probabilities are sent — never pixels, frames or files. It uses its **own timeout**
+`ai.media_timeout_seconds` (default 120 s) rather than the
 Focus `ai.timeout_seconds` (30 s): the provider is a reasoning model (~700–1100 reasoning
 tokens → 13 s from the host but ~26 s from inside the container), and 60 s still timed out
 under provider load, so every call silently dropped the verdict. It runs on a worker thread, so the longer bound does not stall the

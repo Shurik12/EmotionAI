@@ -540,6 +540,7 @@ export const translations = {
       reportRaw: 'Полные данные',
       printHint: 'Сохраните документ в PDF, выбрав «Сохранить как PDF» в диалоге печати.',
       aiAnalysis: 'ИИ-интерпретация',
+      aiAnalysisLocal: 'Локальная интерпретация',
       aiProbability: 'Вероятность',
       aiScores: 'Баллы',
       aiVerdict: {
@@ -1428,6 +1429,7 @@ export const translations = {
       reportRaw: 'Full Data',
       printHint: 'Save this as a PDF by choosing "Save as PDF" in the print dialog.',
       aiAnalysis: 'AI interpretation',
+      aiAnalysisLocal: 'Local interpretation',
       aiProbability: 'Probability',
       aiScores: 'Scores',
       aiVerdict: {

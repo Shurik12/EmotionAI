@@ -16,7 +16,7 @@ Example: `focus-20261014-203900.json`, `ai-cost-20261014-210000.json`
 ```bash
 # From the repo root (requires a running EmotionAI server on :8080)
 make benchmark_focus      # Focus RPS benchmarks
-make benchmark_ai_cost    # LLM token-cost (needs ai.enabled=true + api_key)
+make benchmark_ai_cost    # LLM token-cost (needs ai.mode: ai + api_key)
 ```
 
 Both build the benchmark binary and save the JSON to `measurements/` via

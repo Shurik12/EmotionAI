@@ -76,7 +76,7 @@ void BM_AiCostBreakdown(benchmark::State &state)
         if (calls_ok == 0)
         {
             std::cerr << "BM_AiCostBreakdown: no successful AI calls — "
-                      << "is ai.enabled=true and api_key set in config.yaml?\n";
+                      << "is ai.mode: ai and api_key set in config.yaml?\n";
             state.SkipWithError("AI not configured or all calls failed");
             return;
         }

@@ -193,7 +193,7 @@ Key sections (see `config_template.yaml` for full annotated defaults):
 | `mtcnn`             | min face size, post-processing, keep-all, device                |
 | `model`             | backend (`torch`/`onnx`), emotion model, audio model, det. path |
 | `cluster`           | enable distributed coordination                                 |
-| `ai`                | OpenAI-compatible provider for task breakdown (base_url, model, api_key) |
+| `ai`                | single `mode` switch (`ai`/`local`/`false`) + provider settings |
 | `external_influence`| all weights/boundaries of the scam-signal analyzer (pilot)      |
 
 Unit, integration and e2e tests use separate configs in `tests/configs/` on ports 8081–8083 and

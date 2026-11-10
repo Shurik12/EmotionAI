@@ -154,6 +154,7 @@ const AIAnalysis = ({ data }) => {
   const { t } = useLanguage();
   if (!data || !data.verdict) return null;
 
+  const isLocal = data.source === 'local';
   const verdictInfo = getVerdictInfo(data.verdict);
   const probability =
     typeof data.probability === 'number' ? data.probability : parseFloat(data.probability);
@@ -161,7 +162,7 @@ const AIAnalysis = ({ data }) => {
 
   return (
     <div className="ai-analysis">
-      <h4>{t('detector.aiAnalysis') || 'AI interpretation'}</h4>
+      <h4>{t(isLocal ? 'detector.aiAnalysisLocal' : 'detector.aiAnalysis') || 'AI interpretation'}</h4>
       <div className={`ai-verdict ${verdictInfo.class}`}>
         <span className="ai-verdict-icon">{verdictInfo.icon}</span>
         <span className="ai-verdict-text">{t(`detector.aiVerdict.${data.verdict}`)}</span>
