@@ -212,9 +212,20 @@ void Server::initializeComponents()
 
             LOG_INFO("AI client initialized: model={}", aiConfig.model);
 
-            // Second stage for image/video analysis: attach the (non-owning)
-            // client to FileProcessor only when the feature is enabled.
-            if (config.ai().depression_enabled)
+            // Second stage for image/video analysis. `depression_mode` decides
+            // how it is produced:
+            //   "local" -> built-in deterministic scorer (DepressionScorer); no
+            //              LLM client is attached, so it works with no provider,
+            //              key or network access.
+            //   "ai"    -> attach the (non-owning) LLM client so
+            //              FileProcessor can call AIClient::assessDepression.
+            if (config.ai().depression_mode == "local")
+            {
+                // Leave ai_client_ detached: addAIAnalysis takes the local path
+                // (it reads Config directly), so no client is needed.
+                LOG_INFO("Local (no-AI) image/video interpretation enabled (ai.depression_mode=local)");
+            }
+            else if (config.ai().depression_enabled)
             {
                 file_processor_->setAIClient(ai_client_.get());
                 LOG_INFO("AI image/video interpretation enabled");
