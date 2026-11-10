@@ -165,6 +165,12 @@ private:
 		// credentials); these gate the individual consumers of the LLM.
 		bool focus_enabled{true};      // Focus task breakdown (/api/focus/breakdown)
 		bool depression_enabled{true}; // image/video second-stage interpretation
+		// How the image/video second stage is produced. "ai" sends the emotion
+		// probabilities to the LLM (requires the provider to be reachable);
+		// "local" runs the built-in deterministic scorer, which needs no
+		// provider, API key or network call. "local" works even when
+		// `enabled` is false or the key is blocked.
+		std::string depression_mode{"ai"};
 		// OpenAI-compatible endpoint. The client posts to
 		// {base_url}/chat/completions with "Authorization: Bearer <api_key>".
 		std::string base_url{"https://shared1.multitool.works:4000/v1"};
