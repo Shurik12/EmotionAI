@@ -70,7 +70,7 @@ namespace emotionai
                 return v;
             }
 
-            // Mirrors the LLM prompt's metrics exactly.
+            // Mirrors the LLM prompt's metrics.
             struct Derived
             {
                 double valence;
@@ -86,6 +86,23 @@ namespace emotionai
                 d.intensity = 1.0 - v.neutral;
                 d.negativeAffect = v.sadness + v.fear + v.disgust + v.anger;
                 return d;
+            }
+
+            // The prompt's "Intensity" row is a no-op as written: it is keyed on
+            // Intensity = 1 - neutral (always in [0, 1]) with negative
+            // thresholds (<= -0.20), so it can never fire. The row's clear intent
+            // is *emotional flattening* — a near-blank, high-neutral face — which
+            // the other rows (valence/joy/NA/disgust) all miss on a flat face.
+            // We therefore score `neutral` directly, keeping the row's 2/1 point
+            // structure. This only ever *adds* points relative to the no-op
+            // prompt, so it can only escalate a verdict, never de-escalate one.
+            int flatteningScore(double neutral)
+            {
+                if (neutral >= 0.80)
+                    return 2;
+                if (neutral >= 0.65)
+                    return 1;
+                return 0;
             }
 
             // The scoring table from the LLM prompt, transcribed verbatim.
@@ -108,15 +125,10 @@ namespace emotionai
                 else if (d.valence <= 0.0)
                     s.valence_score = 1;
 
-                // Intensity (the prompt's "Intensity" row): <= -0.20 -> 2 ;
-                // -0.20 < v <= -0.10 -> 1. Note: as written in the prompt this
-                // branch never fires, because Intensity = 1 - neutral is always
-                // in [0, 1]. The table is transcribed verbatim to stay a faithful
-                // port; in practice intensity_score stays 0.
-                if (d.intensity <= -0.20)
-                    s.intensity_score = 2;
-                else if (d.intensity <= -0.10)
-                    s.intensity_score = 1;
+                // Intensity row: scores emotional flattening (high neutral), see
+                // flatteningScore() for why this is not the prompt's literal
+                // (no-op) `1 - neutral` condition.
+                s.intensity_score = flatteningScore(v.neutral);
 
                 // Joy (happiness): <= 0.10 -> 2 ; 0.10 < h <= 0.20 -> 1
                 if (v.happiness <= 0.10)

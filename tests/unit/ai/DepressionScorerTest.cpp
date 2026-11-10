@@ -43,14 +43,46 @@ TEST(DepressionScorerTest, EmptyInputYieldsNull)
 // ---------------------------------------------------------------------------
 TEST(DepressionScorerTest, PositiveFaceIsLow)
 {
-    // High happiness, low neutral -> valence > 0, joy high, NA ~ 0.
+    // High happiness, low neutral -> valence > 0, joy high, NA ~ 0, no
+    // flattening (neutral < 0.65).
     auto r = DepressionScorer::assess(makeEmotions(/*happiness*/ 0.7, /*neutral*/ 0.1));
     ASSERT_FALSE(r.is_null());
     EXPECT_EQ(r["verdict"], "low");
     EXPECT_DOUBLE_EQ(r["scores"]["total_score"], 0.0);
+    EXPECT_DOUBLE_EQ(r["scores"]["intensity_score"], 0.0);
     EXPECT_GE(r["probability"], 0.1);
     EXPECT_LE(r["probability"], 0.3);
     EXPECT_EQ(r["source"], "local");
+}
+
+// ---------------------------------------------------------------------------
+// Emotional flattening: a near-blank, high-neutral face with no strong negative
+// emotion should still escalate via the intensity row (the prompt's no-op row,
+// now repurposed to score `neutral`). A flat face is the classic sign the other
+// rows (valence/joy/NA/disgust) all miss.
+// ---------------------------------------------------------------------------
+TEST(DepressionScorerTest, FlattenedNeutralFaceEscalates)
+{
+    // neutral = 0.9 -> flattening_score 2. happiness 0.05 -> joy 2.
+    // Everything else ~0. Total 4 -> monitor (a flat face is *not* "low").
+    auto r = DepressionScorer::assess(makeEmotions(
+                         /*happiness*/ 0.05, /*neutral*/ 0.9));
+    ASSERT_FALSE(r.is_null());
+    EXPECT_EQ(r["verdict"], "monitor");
+    EXPECT_DOUBLE_EQ(r["scores"]["intensity_score"], 2.0);
+    EXPECT_GE(r["scores"]["total_score"], 3);
+
+    // Mild flattening (neutral 0.7) scores 1, not 2.
+    auto mild = DepressionScorer::assess(makeEmotions(
+                         /*happiness*/ 0.05, /*neutral*/ 0.7));
+    ASSERT_FALSE(mild.is_null());
+    EXPECT_DOUBLE_EQ(mild["scores"]["intensity_score"], 1.0);
+
+    // A lively face (low neutral) gets no flattening points.
+    auto lively = DepressionScorer::assess(makeEmotions(
+                         /*happiness*/ 0.5, /*neutral*/ 0.3));
+    ASSERT_FALSE(lively.is_null());
+    EXPECT_DOUBLE_EQ(lively["scores"]["intensity_score"], 0.0);
 }
 
 // ---------------------------------------------------------------------------
