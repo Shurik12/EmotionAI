@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Razuma</string>
+    <string name="title_activity_main">Razuma</string>
+    <string name="package_name">tech.razuma.emotionai</string>
+    <string name="custom_url_scheme">tech.razuma.emotionai</string>
+</resources>

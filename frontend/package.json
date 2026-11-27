@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mobile": "vite --mode mobile --config vite.mobile.config.js",
     "build": "vite build",
+    "build:mobile": "vite build --mode mobile --config vite.mobile.config.js",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -258,6 +258,44 @@ aligned with `frontend/`; it has its own `node_modules` and shares no code with 
   escaping). `tools/browser-smoke.cjs` needs Playwright plus a Chromium download; `tools/migrate.mjs`
   was dropped with the Next adapter.
 
+## Mobile apps (Android + iOS, `mobile/`)
+
+A [Capacitor](https://capacitorjs.com) 7 shell packages the SPA as native apps. It is **not**
+part of `make build` — it needs Node and, for store artifacts, the Android/iOS SDKs.
+
+```bash
+make build_mobile    # frontend/dist-mobile (a second Vite build)
+make mobile_sync     # build + cap sync into mobile/android and mobile/ios
+cd mobile && npx cap open android    # or `cap open ios` (macOS)
+```
+
+- **Two Vite builds, one source tree.** `frontend/vite.mobile.config.js` overrides `root` to
+  `frontend/mobile-app/` so Vite emits an `index.html` (Capacitor's local server resolves `/`
+  to `index.html`; an entry named `mobile.html` would 404) and writes `frontend/dist-mobile/`
+  with `base: './'`. The app renders `frontend/src/mobile/MobileApp.jsx` — Detector, Focus and
+  Privacy tabs over the shared components, **no marketing landing and no Compass**.
+- **`VITE_API_URL` must be absolute and HTTPS** (`frontend/.env.mobile`, default
+  `https://alpha.razuma.pro/api`). Inside the WebView the origin is `https://localhost`
+  (Android) or `capacitor://localhost` (iOS), so the web default of a relative `/api` can never
+  reach the backend. Android also blocks cleartext HTTP.
+- **Camera works through `getUserMedia`, not a plugin.** Android declares `CAMERA` /
+  `RECORD_AUDIO` / `MODIFY_AUDIO_SETTINGS`; Capacitor's `BridgeWebChromeClient` then requests the
+  runtime grant when the page asks. iOS needs the `NS*UsageDescription` keys and **iOS 14.3+**
+  (WKWebView `getUserMedia`); Capacitor already sets `allowsInlineMediaPlayback`. Verify on a
+  physical device — simulator camera support is misleading.
+- **Tab state reuses `NavigationContext`**, so the consent link's `navigateTo('privacy')` still
+  works; `main.jsx` seeds the path to `/detector` because Capacitor always opens `/index.html`.
+  `key={page}` remounts the screen, so leaving Focus stops the camera.
+- **The app is cross-origin.** Its WebView origin (`https://localhost` / `capacitor://localhost`)
+  differs from the API host, so the CORS allow-list in `Server::sendHttpResponse` must include
+  the analytics headers (`X-Client-Id`, `X-Traffic-Source`, `X-Referrer`) — it does now. Without
+  that, every preflighted request is blocked before reaching a handler.
+- **Capacitor 7 (not 8) is deliberate:** v8 requires Node ≥22, while the repo targets Node 20.
+- **Do not ship to a store yet:** the backend has no auth and trusts any `user_id` in
+  `/api/burnout/baseline`, and a single `POST /api/upload` up to 300 MB will fail on mobile
+  data. Add auth/rate limiting and resumable upload first. `mobile/README.md` has the full
+  pre-release checklist.
+
 ## Code conventions
 
 The codebase is **inconsistent** — match the file you are editing rather than imposing one style.

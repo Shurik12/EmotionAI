@@ -2,7 +2,7 @@ MODELS_DIR := contrib/emotiefflib/models
 
 .PHONY: help install python_env models configure build_backend build_frontend build benchmark benchmark_focus benchmark_ai_cost test \
         test_integration up up-build down re-up clean clean-data balance \
-        build_landing build_compass
+        build_landing build_compass build_mobile mobile_sync
 
 help: ## List targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F'## ' \
@@ -34,6 +34,16 @@ build_compass: ## Build the Compass SPA into frontend/dist/compass
 # delete compass/. The explicit order also keeps `make -j build` safe.
 build_frontend: build_landing ## Build the landing, then Compass on top of it
 	$(MAKE) build_compass
+
+# Mobile: a second Vite build of the SPA (product screens only, no landing)
+# into frontend/dist-mobile, which the Capacitor shell in mobile/ packages as
+# native Android/iOS apps. Kept out of `build` because it needs Node and, to
+# produce store artifacts, the Android/iOS SDKs.
+build_mobile: ## Build the Capacitor web bundle into frontend/dist-mobile
+	cd frontend && npm ci && npm run build:mobile
+
+mobile_sync: build_mobile ## Build the mobile bundle and sync it into mobile/android + mobile/ios
+	cd mobile && npm ci && npx cap sync
 
 build: build_backend build_frontend ## Configure and build everything
 

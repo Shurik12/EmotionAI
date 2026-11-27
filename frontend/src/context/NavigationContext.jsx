@@ -3,16 +3,20 @@ import React, { createContext, useState, useEffect } from 'react';
 // Export the context directly
 export const NavigationContext = createContext();
 
+// Read the current route from the URL. Used both for the initial state and on
+// popstate, so a deep link (`/focus`, `/detector`, ...) renders correctly on the
+// first paint instead of flashing `home` while an effect catches up.
+const readPath = () => {
+  if (typeof window === 'undefined') return 'home';
+  return window.location.pathname.replace(/^\//, '') || 'home';
+};
+
 export const NavigationProvider = ({ children }) => {
-  const [currentPage, setCurrentPage] = useState('home');
+  const [currentPage, setCurrentPage] = useState(readPath);
 
   useEffect(() => {
-    const path = window.location.pathname.replace(/^\//, '');
-    setCurrentPage(path || 'home');
-
     const handlePopState = () => {
-      const newPath = window.location.pathname.replace(/^\//, '');
-      setCurrentPage(newPath || 'home');
+      setCurrentPage(readPath());
     };
 
     window.addEventListener('popstate', handlePopState);

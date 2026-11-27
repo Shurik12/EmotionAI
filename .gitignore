@@ -13,7 +13,9 @@ contrib/onnxruntime/
 emotion_detection.log
 frontend/build/
 frontend/dist/
+frontend/dist-mobile/
 frontend/node_modules/
+mobile/node_modules/
 results.txt
 src/emotion_detection_app.egg-info/
 src/source/pytorch_utils/

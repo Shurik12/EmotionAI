@@ -829,7 +829,14 @@ void Server::sendHttpResponse(int client_fd, int status_code, const std::string 
         "{}"
         "Access-Control-Allow-Origin: *\r\n"
         "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n"
-        "Access-Control-Allow-Headers: Content-Type, Authorization\r\n"
+        // X-Client-Id / X-Traffic-Source / X-Referrer are sent by the SPA's
+        // analyticsHeaders(). They are same-origin on the web, but the mobile
+        // app (Capacitor) is cross-origin — its WebView origin is
+        // https://localhost (Android) or capacitor://localhost (iOS) — so
+        // without them here the browser fails the preflight and the request
+        // never reaches a handler.
+        "Access-Control-Allow-Headers: Content-Type, Authorization, X-Client-Id, X-Traffic-Source, X-Referrer\r\n"
+        "Access-Control-Max-Age: 600\r\n"
         "Content-Length: {}\r\n"
         "Connection: close\r\n"
         "\r\n"

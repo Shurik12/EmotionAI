@@ -1,0 +1,29 @@
+# Capacitor tooling
+node_modules/
+
+# The web bundle is produced by ../frontend, never committed
+www/
+public/
+
+# Android build output (the generated project has its own .gitignore, this is
+# a safety net for anything it misses)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+
+# iOS build output / CocoaPods
+ios/App/Pods/
+ios/App/build/
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/App/capacitor.plugins.json
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+
+# macOS
+.DS_Store
