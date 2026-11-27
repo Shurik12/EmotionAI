@@ -76,3 +76,12 @@ model:
   backend: "torch"
   emotion_model_path: "models/enet_b0_8_va_mtl.pt" # enet_b2_7.pt
   face_detection_models_path: "models/"
+# API access control. This profile runs behind the bundled nginx, which sets
+# X-Real-IP / X-Forwarded-For; trusting those lets the limiter key on the real
+# client instead of the proxy socket. Set api_token to require a token.
+security:
+  api_token: ""
+  rate_limit_enabled: true
+  rate_limit_per_minute: 240
+  rate_limit_burst: 80
+  trust_proxy_headers: true

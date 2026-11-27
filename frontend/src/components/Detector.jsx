@@ -25,6 +25,7 @@ export const Detector = () => {
     preview,
     error: uploadError,
     isProcessing: isUploading,
+    uploadProgress,
     handleFileSelect,
     clearFile,
     uploadFile,
@@ -162,6 +163,13 @@ export const Detector = () => {
             {showProgress && (
               <ProgressIndicator
                 progress={progress}
+                isComplete={false}
+              />
+            )}
+
+            {isUploading && uploadProgress > 0 && (
+              <ProgressIndicator
+                progress={{ text: 'detector.uploading', value: uploadProgress / 100 }}
                 isComplete={false}
               />
             )}

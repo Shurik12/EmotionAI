@@ -96,7 +96,12 @@ const Shell = () => {
       <main className="app mobile-content" key={page}>
         {page === 'detector' && <Detector />}
         {page === 'focus' && <Focus />}
-        {page === 'privacy' && <Privacy />}
+        {page === 'privacy' && (
+          <>
+            <p className="mobile-wellness-note">{t('mobile.wellnessNote')}</p>
+            <Privacy />
+          </>
+        )}
       </main>
 
       <nav className="mobile-tabbar">

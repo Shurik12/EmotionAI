@@ -122,6 +122,9 @@ Server::~Server()
 
 void Server::cleanupResources()
 {
+    // Drop any in-flight resumable upload parts.
+    cleanupUploadSessions();
+
     if (epoll_fd_ != -1)
     {
         close(epoll_fd_);
@@ -286,6 +289,31 @@ void Server::initialize()
     AnalyticsLogger::instance().initialize(Config::instance().analytics().path,
                                            Config::instance().analytics().enabled);
 
+    // Security: per-client rate limiter.
+    const auto &security = Config::instance().security();
+    if (security.rate_limit_enabled)
+    {
+        rate_limiter_ = std::make_unique<RateLimiter>(
+            security.rate_limit_per_minute, security.rate_limit_burst,
+            static_cast<std::size_t>(security.rate_limit_max_keys));
+        LOG_INFO("Rate limiting enabled: {} req/min, burst {} req",
+                 security.rate_limit_per_minute, security.rate_limit_burst);
+    }
+    else
+    {
+        LOG_WARN("Rate limiting is disabled (security.rate_limit_enabled=false)");
+    }
+
+    if (security.api_token.empty())
+        LOG_WARN("API token auth is disabled (security.api_token is empty)");
+    else
+        LOG_INFO("API token auth enabled for /api/ requests");
+
+    // Resumable uploads assemble chunks here before processing.
+    upload_temp_dir_ = upload_folder_ / ".chunks";
+    fs::create_directories(upload_temp_dir_);
+    cleanupUploadSessions(); // remove parts left by an unclean shutdown
+
     setupRoutes();
     createSocket();
     setupEpoll();
@@ -330,7 +358,16 @@ void Server::setupRoutes()
         {"/api/focus/breakdown", [this](auto &&ctx, auto &&body)
          { handleFocusBreakdown(ctx, body); }},
         {"/api/review", [this](auto &&ctx, auto &&body)
-         { handleReview(ctx, body); }}
+         { handleReview(ctx, body); }},
+        // Resumable upload (mobile-friendly): init -> chunk* -> complete.
+        {"/api/upload/init", [this](auto &&ctx, auto &&body)
+         { handleUploadInit(ctx, body); }},
+        {"/api/upload/chunk", [this](auto &&ctx, auto &&body)
+         { handleUploadChunk(ctx, body); }},
+        {"/api/upload/complete", [this](auto &&ctx, auto &&body)
+         { handleUploadComplete(ctx, body); }},
+        {"/api/upload/abort", [this](auto &&ctx, auto &&body)
+         { handleUploadAbort(ctx, body); }}
     };
 
     // GET routes
@@ -356,7 +393,8 @@ void Server::setupRoutes()
                               "/api/submit_application", "/api/progress", "/api/results", 
                               "/api/health", "/api/burnout/analyze", "/api/burnout/baseline", "/static",
                               "/api/upload_external_influence", "/api/external-influence/analyze",
-                              "/api/focus/session", "/api/focus/breakdown", "/api/review"})
+                              "/api/focus/session", "/api/focus/breakdown", "/api/review",
+                              "/api/upload/init", "/api/upload/chunk", "/api/upload/complete", "/api/upload/abort"})
     {
         options_routes_[route] = [this](auto &&ctx)
         { handleOptions(ctx); };
@@ -629,6 +667,39 @@ void Server::processRequest(const std::shared_ptr<ClientContext> &context)
 
     try
     {
+        // Security gate. OPTIONS preflights stay open (browsers never attach
+        // credentials to them, and a blocked preflight shows up as an opaque
+        // CORS error). Only /api/ is gated: pages and static assets are cheap
+        // and a page load would otherwise burn a client's token budget.
+        if (context->method != "OPTIONS" && context->path.rfind("/api/", 0) == 0)
+        {
+            if (rate_limiter_)
+            {
+                const std::string key = clientKey(context);
+                const double retry_after = rate_limiter_->allow(key);
+                if (retry_after > 0.0)
+                {
+                    const int seconds = std::max(1, static_cast<int>(std::ceil(retry_after)));
+                    LOG_WARN("Rate limit exceeded for {} on {} {}", key, context->method, context->path);
+                    sendHttpResponse(context->fd, 429, "application/json",
+                                     fmt::format(R"({{"error":"Too many requests","retry_after":{}}})", seconds),
+                                     fmt::format("Retry-After: {}\r\n", seconds));
+                    finalizeRequest(context, start_time);
+                    return;
+                }
+            }
+
+            if (!isAuthorized(context))
+            {
+                LOG_WARN("Unauthorized {} {} from {}", context->method, context->path,
+                         clientKey(context));
+                sendHttpResponse(context->fd, 401, "application/json",
+                                 R"({"error":"Unauthorized"})",
+                                 "WWW-Authenticate: Bearer\r\n");
+                finalizeRequest(context, start_time);
+                return;
+            }
+        }
 
         if (context->method == "OPTIONS")
         {
@@ -819,7 +890,7 @@ void Server::sendHttpResponse(int client_fd, int status_code, const std::string 
         it->second->last_status_code = status_code;
 
     static const std::map<int, std::string> STATUS_TEXTS = {
-        {200, "OK"}, {201, "Created"}, {202, "Accepted"}, {301, "Moved Permanently"}, {400, "Bad Request"}, {404, "Not Found"}, {405, "Method Not Allowed"}, {413, "Payload Too Large"}, {500, "Internal Server Error"}, {502, "Bad Gateway"}, {503, "Service Unavailable"}};
+        {200, "OK"}, {201, "Created"}, {202, "Accepted"}, {301, "Moved Permanently"}, {400, "Bad Request"}, {401, "Unauthorized"}, {403, "Forbidden"}, {404, "Not Found"}, {405, "Method Not Allowed"}, {409, "Conflict"}, {413, "Payload Too Large"}, {429, "Too Many Requests"}, {500, "Internal Server Error"}, {502, "Bad Gateway"}, {503, "Service Unavailable"}};
 
     std::string status_text = STATUS_TEXTS.count(status_code) ? STATUS_TEXTS.at(status_code) : "Unknown";
 
@@ -835,7 +906,8 @@ void Server::sendHttpResponse(int client_fd, int status_code, const std::string 
         // https://localhost (Android) or capacitor://localhost (iOS) — so
         // without them here the browser fails the preflight and the request
         // never reaches a handler.
-        "Access-Control-Allow-Headers: Content-Type, Authorization, X-Client-Id, X-Traffic-Source, X-Referrer\r\n"
+        "Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key, X-Client-Id, X-Traffic-Source, X-Referrer, X-Upload-Id, X-Chunk-Offset\r\n"
+        "Access-Control-Expose-Headers: Retry-After\r\n"
         "Access-Control-Max-Age: 600\r\n"
         "Content-Length: {}\r\n"
         "Connection: close\r\n"
@@ -1875,6 +1947,588 @@ void Server::handleFocusBreakdown(const std::shared_ptr<ClientContext> &context,
         log_llm("", Config::instance().ai().model, 0, 0, 0, 500);
         sendErrorResponse(context->fd, 500, "Internal server error");
     }
+}
+
+// ---------------------------------------------------------------------------
+// Security helpers
+// ---------------------------------------------------------------------------
+
+bool Server::tokenEquals(const std::string &presented, const std::string &expected)
+{
+    // Constant-time comparison: never short-circuit on the first differing byte.
+    if (presented.size() != expected.size())
+        return false;
+    unsigned char diff = 0;
+    for (std::size_t i = 0; i < presented.size(); ++i)
+        diff |= static_cast<unsigned char>(presented[i] ^ expected[i]);
+    return diff == 0;
+}
+
+bool Server::isAuthorized(const std::shared_ptr<ClientContext> &context) const
+{
+    const auto &security = Config::instance().security();
+    if (security.api_token.empty())
+        return true; // auth disabled
+
+    // Only the API is protected; pages and static assets stay public.
+    if (context->path.rfind("/api/", 0) != 0)
+        return true;
+
+    for (const auto &exempt : security.exempt_paths)
+    {
+        if (!exempt.empty() && context->path.rfind(exempt, 0) == 0)
+            return true;
+    }
+
+    std::string presented;
+    if (auto it = context->headers.find("authorization"); it != context->headers.end())
+    {
+        static const std::string bearer = "Bearer ";
+        presented = it->second.rfind(bearer, 0) == 0 ? it->second.substr(bearer.size())
+                                                     : it->second;
+    }
+    if (presented.empty())
+    {
+        if (auto it = context->headers.find("x-api-key"); it != context->headers.end())
+            presented = it->second;
+    }
+
+    return tokenEquals(presented, security.api_token);
+}
+
+std::string Server::clientKey(const std::shared_ptr<ClientContext> &context) const
+{
+    const auto &security = Config::instance().security();
+    if (security.trust_proxy_headers)
+    {
+        auto trim = [](std::string value)
+        {
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t") + 1);
+            return value;
+        };
+        if (auto it = context->headers.find("x-forwarded-for"); it != context->headers.end())
+        {
+            const auto comma = it->second.find(',');
+            const std::string first = trim(it->second.substr(0, comma));
+            if (!first.empty())
+                return first;
+        }
+        if (auto it = context->headers.find("x-real-ip"); it != context->headers.end())
+        {
+            const std::string ip = trim(it->second);
+            if (!ip.empty())
+                return ip;
+        }
+    }
+    return context->client_ip.empty() ? std::string("unknown") : context->client_ip;
+}
+
+// ---------------------------------------------------------------------------
+// Resumable upload (init -> chunk* -> complete)
+// ---------------------------------------------------------------------------
+
+namespace
+{
+    long long currentMillis()
+    {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    }
+}
+
+void Server::pruneUploadSessionsLocked(long long now_ms)
+{
+    constexpr long long kSessionTtlMs = 60LL * 60LL * 1000LL; // 1 hour
+    for (auto it = upload_sessions_.begin(); it != upload_sessions_.end();)
+    {
+        if (now_ms - it->second.created_ms > kSessionTtlMs)
+        {
+            std::error_code ec;
+            fs::remove(it->second.temp_path, ec);
+            it = upload_sessions_.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
+void Server::cleanupUploadSessions()
+{
+    std::lock_guard<std::mutex> lock(upload_sessions_mutex_);
+    for (auto &entry : upload_sessions_)
+    {
+        std::error_code ec;
+        fs::remove(entry.second.temp_path, ec);
+    }
+    upload_sessions_.clear();
+
+    // Remove orphaned parts left by an unclean shutdown.
+    if (upload_temp_dir_.empty())
+        return;
+    std::error_code ec;
+    if (!fs::exists(upload_temp_dir_, ec))
+        return;
+    for (const auto &entry : fs::directory_iterator(upload_temp_dir_, ec))
+    {
+        if (entry.is_regular_file())
+        {
+            std::error_code rm_ec;
+            fs::remove(entry.path(), rm_ec);
+        }
+    }
+}
+
+void Server::handleUploadInit(const std::shared_ptr<ClientContext> &context, const std::string &body)
+{
+    try
+    {
+        json request;
+        try
+        {
+            request = json::parse(body);
+        }
+        catch (const json::exception &)
+        {
+            sendErrorResponse(context->fd, 400, "Invalid JSON");
+            return;
+        }
+
+        const std::string filename = request.value("filename", "");
+        const std::string mode = request.value("mode", std::string("standard"));
+        const double self_score = request.value("self_score", -1.0);
+        const long long declared_size = request.value("size", -1LL);
+
+        if (filename.empty())
+        {
+            sendErrorResponse(context->fd, 400, "filename is required");
+            return;
+        }
+        if (declared_size <= 0)
+        {
+            sendErrorResponse(context->fd, 400, "size is required");
+            return;
+        }
+
+        auto &config = Config::instance();
+        if (declared_size > static_cast<long long>(config.app().max_content_length))
+        {
+            sendErrorResponse(context->fd, 413, "File exceeds the configured size limit");
+            return;
+        }
+
+        static const std::set<std::string> kModes = {"standard", "burnout", "external_influence", "review"};
+        if (kModes.find(mode) == kModes.end())
+        {
+            sendErrorResponse(context->fd, 400, "Unknown upload mode");
+            return;
+        }
+
+        if (!file_processor_)
+        {
+            sendErrorResponse(context->fd, 500, "Server not ready");
+            return;
+        }
+        if (mode == "review")
+        {
+            if (!file_processor_->allowed_visual_file(filename))
+            {
+                sendErrorResponse(context->fd, 400, "Review supports image and video files only");
+                return;
+            }
+            if (!emotionai::ReviewScorer::isValidSelfScore(self_score))
+            {
+                sendErrorResponse(context->fd, 400, "self_score must be a number between 1 and 10");
+                return;
+            }
+        }
+        else if (!file_processor_->allowed_file(filename))
+        {
+            sendErrorResponse(context->fd, 400, "Invalid file type");
+            return;
+        }
+
+        const std::string upload_id = DragonflyManager::generate_uuid();
+        const fs::path temp_path = upload_temp_dir_ / (upload_id + ".part");
+
+        fs::create_directories(upload_temp_dir_);
+        std::ofstream temp(temp_path, std::ios::binary | std::ios::trunc);
+        if (!temp)
+        {
+            LOG_ERROR("Failed to create temp file for upload session: {}", temp_path.string());
+            sendErrorResponse(context->fd, 500, "Failed to create upload session");
+            return;
+        }
+        temp.close();
+
+        const long long now_ms = currentMillis();
+        {
+            std::lock_guard<std::mutex> lock(upload_sessions_mutex_);
+            pruneUploadSessionsLocked(now_ms);
+
+            UploadSession session;
+            session.mode = mode;
+            session.filename = filename;
+            session.expected_size = static_cast<std::size_t>(declared_size);
+            session.received = 0;
+            session.self_score = self_score;
+            session.created_ms = now_ms;
+            session.temp_path = temp_path;
+            upload_sessions_[upload_id] = std::move(session);
+        }
+
+        const int chunk_size = std::max(1, std::min(config.app().upload_chunk_size,
+                                                    config.app().max_content_length));
+        LOG_INFO("Upload session {} created: {} ({} bytes, mode={})",
+                 upload_id, filename, declared_size, mode);
+        sendHttpResponse(context->fd, 201, "application/json",
+                         fmt::format(R"({{"upload_id":"{}","chunk_size":{},"received":0,"size":{}}})",
+                                     upload_id, chunk_size, declared_size));
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Exception in upload init: {}", e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
+void Server::handleUploadChunk(const std::shared_ptr<ClientContext> &context, const std::string &body)
+{
+    try
+    {
+        auto id_it = context->headers.find("x-upload-id");
+        auto offset_it = context->headers.find("x-chunk-offset");
+        if (id_it == context->headers.end() || id_it->second.empty())
+        {
+            sendErrorResponse(context->fd, 400, "X-Upload-Id header is required");
+            return;
+        }
+        if (offset_it == context->headers.end())
+        {
+            sendErrorResponse(context->fd, 400, "X-Chunk-Offset header is required");
+            return;
+        }
+
+        std::size_t offset = 0;
+        try
+        {
+            offset = static_cast<std::size_t>(std::stoull(offset_it->second));
+        }
+        catch (const std::exception &)
+        {
+            sendErrorResponse(context->fd, 400, "Invalid X-Chunk-Offset");
+            return;
+        }
+
+        const auto &config = Config::instance();
+        const std::size_t max_chunk =
+            static_cast<std::size_t>(std::max(config.app().upload_chunk_size, 1)) + 1024;
+        if (body.empty())
+        {
+            sendErrorResponse(context->fd, 400, "Empty chunk");
+            return;
+        }
+        if (body.size() > max_chunk)
+        {
+            sendErrorResponse(context->fd, 413, "Chunk too large");
+            return;
+        }
+
+        std::lock_guard<std::mutex> lock(upload_sessions_mutex_);
+        auto it = upload_sessions_.find(id_it->second);
+        if (it == upload_sessions_.end())
+        {
+            sendErrorResponse(context->fd, 404, "Upload session not found");
+            return;
+        }
+
+        UploadSession &session = it->second;
+        if (offset != session.received)
+        {
+            // The client is out of sync (e.g. it retried a chunk the server
+            // already stored). Tell it exactly where to resume.
+            sendHttpResponse(context->fd, 409, "application/json",
+                             fmt::format(R"({{"error":"Unexpected offset","received":{}}})",
+                                         session.received));
+            return;
+        }
+        if (session.received + body.size() > session.expected_size)
+        {
+            sendErrorResponse(context->fd, 413, "Chunk exceeds the declared file size");
+            return;
+        }
+
+        std::ofstream out(session.temp_path, std::ios::binary | std::ios::app);
+        if (!out)
+        {
+            LOG_ERROR("Failed to open temp file for upload {}: {}",
+                      id_it->second, session.temp_path.string());
+            sendErrorResponse(context->fd, 500, "Failed to store chunk");
+            return;
+        }
+        out.write(body.data(), static_cast<std::streamsize>(body.size()));
+        out.close();
+        if (!out)
+        {
+            LOG_ERROR("Failed to write chunk for upload {}", id_it->second);
+            sendErrorResponse(context->fd, 500, "Failed to store chunk");
+            return;
+        }
+
+        session.received += body.size();
+        sendHttpResponse(context->fd, 200, "application/json",
+                         fmt::format(R"({{"upload_id":"{}","received":{},"size":{}}})",
+                                     id_it->second, session.received, session.expected_size));
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Exception in upload chunk: {}", e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
+void Server::handleUploadComplete(const std::shared_ptr<ClientContext> &context, const std::string &body)
+{
+    try
+    {
+        json request;
+        try
+        {
+            request = json::parse(body);
+        }
+        catch (const json::exception &)
+        {
+            sendErrorResponse(context->fd, 400, "Invalid JSON");
+            return;
+        }
+
+        const std::string upload_id = request.value("upload_id", "");
+        if (upload_id.empty())
+        {
+            sendErrorResponse(context->fd, 400, "upload_id is required");
+            return;
+        }
+
+        UploadSession session;
+        {
+            std::lock_guard<std::mutex> lock(upload_sessions_mutex_);
+            auto it = upload_sessions_.find(upload_id);
+            if (it == upload_sessions_.end())
+            {
+                sendErrorResponse(context->fd, 404, "Upload session not found");
+                return;
+            }
+            session = it->second;
+        }
+
+        if (session.received != session.expected_size)
+        {
+            sendHttpResponse(context->fd, 409, "application/json",
+                             fmt::format(R"({{"error":"Upload incomplete","received":{},"size":{}}})",
+                                         session.received, session.expected_size));
+            return;
+        }
+
+        std::string task_id;
+        try
+        {
+            task_id = submitFileFromPath(session.temp_path, session.filename,
+                                         session.mode, session.self_score);
+        }
+        catch (const std::exception &e)
+        {
+            LOG_ERROR("Failed to finalize upload {}: {}", upload_id, e.what());
+            std::error_code rm_ec;
+            fs::remove(session.temp_path, rm_ec);
+            std::lock_guard<std::mutex> lock(upload_sessions_mutex_);
+            upload_sessions_.erase(upload_id);
+            sendErrorResponse(context->fd, 500, "Failed to finalize upload");
+            return;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(upload_sessions_mutex_);
+            upload_sessions_.erase(upload_id);
+        }
+        std::error_code rm_ec;
+        fs::remove(session.temp_path, rm_ec);
+
+        LOG_INFO("Upload {} completed ({} bytes, mode={}), task_id: {}",
+                 upload_id, session.expected_size, session.mode, task_id);
+        sendHttpResponse(context->fd, 202, "application/json",
+                         fmt::format(R"({{"task_id":"{}","mode":"{}"}})", task_id, session.mode));
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Exception in upload complete: {}", e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
+void Server::handleUploadAbort(const std::shared_ptr<ClientContext> &context, const std::string &body)
+{
+    try
+    {
+        json request;
+        try
+        {
+            request = json::parse(body);
+        }
+        catch (const json::exception &)
+        {
+            sendErrorResponse(context->fd, 400, "Invalid JSON");
+            return;
+        }
+
+        const std::string upload_id = request.value("upload_id", "");
+        if (upload_id.empty())
+        {
+            sendErrorResponse(context->fd, 400, "upload_id is required");
+            return;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(upload_sessions_mutex_);
+            auto it = upload_sessions_.find(upload_id);
+            if (it != upload_sessions_.end())
+            {
+                std::error_code ec;
+                fs::remove(it->second.temp_path, ec);
+                upload_sessions_.erase(it);
+            }
+        }
+
+        sendHttpResponse(context->fd, 200, "application/json", R"({"aborted": true})");
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Exception in upload abort: {}", e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
+// Persist a locally assembled file and enqueue the same processing the
+// one-shot upload path uses. Kept separate so the existing handlers stay
+// untouched.
+std::string Server::submitFileFromPath(const fs::path &local_source, const std::string &filename,
+                                       const std::string &mode, double self_score)
+{
+    const std::string task_id = DragonflyManager::generate_uuid();
+
+    std::string extension = ".bin";
+    if (const size_t dot_pos = filename.find_last_of('.'); dot_pos != std::string::npos)
+        extension = filename.substr(dot_pos);
+
+    const std::string safe_filename = task_id + extension;
+    const std::string storage_path = "uploads/" + safe_filename;
+
+    LOG_INFO("Saving resumable upload to storage: {} (original: {})", storage_path, filename);
+    if (!file_storage_->saveFileFromPath(local_source.string(), storage_path))
+        throw std::runtime_error("Failed to save uploaded file to storage");
+    if (!file_storage_->fileExists(storage_path))
+        throw std::runtime_error("Failed to verify uploaded file in storage");
+
+    const fs::path local_path = upload_folder_ / safe_filename;
+    fs::create_directories(local_path.parent_path());
+    std::error_code copy_ec;
+    fs::copy_file(local_source, local_path, fs::copy_options::overwrite_existing, copy_ec);
+    if (copy_ec)
+        throw std::runtime_error("Failed to prepare file for processing: " + copy_ec.message());
+
+    auto *file_processor = file_processor_.get();
+    const std::string instance_id = instance_id_;
+
+    thread_pool_->enqueue([file_processor, task_id, local_path, safe_filename,
+                           storage_path, mode, self_score, instance_id]()
+                          {
+        auto &task_manager = TaskManager::instance();
+        auto timestamp = []()
+        {
+            return std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::system_clock::now().time_since_epoch())
+                .count();
+        };
+
+        try
+        {
+            if (mode == "burnout" || mode == "external_influence")
+            {
+                task_manager.set_task_status(task_id, {
+                    {"task_id", task_id}, {"progress", 10},
+                    {"message", mode == "burnout" ? "Processing audio for burnout analysis"
+                                                  : "Processing audio for external influence analysis"},
+                    {"error", nullptr}, {"complete", false}, {"mode", mode},
+                    {"instance_id", instance_id}, {"storage_path", storage_path},
+                    {"timestamp", timestamp()}});
+
+                if (mode == "burnout")
+                {
+                    auto result = file_processor->process_audio_with_burnout(
+                        task_id, local_path.string(), safe_filename);
+                    task_manager.set_task_status(task_id, {
+                        {"task_id", task_id}, {"progress", 100},
+                        {"message", "Burnout analysis complete"},
+                        {"error", nullptr}, {"complete", true}, {"mode", "burnout"},
+                        {"instance_id", instance_id}, {"storage_path", storage_path},
+                        {"type", "audio_burnout"}, {"result", result},
+                        {"duration", result.value("duration", 0.0)},
+                        {"sample_rate", result.value("sample_rate", 0)},
+                        {"timestamp", timestamp()}});
+                }
+                else
+                {
+                    auto result = file_processor->process_external_influence(
+                        task_id, local_path.string(), safe_filename);
+                    task_manager.set_task_status(task_id, {
+                        {"task_id", task_id}, {"progress", 100},
+                        {"message", "External influence analysis complete"},
+                        {"error", nullptr}, {"complete", true}, {"mode", "external_influence"},
+                        {"instance_id", instance_id}, {"storage_path", storage_path},
+                        {"type", "audio_external_influence"}, {"result", result},
+                        {"duration", result.value("duration", 0.0)},
+                        {"sample_rate", result.value("sample_rate", 0)},
+                        {"timestamp", timestamp()}});
+                }
+            }
+            else
+            {
+                // standard / review
+                nlohmann::json init_status = {
+                    {"task_id", task_id}, {"progress", 0},
+                    {"message", "Starting file processing"},
+                    {"error", nullptr}, {"complete", false}, {"mode", "batch"},
+                    {"instance_id", instance_id}, {"storage_path", storage_path},
+                    {"timestamp", timestamp()}};
+                if (emotionai::ReviewScorer::isValidSelfScore(self_score))
+                    init_status["self_score"] = self_score;
+
+                task_manager.set_task_status(task_id, init_status);
+                file_processor->process_file(task_id, local_path.string(), safe_filename, self_score);
+            }
+
+            LOG_INFO("Processing completed for task: {}", task_id);
+        }
+        catch (const std::exception &e)
+        {
+            LOG_ERROR("Processing failed for task {}: {}", task_id, e.what());
+            try
+            {
+                task_manager.set_task_status(task_id, {
+                    {"task_id", task_id}, {"progress", 0}, {"message", "Processing failed"},
+                    {"error", e.what()}, {"complete", true}, {"mode", mode},
+                    {"instance_id", instance_id}, {"storage_path", storage_path},
+                    {"timestamp", timestamp()}});
+            }
+            catch (const std::exception &db_error)
+            {
+                LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
+            }
+        } });
+
+    return task_id;
 }
 
 // Common handlers

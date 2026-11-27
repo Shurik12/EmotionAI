@@ -1,8 +1,12 @@
 MODELS_DIR := contrib/emotiefflib/models
 
+# JDK used by the Android Gradle build. Override on the command line if your
+# JDK 21 lives elsewhere (Gradle 8.11 rejects JDK 24+).
+JAVA_HOME_ANDROID ?= /usr/lib/jvm/java-21-openjdk-amd64
+
 .PHONY: help install python_env models configure build_backend build_frontend build benchmark benchmark_focus benchmark_ai_cost test \
         test_integration up up-build down re-up clean clean-data balance \
-        build_landing build_compass build_mobile mobile_sync
+        build_landing build_compass build_mobile mobile_sync mobile_android
 
 help: ## List targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F'## ' \
@@ -44,6 +48,10 @@ build_mobile: ## Build the Capacitor web bundle into frontend/dist-mobile
 
 mobile_sync: build_mobile ## Build the mobile bundle and sync it into mobile/android + mobile/ios
 	cd mobile && npm ci && npx cap sync
+
+mobile_android: mobile_sync ## Build a debug APK (needs the Android SDK and JDK 21)
+	cd mobile/android && JAVA_HOME=$(JAVA_HOME_ANDROID) ./gradlew assembleDebug
+	@echo "APK: mobile/android/app/build/outputs/apk/debug/app-debug.apk"
 
 build: build_backend build_frontend ## Configure and build everything
 

@@ -117,3 +117,14 @@ body {
   line-height: 1.1;
   white-space: nowrap;
 }
+
+/* Wellness/medical disclaimer shown above the privacy policy. */
+.mobile-wellness-note {
+  margin: 12px 16px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #eef6ff;
+  color: #143f70;
+  font-size: 13px;
+  line-height: 1.45;
+}

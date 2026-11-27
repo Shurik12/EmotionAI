@@ -42,3 +42,7 @@ model:
   backend: "torch"
   emotion_model_path: "models/enet_b0_8_va_mtl.pt"
   face_detection_models_path: "models/"
+# Tests issue bursts of requests from a single address; keep the limiter out of
+# the way so assertions are deterministic.
+security:
+  rate_limit_enabled: false

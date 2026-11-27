@@ -60,6 +60,7 @@ bool Config::loadFromFile(const std::string &config_path)
         {
             const auto &app = root["app"];
             new_data.app.max_content_length = app["max_content_length"].as<int>(new_data.app.max_content_length);
+            new_data.app.upload_chunk_size = app["upload_chunk_size"].as<int>(new_data.app.upload_chunk_size);
             new_data.app.task_expiration = app["task_expiration"].as<int>(new_data.app.task_expiration);
             new_data.app.application_expiration = app["application_expiration"].as<int>(new_data.app.application_expiration);
 
@@ -312,6 +313,19 @@ bool Config::loadFromFile(const std::string &config_path)
             new_data.analytics.path = analytics["path"].as<std::string>(new_data.analytics.path);
         }
 
+        if (root["security"])
+        {
+            const auto &security = root["security"];
+            new_data.security.api_token = security["api_token"].as<std::string>(new_data.security.api_token);
+            new_data.security.rate_limit_enabled = security["rate_limit_enabled"].as<bool>(new_data.security.rate_limit_enabled);
+            new_data.security.rate_limit_per_minute = security["rate_limit_per_minute"].as<int>(new_data.security.rate_limit_per_minute);
+            new_data.security.rate_limit_burst = security["rate_limit_burst"].as<int>(new_data.security.rate_limit_burst);
+            new_data.security.rate_limit_max_keys = security["rate_limit_max_keys"].as<int>(new_data.security.rate_limit_max_keys);
+            new_data.security.trust_proxy_headers = security["trust_proxy_headers"].as<bool>(new_data.security.trust_proxy_headers);
+            if (security["exempt_paths"])
+                new_data.security.exempt_paths = security["exempt_paths"].as<std::vector<std::string>>(new_data.security.exempt_paths);
+        }
+
         data_ = std::move(new_data);
         loaded_.store(true);
 
@@ -389,6 +403,20 @@ bool Config::loadFromFile(const std::string &config_path)
                      data_.analytics.path.empty()
                          ? (fs::path(data_.paths.logs) / "analytics.jsonl").string()
                          : data_.analytics.path);
+
+        spdlog::info("Security configuration:");
+        spdlog::info("  API token: {}", data_.security.api_token.empty() ? "disabled" : "configured");
+        if (data_.security.rate_limit_enabled)
+        {
+            spdlog::info("  Rate limit: {} req/min, burst {}",
+                         data_.security.rate_limit_per_minute, data_.security.rate_limit_burst);
+        }
+        else
+        {
+            spdlog::info("  Rate limit: disabled");
+        }
+        spdlog::info("  Trust proxy headers: {}", data_.security.trust_proxy_headers);
+        spdlog::info("  Resumable upload chunk: {} bytes", data_.app.upload_chunk_size);
 
         return true;
     }
@@ -572,6 +600,32 @@ bool Config::validate() const
     {
         spdlog::error("Invalid storage type: {}", data_.storage.type);
         return false;
+    }
+
+    // Validate upload chunking and security settings.
+    if (data_.app.upload_chunk_size <= 0)
+    {
+        spdlog::error("Invalid upload_chunk_size: {}", data_.app.upload_chunk_size);
+        return false;
+    }
+
+    if (data_.security.rate_limit_enabled)
+    {
+        if (data_.security.rate_limit_per_minute <= 0)
+        {
+            spdlog::error("Invalid rate_limit_per_minute: {}", data_.security.rate_limit_per_minute);
+            return false;
+        }
+        if (data_.security.rate_limit_burst <= 0)
+        {
+            spdlog::error("Invalid rate_limit_burst: {}", data_.security.rate_limit_burst);
+            return false;
+        }
+        if (data_.security.rate_limit_max_keys <= 0)
+        {
+            spdlog::error("Invalid rate_limit_max_keys: {}", data_.security.rate_limit_max_keys);
+            return false;
+        }
     }
 
     spdlog::info("Configuration validation passed");

@@ -28,6 +28,10 @@ export const translations = {
       contactUs: 'Связаться с нами',
       focus: 'Фокус',
     },
+    mobile: {
+      wellnessNote:
+        'Razuma — инструмент для благополучия и продуктивности. Он не является медицинским изделием и не ставит диагноз.',
+    },
     focus: {
       badge: 'Приватная бета',
       kicker: 'Razuma Focus — ваше место для работы',
@@ -523,6 +527,7 @@ export const translations = {
       noBurnoutData: 'Нет данных анализа выгорания.',
       analysisResults: 'Результаты анализа',
       startingProcessing: 'Начало обработки...',
+      uploading: 'Загрузка файла...',
       processingAudio: 'Обработка аудио...',
       processingVideo: 'Обработка видео...',
       processingImage: 'Обработка изображения...',
@@ -916,6 +921,10 @@ export const translations = {
       about: 'About us',
       contactUs: 'Contact us',
       focus: 'Focus',
+    },
+    mobile: {
+      wellnessNote:
+        'Razuma is a wellness and productivity tool. It is not a medical device and does not diagnose any condition.',
     },
     focus: {
       badge: 'Private beta',
@@ -1412,6 +1421,7 @@ export const translations = {
       noBurnoutData: 'No burnout analysis data available.',
       analysisResults: 'Analysis Results',
       startingProcessing: 'Starting processing...',
+      uploading: 'Uploading file...',
       processingAudio: 'Processing audio...',
       processingVideo: 'Processing video...',
       processingImage: 'Processing image...',

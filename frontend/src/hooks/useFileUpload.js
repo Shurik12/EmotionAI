@@ -9,6 +9,8 @@ export const useFileUpload = () => {
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  // 0–100 while a large (resumable) upload is in flight.
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleFileSelect = useCallback((selectedFile) => {
     if (!selectedFile) {
@@ -34,6 +36,7 @@ export const useFileUpload = () => {
       setPreview(null);
     }
     
+    setUploadProgress(0);
     setError(null);
   }, []);
 
@@ -42,6 +45,7 @@ export const useFileUpload = () => {
     setFileName('');
     setFileSize('');
     setPreview(null);
+    setUploadProgress(0);
     setError(null);
   }, []);
 
@@ -52,10 +56,13 @@ export const useFileUpload = () => {
     }
 
     setIsProcessing(true);
+    setUploadProgress(0);
     setError(null);
 
     try {
-      const data = await apiClient.uploadFile(file, mode);
+      const data = await apiClient.uploadFile(file, mode, {
+        onProgress: setUploadProgress,
+      });
       return data;
     } catch (err) {
       setError(err.message || 'errors.uploadFailed');
@@ -72,6 +79,7 @@ export const useFileUpload = () => {
     preview,
     error,
     isProcessing,
+    uploadProgress,
     handleFileSelect,
     clearFile,
     uploadFile,

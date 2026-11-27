@@ -49,6 +49,7 @@ public:
 	const auto &externalInfluence() const { return data_.external_influence; }
 	const auto &burnout() const { return data_.burnout; }
 	const auto &analytics() const { return data_.analytics; }
+	const auto &security() const { return data_.security; }
 
 	// Check if config is loaded
 	bool isLoaded() const { return loaded_.load(); }
@@ -77,6 +78,9 @@ private:
 	struct AppConfig
 	{
 		int max_content_length = 314572800; // 300MB
+		// Chunk size advertised to clients using the resumable upload API
+		// (POST /api/upload/chunk). Capped by max_content_length.
+		int upload_chunk_size = 8388608; // 8MB
 		std::vector<std::string> allowed_extensions = {"png", "jpg", "jpeg", "mp4", "avi", "webm", "mp3"};
 		int task_expiration = 3600;			  // 1 hour in seconds
 		int application_expiration = 2592000; // 30 days in seconds
@@ -208,6 +212,32 @@ private:
 		std::string path;
 	};
 
+	struct SecurityConfig
+	{
+		// When non-empty, every /api/ request except `exempt_paths` must carry
+		// `Authorization: Bearer <api_token>` or `X-API-Key: <api_token>`.
+		// An empty token keeps the public demo open (auth disabled).
+		// NOTE: a token embedded in a web or mobile bundle is extractable — it
+		// is an access-control deterrent plus a revocable kill switch, not a
+		// substitute for per-user authentication.
+		std::string api_token;
+		// /api/results is exempt because result images are loaded by <img>,
+		// which cannot attach the Authorization header. The file names are
+		// random task UUIDs (capability URLs).
+		std::vector<std::string> exempt_paths{"/api/health", "/api/results"};
+		// Per-client token bucket, applied to every /api/ request (auth or not).
+		// 240/min = 4 req/s sustained, which leaves headroom for the Focus
+		// stream (~1 frame/s + session polling) while still capping abuse.
+		bool rate_limit_enabled{true};
+		int rate_limit_per_minute{240};
+		int rate_limit_burst{80};
+		int rate_limit_max_keys{10000};
+		// Behind nginx: identify clients by X-Real-IP / X-Forwarded-For instead
+		// of the socket peer. Enable only when a trusted proxy sets them,
+		// otherwise a client can spoof the header to bypass the limit.
+		bool trust_proxy_headers{false};
+	};
+
 	struct ConfigData
 	{
 		ServerConfig server;
@@ -225,6 +255,7 @@ private:
 		audio::ExternalInfluenceConfig external_influence;
 		audio::BurnoutConfig burnout;
 		AnalyticsConfig analytics;
+		SecurityConfig security;
 	};
 
 	ConfigData data_;

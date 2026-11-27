@@ -12,6 +12,7 @@ public:
 	// File operations
 	bool saveFile(const std::string &file_content, const std::string &file_path) override;
 	bool saveFile(const std::vector<uint8_t> &file_content, const std::string &file_path) override;
+	bool saveFileFromPath(const std::string &source_path, const std::string &file_path) override;
 	std::string readFile(const std::string &file_path) override;
 	std::vector<uint8_t> readFileBinary(const std::string &file_path) override;
 	bool deleteFile(const std::string &file_path) override;

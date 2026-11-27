@@ -10,6 +10,7 @@ paths:
 
 app:
   max_content_length: 314572800  # 300MB in bytes
+  upload_chunk_size: 8388608     # 8MB per chunk for resumable uploads (init/chunk/complete)
   allowed_extensions: ["png", "jpg", "jpeg", "mp4", "avi", "webm", "mp3", "wav"]
   task_expiration: 3600  # 1 hour in seconds
   application_expiration: 2592000  # 30 days in seconds
@@ -130,3 +131,24 @@ burnout:
   base_angry: 0.1274
   base_fear: 0.1574
   base_disgust: 0.1716
+
+# Access control for the HTTP API.
+#
+# api_token: when non-empty, every /api/ request must send
+#   Authorization: Bearer <token>   (or X-API-Key: <token>)
+# Leave it empty for the public demo. A token shipped inside a web/mobile
+# bundle is extractable, so treat it as a revocable gate, not per-user auth.
+#
+# Rate limiting is a per-client token bucket over all requests.
+# trust_proxy_headers: true only when a trusted reverse proxy (config/nginx)
+# sets X-Real-IP / X-Forwarded-For — otherwise clients could spoof it.
+security:
+  api_token: ""
+  # /api/results is exempt: result images are loaded via <img>, which cannot send
+  # the Authorization header. The task UUID in the path is the capability.
+  exempt_paths: ["/api/health", "/api/results"]
+  rate_limit_enabled: true
+  rate_limit_per_minute: 240
+  rate_limit_burst: 80
+  rate_limit_max_keys: 10000
+  trust_proxy_headers: false

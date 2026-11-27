@@ -113,6 +113,33 @@ loop in `src/server/Server.cpp`. Don't add handlers to httplib expecting them to
 
 Missing step 2 or 3 fails silently as a 404 or a CORS error in the browser.
 
+**Security is enforced in `processRequest`, not per route.** Two checks run before the
+method dispatch (OPTIONS is exempt so preflights never need credentials):
+
+- **Auth** — `security.api_token`, when non-empty, requires
+  `Authorization: Bearer <token>` or `X-API-Key` on every `/api/` path except
+  `security.exempt_paths` (default `/api/health` and `/api/results`; the latter is
+  loaded by `<img>`, which cannot send headers, so its random task UUID is the
+  capability). Static files and pages stay public. Comparison is constant-time. The
+  token is also embedded in the SPA/mobile bundle when `VITE_API_TOKEN` is set, so it
+  is an access gate, not user identity.
+- **Rate limiting** — `src/server/RateLimiter` is a per-client token bucket
+  (`rate_limit_per_minute` / `rate_limit_burst`), keyed by `client_ip`, or by
+  `X-Real-IP` / `X-Forwarded-For` when `security.trust_proxy_headers` is true (only
+  behind `config/nginx`; otherwise clients can spoof it). Rejections are `429` with
+  `Retry-After`, and `Access-Control-Expose-Headers: Retry-After` lets the SPA read it.
+  Test configs set `rate_limit_enabled: false` so bursts aren't throttled.
+
+**Resumable uploads** (`init → chunk* → complete`) exist for large mobile files:
+`POST /api/upload/init {filename,size,mode[,self_score]}` returns
+`{upload_id, chunk_size}`; `POST /api/upload/chunk` takes a raw
+`application/octet-stream` body with `X-Upload-Id` / `X-Chunk-Offset` and replies
+`{received,size}` (a `409` reports the real offset to resume from);
+`POST /api/upload/complete {upload_id}` runs the same pipeline as the one-shot upload;
+`POST /api/upload/abort` drops the part. Parts live in `<uploads>/.chunks/<id>.part`
+and expire after an hour. `FileStorage::saveFileFromPath` avoids re-reading the finished
+file into a `std::string` for local/NFS storage.
+
 The Focus camera uses an in-memory session (`src/focus/FocusSessionManager`) instead of one
 async task per frame: `POST /api/focus/session` creates it, `POST /api/focus/session/<id>/frame`
 scores a frame on the thread pool (no disk, no AI), `GET /api/focus/session/<id>` returns
@@ -291,10 +318,18 @@ cd mobile && npx cap open android    # or `cap open ios` (macOS)
   the analytics headers (`X-Client-Id`, `X-Traffic-Source`, `X-Referrer`) — it does now. Without
   that, every preflighted request is blocked before reaching a handler.
 - **Capacitor 7 (not 8) is deliberate:** v8 requires Node ≥22, while the repo targets Node 20.
-- **Do not ship to a store yet:** the backend has no auth and trusts any `user_id` in
-  `/api/burnout/baseline`, and a single `POST /api/upload` up to 300 MB will fail on mobile
-  data. Add auth/rate limiting and resumable upload first. `mobile/README.md` has the full
-  pre-release checklist.
+- **JDK 21 is required for Gradle.** The dev box defaults to JDK 25, which Gradle 8.11.1
+  rejects; `mobile/android/local.properties` (gitignored) pins
+  `org.gradle.java.home=/usr/lib/jvm/java-21-openjdk-amd64`, and `make mobile_android`
+  exports `JAVA_HOME_ANDROID`. The installed SDK at `/usr/lib/android-sdk` currently has
+  only `platform-tools`; a full SDK is needed for an APK.
+- **Icons/splash are generated, not hand-edited.** `mobile/assets/{icon-only,icon-foreground,
+  icon-background,splash,splash-dark}.png` are the source of truth; `npm run assets`
+  (`@capacitor/assets`) rewrites every Android mipmap/splash and the iOS catalog. They were
+  rendered from `frontend/public/static/razuma.svg`.
+- **Store metadata lives in `mobile/STORE_LISTING.md`** — RU/EN copy, the wellness
+  positioning (never diagnosis), Apple review notes and the Play data-safety answers. The
+  Privacy tab shows the matching in-app disclaimer (`mobile.wellnessNote`).
 
 ## Code conventions
 

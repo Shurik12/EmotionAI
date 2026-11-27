@@ -102,6 +102,34 @@ bool LocalFileStorage::saveFile(const std::vector<uint8_t> &file_content, const 
     return saveFile(content_str, file_path);
 }
 
+bool LocalFileStorage::saveFileFromPath(const std::string &source_path, const std::string &file_path)
+{
+    std::lock_guard<std::mutex> lock(file_mutex_);
+
+    try
+    {
+        fs::path full_path = resolvePath(file_path);
+        fs::create_directories(full_path.parent_path());
+
+        std::error_code ec;
+        fs::copy_file(source_path, full_path, fs::copy_options::overwrite_existing, ec);
+        if (ec)
+        {
+            LOG_ERROR("Failed to copy file {} to {}: {}", source_path, full_path.string(), ec.message());
+            return false;
+        }
+
+        LOG_DEBUG("File stored from {} to {} ({} bytes)", source_path, full_path.string(),
+                  fs::file_size(full_path, ec));
+        return true;
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Error storing file from {} to {}: {}", source_path, file_path, e.what());
+        return false;
+    }
+}
+
 std::string LocalFileStorage::readFile(const std::string &file_path)
 {
     std::lock_guard<std::mutex> lock(file_mutex_);

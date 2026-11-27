@@ -5,6 +5,8 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 
 namespace fs = std::filesystem;
 
@@ -16,6 +18,19 @@ public:
 	// File operations
 	virtual bool saveFile(const std::string &file_content, const std::string &file_path) = 0;
 	virtual bool saveFile(const std::vector<uint8_t> &file_content, const std::string &file_path) = 0;
+	// Store a file already present on local disk (resumable uploads assemble a
+	// temp file, so re-reading it into a std::string just to hand it to
+	// saveFile() would double peak memory). Backends that can copy/move
+	// natively should override this; the default reads then delegates.
+	virtual bool saveFileFromPath(const std::string &source_path, const std::string &file_path)
+	{
+		std::ifstream input(source_path, std::ios::binary);
+		if (!input)
+			return false;
+		std::string content((std::istreambuf_iterator<char>(input)),
+		                    std::istreambuf_iterator<char>());
+		return saveFile(content, file_path);
+	}
 	virtual std::string readFile(const std::string &file_path) = 0;
 	virtual std::vector<uint8_t> readFileBinary(const std::string &file_path) = 0;
 	virtual bool deleteFile(const std::string &file_path) = 0;

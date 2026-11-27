@@ -21,6 +21,7 @@
 #include <db/DragonflyManager.h>
 #include <emotionai/FileProcessor.h>
 #include <server/ThreadPool.h>
+#include <server/RateLimiter.h>
 #include <storage/FileStorage.h>
 #include <storage/FileStorageFactory.h>
 
@@ -95,6 +96,27 @@ private:
     // Storage components
     std::shared_ptr<FileStorage> file_storage_;
 
+    // Security: per-client rate limiting. Created in initialize() from the
+    // `security:` config section; null means disabled.
+    std::unique_ptr<RateLimiter> rate_limiter_;
+
+    // Resumable uploads (designed for mobile, where a single large POST over
+    // cellular fails). The temp file is assembled under upload_temp_dir_ and
+    // handed to the same processing pipeline as the one-shot upload.
+    struct UploadSession
+    {
+        std::string mode;
+        std::string filename;
+        std::size_t expected_size{0};
+        std::size_t received{0};
+        double self_score{-1.0};
+        long long created_ms{0};
+        fs::path temp_path;
+    };
+    std::map<std::string, UploadSession> upload_sessions_;
+    std::mutex upload_sessions_mutex_;
+    fs::path upload_temp_dir_;
+
     // Common paths
     fs::path static_files_root_;
     fs::path upload_folder_;
@@ -137,6 +159,12 @@ private:
     void handleRoot(const std::shared_ptr<ClientContext> &context);
     void handleOptions(const std::shared_ptr<ClientContext> &context);
 
+    // Resumable upload API: POST /api/upload/{init,chunk,complete,abort}
+    void handleUploadInit(const std::shared_ptr<ClientContext> &context, const std::string &body);
+    void handleUploadChunk(const std::shared_ptr<ClientContext> &context, const std::string &body);
+    void handleUploadComplete(const std::shared_ptr<ClientContext> &context, const std::string &body);
+    void handleUploadAbort(const std::shared_ptr<ClientContext> &context, const std::string &body);
+
     // Burnout Route Handlers
     void handleBurnoutAnalyze(const std::shared_ptr<ClientContext> &context, const std::string &body);
     void handleBurnoutBaseline(const std::shared_ptr<ClientContext> &context, const std::string &body);
@@ -165,8 +193,22 @@ private:
                                    double self_score = -1.0);
     std::string handleUploadBurnoutCommon(const std::string &file_content, const std::string &filename);
     std::string handleUploadExternalInfluenceCommon(const std::string &file_content, const std::string &filename);
+    // Persist an already-local file and enqueue processing for `mode`
+    // (standard|review|burnout|external_influence). Used by the resumable
+    // upload completion path.
+    std::string submitFileFromPath(const fs::path &local_source, const std::string &filename,
+                                   const std::string &mode, double self_score);
     std::string handleSubmitApplicationCommon(const std::string &body);
     void validateJsonDocument(const nlohmann::json &json);
+
+    // Security helpers
+    bool isAuthorized(const std::shared_ptr<ClientContext> &context) const;
+    std::string clientKey(const std::shared_ptr<ClientContext> &context) const;
+    static bool tokenEquals(const std::string &presented, const std::string &expected);
+
+    // Resumable upload helpers
+    void pruneUploadSessionsLocked(long long now_ms);
+    void cleanupUploadSessions();
 
     // Common file serving
     std::string getMimeType(const std::string &filename) const;

@@ -7,8 +7,10 @@ screens from `../frontend/src` (Detector, Focus, Privacy) inside a native WebVie
 ```
 mobile/                      Capacitor project (this directory)
   capacitor.config.ts        appId, webDir, scheme
+  assets/                    icon/splash sources for @capacitor/assets
   android/                   generated Android Studio project
   ios/                       generated Xcode project
+  STORE_LISTING.md           store copy + review notes
 ../frontend/mobile-app/      web entry point (index.html) for the app bundle
 ../frontend/src/mobile/      mobile shell: app bar + bottom tab bar
 ../frontend/vite.mobile.config.js
@@ -23,12 +25,14 @@ mobile/                      Capacitor project (this directory)
 | `npx cap sync` (in `mobile/`) | copies `dist-mobile/` into `android/` and `ios/` |
 | `npx cap open android` | opens Android Studio |
 | `npx cap open ios` | opens Xcode (macOS only) |
+| `npm run assets` | regenerates icons/splash from `assets/` |
 
 From the repo root:
 
 ```bash
 make build_mobile   # frontend/dist-mobile
 make mobile_sync    # build + copy into both native projects
+make mobile_android # also build a debug APK (Android SDK + JDK 21)
 ```
 
 ## Prerequisites
@@ -39,13 +43,18 @@ make mobile_sync    # build + copy into both native projects
 | Android | Android Studio + **JDK 21** (Gradle 8.11.1 rejects JDK 24+), an emulator or device |
 | iOS | macOS + Xcode 15+, CocoaPods (`sudo gem install cocoapods`), an Apple Developer account |
 
-On a machine where `java -version` reports 25 (as on the current dev box), point Gradle at 21:
+On a machine where `java -version` reports 25 (as on the current dev box), point Gradle
+at 21 in the gitignored `mobile/android/local.properties`:
 
-```bash
-export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-# or permanently, in mobile/android/gradle.properties:
-# org.gradle.java.home=/usr/lib/jvm/java-21-openjdk-amd64
+```properties
+sdk.dir=/usr/lib/android-sdk
+org.gradle.java.home=/usr/lib/jvm/java-21-openjdk-amd64
 ```
+
+`make mobile_android` uses `JAVA_HOME_ANDROID` (default
+`/usr/lib/jvm/java-21-openjdk-amd64`) and builds a debug APK. The full Android SDK
+(`platforms;android-35`, `build-tools;35.0.0`) is required; `platform-tools` alone is
+not enough.
 
 ## First run
 
@@ -74,9 +83,31 @@ Because the WebView origin differs from the API host, every request is cross-ori
 the backend must allow the SPA's analytics headers (`X-Client-Id`, `X-Traffic-Source`,
 `X-Referrer`) in `Access-Control-Allow-Headers` — `Server::sendHttpResponse` lists them.
 
+## Security (auth + rate limiting)
+
+The backend has a `security:` config section (`config_template.yaml`):
+
+- **`api_token`** — when non-empty, every `/api/` request must send
+  `Authorization: Bearer <token>` (or `X-API-Key`). `/api/health` is exempt.
+  Set `VITE_API_TOKEN` in `frontend/.env.mobile` to match. The token is embedded in
+  the app bundle, so it is extractable — it is a revocable gate, not per-user auth.
+- **Rate limiting** — a per-client token bucket over all requests
+  (`rate_limit_per_minute`, `rate_limit_burst`). Rejections are `429` with
+  `Retry-After`.
+- **`trust_proxy_headers`** — set `true` only behind `config/nginx`, which sets
+  `X-Real-IP`; otherwise every visitor shares the proxy's bucket.
+
+## Resumable uploads
+
+Files over 6 MB go through `POST /api/upload/init → chunk* → complete` instead of a
+single POST (`frontend/src/api/client.js`). Chunks are retried with exponential
+backoff and resume from the server's reported offset, so a dropped cellular
+connection no longer loses the whole file. The one-shot endpoints remain for small
+files.
+
 ## Permissions
 
-Already wired up, because the Focus camera uses `getUserMedia()`:
+Wired up because the Focus camera uses `getUserMedia()`:
 
 - **Android** — `CAMERA`, `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS` in
   `android/app/src/main/AndroidManifest.xml`. Capacitor's `BridgeWebChromeClient`
@@ -89,19 +120,34 @@ Already wired up, because the Focus camera uses `getUserMedia()`:
 Verify the camera on a **physical device** — simulator/emulator camera support is
 unreliable and says nothing about the store build.
 
-## Before publishing — not optional
+## Branding
 
-1. **Authentication.** The backend currently accepts unauthenticated requests and trusts
-   any `user_id` in `/api/burnout/baseline`. Shipping a public app without auth exposes
-   the GPU and the LLM key to anyone who finds the URL. Add a token/API-key check and
-   rate limiting first.
-2. **Large uploads.** A single `POST /api/upload` up to 300 MB will fail on mobile data.
-   Compress on-device or add resumable/chunked upload.
-3. **Store metadata.** Privacy policy URL, data-safety form (Play), camera justification
-   and sensitive-data review notes (Apple). Emotion inference is treated as sensitive —
-   position it as wellness, never diagnosis.
-4. **Signing.** Android: generate a keystore and build a signed `.aab`
-   (`Build → Generate Signed Bundle`). iOS: certificates + provisioning profiles via Xcode.
+Icons and launch screens live in `mobile/assets/` (rendered from
+`frontend/public/static/razuma.svg`) and are regenerated with:
+
+```bash
+cd mobile && npm run assets && npm run sync
+```
+
+See `mobile/assets/README.md`. Do not hand-edit the generated native images.
+
+## Before publishing
+
+See [`STORE_LISTING.md`](STORE_LISTING.md) for store copy, the wellness
+positioning, Apple review notes and the Play data-safety answers. Code-side
+prerequisites are done:
+
+1. **Authentication + rate limiting** — implemented (`security:` section).
+2. **Large uploads** — resumable chunked upload implemented.
+3. **JDK 21** — documented and wired into `make mobile_android`.
+4. **Icons/splash + in-app wellness disclaimer** — done.
+
+Still required, and store-account specific:
+
+- Confirm the production API host and the public privacy-policy URL.
+- Signing: Android keystore, iOS certificates + provisioning profiles
+  (`Build → Generate Signed Bundle` for a `.aab`).
+- Decide whether the backend runs with `security.api_token` set.
 
 ## Not included
 

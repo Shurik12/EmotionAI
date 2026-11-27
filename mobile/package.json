@@ -12,7 +12,8 @@
     "open:android": "cap open android",
     "open:ios": "cap open ios",
     "copy": "cap copy",
-    "doctor": "cap doctor"
+    "doctor": "cap doctor",
+    "assets": "capacitor-assets generate"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.11",
@@ -20,6 +21,7 @@
     "@capacitor/ios": "^7.6.11"
   },
   "devDependencies": {
+    "@capacitor/assets": "^4.0.0",
     "@capacitor/cli": "^7.6.11",
     "typescript": "^5.6.3"
   }
