@@ -78,6 +78,9 @@ public:
     
     // Get user baseline
     nlohmann::json get_user_baseline(const std::string& user_id);
+
+    // Delete a user's baseline (used by the device-revoke / data-deletion path)
+    bool delete_user_baseline(const std::string& user_id);
     // =========================================
 
     // ============ NEW: External influence (scam signal) API ============

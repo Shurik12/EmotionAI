@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { LanguageProvider } from '../context/LanguageContext';
 import { NavigationProvider } from '../context/NavigationContext';
 import { useNavigation } from '../hooks/useNavigation';
@@ -6,6 +6,7 @@ import { useLanguage } from '../hooks/useLanguage';
 import { Detector } from '../components/Detector';
 import { Focus } from '../components/Focus';
 import { Privacy } from '../components/Privacy';
+import { apiClient } from '../api/client';
 import '../styles/global.css';
 import './mobile.css';
 
@@ -60,6 +61,7 @@ const TabIcon = ({ page }) => (
 const Shell = () => {
   const { currentPage, navigateTo } = useNavigation();
   const { t, language, setLanguage } = useLanguage();
+  const [deleteState, setDeleteState] = useState('idle'); // idle | working | done | error
 
   const page = PAGES.includes(currentPage) ? currentPage : 'detector';
 
@@ -68,6 +70,21 @@ const Shell = () => {
   useEffect(() => {
     if (!PAGES.includes(currentPage)) navigateTo('detector');
   }, [currentPage, navigateTo]);
+
+  // Data deletion: revoking the device token also drops the saved baseline on
+  // the server, so this is the app's "delete my data" action.
+  const handleDeleteData = async () => {
+    if (deleteState === 'working' || deleteState === 'done') return;
+    if (!window.confirm(t('mobile.deleteConfirm'))) return;
+
+    setDeleteState('working');
+    try {
+      await apiClient.revokeDeviceIdentity();
+      setDeleteState('done');
+    } catch {
+      setDeleteState('error');
+    }
+  };
 
   return (
     <div className="mobile-shell">
@@ -99,6 +116,25 @@ const Shell = () => {
         {page === 'privacy' && (
           <>
             <p className="mobile-wellness-note">{t('mobile.wellnessNote')}</p>
+            <section className="mobile-data-actions">
+              <h2>{t('mobile.dataTitle')}</h2>
+              <p>{t('mobile.dataText')}</p>
+              <button
+                type="button"
+                className="mobile-danger"
+                onClick={handleDeleteData}
+                disabled={deleteState === 'working' || deleteState === 'done'}
+              >
+                {deleteState === 'working'
+                  ? t('mobile.deleting')
+                  : deleteState === 'done'
+                    ? t('mobile.deleted')
+                    : t('mobile.delete')}
+              </button>
+              {deleteState === 'error' && (
+                <p className="mobile-delete-error">{t('mobile.deleteError')}</p>
+              )}
+            </section>
             <Privacy />
           </>
         )}

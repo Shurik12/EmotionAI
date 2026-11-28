@@ -22,6 +22,7 @@
 #include <emotionai/FileProcessor.h>
 #include <server/ThreadPool.h>
 #include <server/RateLimiter.h>
+#include <server/DeviceAuth.h>
 #include <storage/FileStorage.h>
 #include <storage/FileStorageFactory.h>
 
@@ -66,6 +67,10 @@ private:
         int last_status_code{0};
         size_t content_length;
         std::string client_ip;
+        // Identity resolved from the device token, or empty for anonymous
+        // requests. Identity-dependent handlers use this instead of a
+        // client-supplied user_id.
+        std::string device_user_id;
 
         ClientContext(int socket_fd) : fd(socket_fd), headers_complete(false), content_length(0) {}
     };
@@ -99,6 +104,10 @@ private:
     // Security: per-client rate limiting. Created in initialize() from the
     // `security:` config section; null means disabled.
     std::unique_ptr<RateLimiter> rate_limiter_;
+    // Stricter bucket for token minting (POST /api/auth/device).
+    std::unique_ptr<RateLimiter> device_issue_limiter_;
+    // Device-scoped identity (token -> user_id).
+    std::unique_ptr<DeviceAuth> device_auth_;
 
     // Resumable uploads (designed for mobile, where a single large POST over
     // cellular fails). The temp file is assembled under upload_temp_dir_ and
@@ -165,6 +174,10 @@ private:
     void handleUploadComplete(const std::shared_ptr<ClientContext> &context, const std::string &body);
     void handleUploadAbort(const std::shared_ptr<ClientContext> &context, const std::string &body);
 
+    // Device identity: POST /api/auth/device and /api/auth/revoke.
+    void handleDeviceAuthCreate(const std::shared_ptr<ClientContext> &context, const std::string &body);
+    void handleDeviceAuthRevoke(const std::shared_ptr<ClientContext> &context, const std::string &body);
+
     // Burnout Route Handlers
     void handleBurnoutAnalyze(const std::shared_ptr<ClientContext> &context, const std::string &body);
     void handleBurnoutBaseline(const std::shared_ptr<ClientContext> &context, const std::string &body);
@@ -205,6 +218,8 @@ private:
     bool isAuthorized(const std::shared_ptr<ClientContext> &context) const;
     std::string clientKey(const std::shared_ptr<ClientContext> &context) const;
     static bool tokenEquals(const std::string &presented, const std::string &expected);
+    // Bearer token from Authorization, or "" if absent/malformed.
+    static std::string bearerToken(const std::shared_ptr<ClientContext> &context);
 
     // Resumable upload helpers
     void pruneUploadSessionsLocked(long long now_ms);

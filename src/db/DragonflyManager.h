@@ -55,6 +55,13 @@ public:
 	void pipeline_set(const std::vector<std::pair<std::string, std::string>> &key_values);
 	std::vector<std::optional<std::string>> pipeline_get(const std::vector<std::string> &keys);
 
+	// Raw key/value helpers for records with their own lifetime (device tokens,
+	// user baselines). Unlike set_task_status, these do NOT add a "task:" prefix
+	// and take an explicit TTL.
+	bool set_with_ttl(const std::string &key, const std::string &value, int ttl_seconds);
+	std::optional<std::string> get_raw(const std::string &key);
+	bool del_raw(const std::string &key);
+
 	// Connection pool stats
 	struct PoolStats
 	{

@@ -2,9 +2,10 @@ import { analyticsHeaders } from '../utils/clientId';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-// Optional shared API token (security.api_token on the server). Embedded in the
-// bundle, so treat it as an access-control deterrent / revocable kill switch,
-// not as per-user authentication. Left empty for the public demo.
+// Optional shared API token (security.api_token on the server). Sent as
+// X-API-Key, never as Authorization: Authorization carries the per-device
+// token so the two layers cannot be confused. Embedded in the bundle, so treat
+// it as an access-control deterrent / revocable kill switch, not user auth.
 const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
 // Files above this size go through the resumable endpoint (init/chunk/complete)
@@ -13,11 +14,130 @@ const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 const CHUNKED_UPLOAD_THRESHOLD = 6 * 1024 * 1024;
 const MAX_CHUNK_ATTEMPTS = 4;
 
-const authHeaders = () => (API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {});
-
-const baseHeaders = () => ({ ...authHeaders(), ...analyticsHeaders() });
+const DEVICE_TOKEN_KEY = 'razuma_device_token';
+const DEVICE_USER_KEY = 'razuma_device_user_id';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// ---------------------------------------------------------------------------
+// Device identity
+//
+// The server issues an opaque token once (POST /api/auth/device) and derives
+// `user_id` from it. Storing it locally is what lets the device come back to
+// its own burnout baseline; the server ignores client-supplied ids, so the
+// token is also what prevents one device from touching another's data.
+// ---------------------------------------------------------------------------
+
+let identity = null; // { token, userId }
+let identityPromise = null;
+let identityRetryAt = 0;
+
+const readStoredIdentity = () => {
+  try {
+    const token = localStorage.getItem(DEVICE_TOKEN_KEY);
+    if (!token) return null;
+    return { token, userId: localStorage.getItem(DEVICE_USER_KEY) || '' };
+  } catch {
+    return null;
+  }
+};
+
+const storeIdentity = (next) => {
+  try {
+    localStorage.setItem(DEVICE_TOKEN_KEY, next.token);
+    if (next.userId) localStorage.setItem(DEVICE_USER_KEY, next.userId);
+  } catch {
+    // Private mode / storage disabled: identity lives for this tab only.
+  }
+};
+
+const clearIdentity = () => {
+  identity = null;
+  try {
+    localStorage.removeItem(DEVICE_TOKEN_KEY);
+    localStorage.removeItem(DEVICE_USER_KEY);
+  } catch {
+    // ignore
+  }
+};
+
+const appKeyHeaders = () => (API_TOKEN ? { 'X-API-Key': API_TOKEN } : {});
+
+const authHeaders = () => (identity ? { Authorization: `Bearer ${identity.token}` } : {});
+
+const requestHeaders = () => ({ ...appKeyHeaders(), ...authHeaders(), ...analyticsHeaders() });
+
+async function ensureIdentity() {
+  if (identity) return identity;
+
+  const stored = readStoredIdentity();
+  if (stored) {
+    identity = stored;
+    return identity;
+  }
+
+  if (identityPromise) return identityPromise;
+  if (Date.now() < identityRetryAt) return null;
+
+  identityPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/device`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...appKeyHeaders(), ...analyticsHeaders() },
+        body: '{}',
+      });
+
+      if (response.status === 503) {
+        // Backend has device auth disabled: stop asking for an hour.
+        identityRetryAt = Date.now() + 60 * 60 * 1000;
+        return null;
+      }
+      if (!response.ok) {
+        throw new Error(`device bootstrap failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data.device_token) throw new Error('device bootstrap returned no token');
+
+      identity = { token: data.device_token, userId: data.user_id || '' };
+      storeIdentity(identity);
+      identityRetryAt = 0;
+      return identity;
+    } catch (error) {
+      // Fail soft: anonymous endpoints still work; identity-dependent ones
+      // return 401 and the UI surfaces that.
+      console.warn('Device identity unavailable:', error);
+      identityRetryAt = Date.now() + 60 * 1000;
+      return null;
+    } finally {
+      identityPromise = null;
+    }
+  })();
+
+  return identityPromise;
+}
+
+// fetch() with the device token attached. A 401 flagged "invalid_device_token"
+// means the stored token was revoked or expired: re-bootstrap once and retry.
+async function authFetch(url, init = {}, retried = false) {
+  await ensureIdentity();
+
+  const response = await fetch(url, {
+    ...init,
+    headers: { ...requestHeaders(), ...(init.headers || {}) },
+  });
+
+  if (response.status === 401 && !retried) {
+    const errorBody = await response.clone().json().catch(() => ({}));
+    if (errorBody.error === 'invalid_device_token' || errorBody.error === 'device_token_required') {
+      clearIdentity();
+      await ensureIdentity();
+      return authFetch(url, init, true);
+    }
+  }
+
+  return response;
+}
 
 // Parse an error response into something the UI can translate. Server errors are
 // `{"error": "..."}`; a 413 falls back to the localized size-limit key.
@@ -35,13 +155,9 @@ const errorFrom = async (response, fallback = 'errors.uploadFailed') => {
 
 export const apiClient = {
   async request(endpoint, options = {}) {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    const response = await authFetch(`${API_BASE}${endpoint}`, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...baseHeaders(),
-        ...options.headers,
-      },
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     });
 
     if (!response.ok) {
@@ -71,9 +187,8 @@ export const apiClient = {
       external_influence: '/upload_external_influence',
     };
 
-    const response = await fetch(`${API_BASE}${endpoints[mode]}`, {
+    const response = await authFetch(`${API_BASE}${endpoints[mode]}`, {
       method: 'POST',
-      headers: baseHeaders(),
       body: formData,
     });
 
@@ -92,9 +207,9 @@ export const apiClient = {
     const initBody = { filename: file.name, size: file.size, mode };
     if (mode === 'review') initBody.self_score = selfScore;
 
-    const initResponse = await fetch(`${API_BASE}/upload/init`, {
+    const initResponse = await authFetch(`${API_BASE}/upload/init`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...baseHeaders() },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(initBody),
     });
     if (!initResponse.ok) {
@@ -113,13 +228,12 @@ export const apiClient = {
 
         for (let attempt = 1; ; attempt += 1) {
           try {
-            const response = await fetch(`${API_BASE}/upload/chunk`, {
+            const response = await authFetch(`${API_BASE}/upload/chunk`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/octet-stream',
                 'X-Upload-Id': uploadId,
                 'X-Chunk-Offset': String(offset),
-                ...baseHeaders(),
               },
               body: blob,
             });
@@ -147,9 +261,9 @@ export const apiClient = {
         }
       }
 
-      const completeResponse = await fetch(`${API_BASE}/upload/complete`, {
+      const completeResponse = await authFetch(`${API_BASE}/upload/complete`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...baseHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ upload_id: uploadId }),
       });
       if (!completeResponse.ok) {
@@ -159,9 +273,9 @@ export const apiClient = {
       return completeResponse.json();
     } catch (error) {
       // Best-effort cleanup; the server also expires stale sessions.
-      fetch(`${API_BASE}/upload/abort`, {
+      authFetch(`${API_BASE}/upload/abort`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...baseHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ upload_id: uploadId }),
       }).catch(() => {});
       throw error;
@@ -178,9 +292,8 @@ export const apiClient = {
     formData.append('self_score', String(selfScore));
     formData.append('mode', mode);
 
-    const response = await fetch(`${API_BASE}/review`, {
+    const response = await authFetch(`${API_BASE}/review`, {
       method: 'POST',
-      headers: baseHeaders(),
       body: formData,
     });
 
@@ -210,9 +323,8 @@ export const apiClient = {
     const formData = new FormData();
     formData.append('file', blob, 'focus-frame.jpg');
 
-    const response = await fetch(`${API_BASE}/focus/session/${sessionId}/frame`, {
+    const response = await authFetch(`${API_BASE}/focus/session/${sessionId}/frame`, {
       method: 'POST',
-      headers: baseHeaders(),
       body: formData,
     });
 
@@ -240,14 +352,34 @@ export const apiClient = {
   },
 
   // ---- Burnout baseline ----
-  async getBurnoutBaseline(userId) {
-    return this.request(`/burnout/baseline?user_id=${encodeURIComponent(userId)}`);
+  // Identity comes from the device token; no user_id is sent or trusted.
+  async getBurnoutBaseline() {
+    return this.request('/burnout/baseline');
   },
 
-  async saveBurnoutBaseline(userId, baseline) {
+  async saveBurnoutBaseline(baseline) {
     return this.request('/burnout/baseline', {
       method: 'POST',
-      body: JSON.stringify({ user_id: userId, baseline }),
+      body: JSON.stringify({ baseline }),
     });
+  },
+
+  // ---- Device identity lifecycle ----
+  // Revokes the token and deletes the derived baseline. The next request
+  // bootstraps a fresh identity.
+  async revokeDeviceIdentity() {
+    const response = await authFetch(`${API_BASE}/auth/revoke`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+
+    if (!response.ok) {
+      throw new Error(await errorFrom(response, 'errors.uploadFailed'));
+    }
+
+    const result = await response.json();
+    clearIdentity();
+    return result;
   },
 };

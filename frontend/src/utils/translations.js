@@ -31,6 +31,14 @@ export const translations = {
     mobile: {
       wellnessNote:
         'Razuma — инструмент для благополучия и продуктивности. Он не является медицинским изделием и не ставит диагноз.',
+      dataTitle: 'Ваши данные',
+      dataText:
+        'Идентификатор устройства хранится только на этом телефоне. Удаление стирает его и сохранённую норму на сервере. Загруженные для анализа файлы с профилем не связаны.',
+      delete: 'Удалить профиль и идентификатор',
+      deleting: 'Удаляем…',
+      deleted: 'Данные удалены',
+      deleteError: 'Не удалось удалить данные. Попробуйте ещё раз.',
+      deleteConfirm: 'Удалить идентификатор устройства и сохранённую норму на сервере?',
     },
     focus: {
       badge: 'Приватная бета',
@@ -925,6 +933,14 @@ export const translations = {
     mobile: {
       wellnessNote:
         'Razuma is a wellness and productivity tool. It is not a medical device and does not diagnose any condition.',
+      dataTitle: 'Your data',
+      dataText:
+        'The device identifier is stored only on this phone. Deleting it removes it and the saved baseline from the server. Files uploaded for analysis are not linked to the profile.',
+      delete: 'Delete profile and identity',
+      deleting: 'Deleting…',
+      deleted: 'Data deleted',
+      deleteError: 'Could not delete the data. Please try again.',
+      deleteConfirm: 'Delete the device identifier and the saved baseline from the server?',
     },
     focus: {
       badge: 'Private beta',

@@ -322,6 +322,8 @@ bool Config::loadFromFile(const std::string &config_path)
             new_data.security.rate_limit_burst = security["rate_limit_burst"].as<int>(new_data.security.rate_limit_burst);
             new_data.security.rate_limit_max_keys = security["rate_limit_max_keys"].as<int>(new_data.security.rate_limit_max_keys);
             new_data.security.trust_proxy_headers = security["trust_proxy_headers"].as<bool>(new_data.security.trust_proxy_headers);
+            new_data.security.device_auth_enabled = security["device_auth_enabled"].as<bool>(new_data.security.device_auth_enabled);
+            new_data.security.device_token_ttl_seconds = security["device_token_ttl_seconds"].as<int>(new_data.security.device_token_ttl_seconds);
             if (security["exempt_paths"])
                 new_data.security.exempt_paths = security["exempt_paths"].as<std::vector<std::string>>(new_data.security.exempt_paths);
         }
@@ -416,6 +418,9 @@ bool Config::loadFromFile(const std::string &config_path)
             spdlog::info("  Rate limit: disabled");
         }
         spdlog::info("  Trust proxy headers: {}", data_.security.trust_proxy_headers);
+        spdlog::info("  Device auth: {}", data_.security.device_auth_enabled ? "enabled" : "disabled");
+        if (data_.security.device_auth_enabled)
+            spdlog::info("  Device token TTL: {}s", data_.security.device_token_ttl_seconds);
         spdlog::info("  Resumable upload chunk: {} bytes", data_.app.upload_chunk_size);
 
         return true;
@@ -626,6 +631,12 @@ bool Config::validate() const
             spdlog::error("Invalid rate_limit_max_keys: {}", data_.security.rate_limit_max_keys);
             return false;
         }
+    }
+
+    if (data_.security.device_auth_enabled && data_.security.device_token_ttl_seconds <= 0)
+    {
+        spdlog::error("Invalid device_token_ttl_seconds: {}", data_.security.device_token_ttl_seconds);
+        return false;
     }
 
     spdlog::info("Configuration validation passed");

@@ -128,3 +128,47 @@ body {
   font-size: 13px;
   line-height: 1.45;
 }
+
+/* Data deletion block on the Privacy tab. */
+.mobile-data-actions {
+  margin: 12px 16px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.mobile-data-actions h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  color: #143f70;
+}
+
+.mobile-data-actions p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #4a5a6a;
+}
+
+.mobile-danger {
+  border: 1px solid #d9534f;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #fff5f5;
+  color: #b52b27;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mobile-danger:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.mobile-data-actions .mobile-delete-error {
+  margin: 8px 0 0;
+  color: #b52b27;
+}

@@ -423,9 +423,17 @@ void FileProcessor::save_user_baseline(
         return;
     }
     
-    std::string key = "baseline:user:" + user_id;
-    dragonfly_manager_->set_task_status(key, baseline);
-    LOG_INFO("Saved baseline for user: {}", user_id);
+    // A baseline is long-lived profile data, not a task status: store it under
+    // a raw key with the application-data lifetime. The previous
+    // set_task_status() path added a "task:" prefix and expired it after
+    // task_expiration (~1 hour), so baselines never actually persisted.
+    const std::string key = "baseline:user:" + user_id;
+    const int ttl = Config::instance().app().application_expiration;
+    if (!dragonfly_manager_->set_with_ttl(key, baseline.dump(), ttl)) {
+        LOG_ERROR("Failed to save baseline for user: {}", user_id);
+        return;
+    }
+    LOG_INFO("Saved baseline for user: {} (ttl {}s)", user_id, ttl);
 }
 
 nlohmann::json FileProcessor::get_user_baseline(const std::string& user_id)
@@ -435,16 +443,29 @@ nlohmann::json FileProcessor::get_user_baseline(const std::string& user_id)
         return nlohmann::json::object();
     }
     
-    std::string key = "baseline:user:" + user_id;
-    auto baseline = dragonfly_manager_->get_task_status_json(key);
-    
-    if (baseline) {
-        LOG_INFO("Retrieved baseline for user: {}", user_id);
-        return *baseline;
+    const std::string key = "baseline:user:" + user_id;
+    auto raw = dragonfly_manager_->get_raw(key);
+    if (!raw) {
+        LOG_WARN("No baseline found for user: {}", user_id);
+        return nlohmann::json::object();
     }
-    
-    LOG_WARN("No baseline found for user: {}", user_id);
-    return nlohmann::json::object();
+
+    try {
+        LOG_INFO("Retrieved baseline for user: {}", user_id);
+        return nlohmann::json::parse(*raw);
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to parse baseline for user {}: {}", user_id, e.what());
+        return nlohmann::json::object();
+    }
+}
+
+bool FileProcessor::delete_user_baseline(const std::string& user_id)
+{
+    if (!dragonfly_manager_ || user_id.empty())
+        return false;
+    const bool deleted = dragonfly_manager_->del_raw("baseline:user:" + user_id);
+    LOG_INFO("Deleted baseline for user: {} ({})", user_id, deleted ? "removed" : "absent");
+    return deleted;
 }
 
 //=============================================================================

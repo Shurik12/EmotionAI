@@ -309,6 +309,20 @@ void Server::initialize()
     else
         LOG_INFO("API token auth enabled for /api/ requests");
 
+    // Device-scoped identity (token -> user_id). Created after components so
+    // Dragonfly is initialised.
+    device_auth_ = std::make_unique<DeviceAuth>(dragonfly_manager_.get());
+    device_issue_limiter_ = std::make_unique<RateLimiter>(10, 3, 10000);
+    if (security.device_auth_enabled)
+    {
+        LOG_INFO("Device auth enabled (token TTL {}s); /api/burnout/baseline requires a device token",
+                 security.device_token_ttl_seconds);
+    }
+    else
+    {
+        LOG_WARN("Device auth disabled: /api/burnout/baseline trusts client-supplied user_id");
+    }
+
     // Resumable uploads assemble chunks here before processing.
     upload_temp_dir_ = upload_folder_ / ".chunks";
     fs::create_directories(upload_temp_dir_);
@@ -367,7 +381,12 @@ void Server::setupRoutes()
         {"/api/upload/complete", [this](auto &&ctx, auto &&body)
          { handleUploadComplete(ctx, body); }},
         {"/api/upload/abort", [this](auto &&ctx, auto &&body)
-         { handleUploadAbort(ctx, body); }}
+         { handleUploadAbort(ctx, body); }},
+        // Device-scoped identity.
+        {"/api/auth/device", [this](auto &&ctx, auto &&body)
+         { handleDeviceAuthCreate(ctx, body); }},
+        {"/api/auth/revoke", [this](auto &&ctx, auto &&body)
+         { handleDeviceAuthRevoke(ctx, body); }}
     };
 
     // GET routes
@@ -394,7 +413,8 @@ void Server::setupRoutes()
                               "/api/health", "/api/burnout/analyze", "/api/burnout/baseline", "/static",
                               "/api/upload_external_influence", "/api/external-influence/analyze",
                               "/api/focus/session", "/api/focus/breakdown", "/api/review",
-                              "/api/upload/init", "/api/upload/chunk", "/api/upload/complete", "/api/upload/abort"})
+                              "/api/upload/init", "/api/upload/chunk", "/api/upload/complete", "/api/upload/abort",
+                              "/api/auth/device", "/api/auth/revoke"})
     {
         options_routes_[route] = [this](auto &&ctx)
         { handleOptions(ctx); };
@@ -698,6 +718,38 @@ void Server::processRequest(const std::shared_ptr<ClientContext> &context)
                                  "WWW-Authenticate: Bearer\r\n");
                 finalizeRequest(context, start_time);
                 return;
+            }
+
+            // Device-scoped identity. A presented token must be valid; an
+            // unknown/expired one is a hard 401 so the client can re-bootstrap
+            // instead of silently falling back to an anonymous id. The
+            // bootstrap endpoint itself is exempt.
+            const auto &security = Config::instance().security();
+            if (security.device_auth_enabled && device_auth_ &&
+                context->path != "/api/auth/device")
+            {
+                const std::string token = bearerToken(context);
+                // A legacy client may put the shared app token in Authorization
+                // (before X-API-Key existed). Do not treat that as a device
+                // token: only a value that is not the app token is an identity.
+                if (!token.empty() && !tokenEquals(token, security.api_token))
+                {
+                    std::string user_id;
+                    if (device_auth_->authenticate(token, user_id))
+                    {
+                        context->device_user_id = user_id;
+                    }
+                    else
+                    {
+                        LOG_WARN("Invalid device token on {} {} from {}",
+                                 context->method, context->path, clientKey(context));
+                        sendHttpResponse(context->fd, 401, "application/json",
+                                         R"({"error":"invalid_device_token"})",
+                                         "WWW-Authenticate: Bearer realm=\"device\"\r\n");
+                        finalizeRequest(context, start_time);
+                        return;
+                    }
+                }
             }
         }
 
@@ -1681,11 +1733,29 @@ void Server::handleBurnoutBaseline(
         LOG_DEBUG("Handling burnout baseline save request");
         
         auto json_body = nlohmann::json::parse(body);
-        
-        std::string user_id = json_body.value("user_id", "");
-        if (user_id.empty()) {
-            sendErrorResponse(context->fd, 400, "user_id required");
-            return;
+
+        // With device auth on, the identity comes from the Bearer token and any
+        // client-supplied user_id is ignored. This is what stops one device
+        // from overwriting another device's baseline.
+        const auto &security = Config::instance().security();
+        std::string user_id;
+        if (security.device_auth_enabled) {
+            if (context->device_user_id.empty()) {
+                sendHttpResponse(context->fd, 401, "application/json",
+                                 R"({"error":"device_token_required"})",
+                                 "WWW-Authenticate: Bearer realm=\"device\"\r\n");
+                return;
+            }
+            user_id = context->device_user_id;
+            const std::string supplied = json_body.value("user_id", "");
+            if (!supplied.empty() && supplied != user_id)
+                LOG_WARN("Ignoring client-supplied user_id on baseline write");
+        } else {
+            user_id = json_body.value("user_id", "");
+            if (user_id.empty()) {
+                sendErrorResponse(context->fd, 400, "user_id required");
+                return;
+            }
         }
         
         if (!json_body.contains("baseline") || !json_body["baseline"].is_object()) {
@@ -1714,14 +1784,31 @@ void Server::handleBurnoutBaselineGet(
     try {
         LOG_DEBUG("Handling burnout baseline get request");
         
-        // Get user_id from query params
-        auto user_id_it = context->params.find("user_id");
-        if (user_id_it == context->params.end() || user_id_it->second.empty()) {
-            sendErrorResponse(context->fd, 400, "user_id query parameter required");
-            return;
+        // With device auth on, the identity comes from the Bearer token; the
+        // ?user_id query parameter is ignored (it stays supported for installs
+        // with device_auth_enabled: false).
+        const auto &security = Config::instance().security();
+        std::string user_id;
+        if (security.device_auth_enabled) {
+            if (context->device_user_id.empty()) {
+                sendHttpResponse(context->fd, 401, "application/json",
+                                 R"({"error":"device_token_required"})",
+                                 "WWW-Authenticate: Bearer realm=\"device\"\r\n");
+                return;
+            }
+            user_id = context->device_user_id;
+            if (auto it = context->params.find("user_id");
+                it != context->params.end() && !it->second.empty() && it->second != user_id)
+                LOG_WARN("Ignoring client-supplied user_id on baseline read");
+        } else {
+            auto user_id_it = context->params.find("user_id");
+            if (user_id_it == context->params.end() || user_id_it->second.empty()) {
+                sendErrorResponse(context->fd, 400, "user_id query parameter required");
+                return;
+            }
+            user_id = user_id_it->second;
         }
-        
-        std::string user_id = user_id_it->second;
+
         auto baseline = file_processor_->get_user_baseline(user_id);
         
         if (baseline.empty()) {
@@ -1964,6 +2051,17 @@ bool Server::tokenEquals(const std::string &presented, const std::string &expect
     return diff == 0;
 }
 
+std::string Server::bearerToken(const std::shared_ptr<ClientContext> &context)
+{
+    const auto it = context->headers.find("authorization");
+    if (it == context->headers.end())
+        return "";
+    static const std::string prefix = "Bearer ";
+    if (it->second.rfind(prefix, 0) != 0)
+        return "";
+    return it->second.substr(prefix.size());
+}
+
 bool Server::isAuthorized(const std::shared_ptr<ClientContext> &context) const
 {
     const auto &security = Config::instance().security();
@@ -1980,17 +2078,22 @@ bool Server::isAuthorized(const std::shared_ptr<ClientContext> &context) const
             return true;
     }
 
+    // The app token travels in X-API-Key; Authorization is reserved for the
+    // per-device token. Fall back to Authorization only when X-API-Key is
+    // absent, for older clients that put the shared token there.
     std::string presented;
-    if (auto it = context->headers.find("authorization"); it != context->headers.end())
+    if (auto it = context->headers.find("x-api-key"); it != context->headers.end())
     {
-        static const std::string bearer = "Bearer ";
-        presented = it->second.rfind(bearer, 0) == 0 ? it->second.substr(bearer.size())
-                                                     : it->second;
+        presented = it->second;
     }
     if (presented.empty())
     {
-        if (auto it = context->headers.find("x-api-key"); it != context->headers.end())
-            presented = it->second;
+        if (auto it = context->headers.find("authorization"); it != context->headers.end())
+        {
+            static const std::string bearer = "Bearer ";
+            presented = it->second.rfind(bearer, 0) == 0 ? it->second.substr(bearer.size())
+                                                         : it->second;
+        }
     }
 
     return tokenEquals(presented, security.api_token);
@@ -2406,6 +2509,101 @@ void Server::handleUploadAbort(const std::shared_ptr<ClientContext> &context, co
     catch (const std::exception &e)
     {
         LOG_ERROR("Exception in upload abort: {}", e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
+// Device identity: POST /api/auth/device issues an opaque token bound to a
+// server-generated user id; the client stores it and sends it as a Bearer token.
+// Only SHA-256(token) is stored, so the database never contains usable tokens.
+void Server::handleDeviceAuthCreate(const std::shared_ptr<ClientContext> &context, const std::string &)
+{
+    try
+    {
+        const auto &security = Config::instance().security();
+        if (!security.device_auth_enabled || !device_auth_)
+        {
+            sendErrorResponse(context->fd, 503, "Device auth is disabled");
+            return;
+        }
+
+        // Token minting is cheap but unbounded; keep it well below the general
+        // per-IP budget so a script cannot fill Dragonfly with identities.
+        if (device_issue_limiter_)
+        {
+            const double retry_after =
+                device_issue_limiter_->allow(clientKey(context) + ":device");
+            if (retry_after > 0.0)
+            {
+                const int seconds = std::max(1, static_cast<int>(std::ceil(retry_after)));
+                sendHttpResponse(context->fd, 429, "application/json",
+                                 fmt::format(R"({{"error":"Too many requests","retry_after":{}}})", seconds),
+                                 fmt::format("Retry-After: {}\r\n", seconds));
+                return;
+            }
+        }
+
+        std::string user_id;
+        const std::string token = device_auth_->issue(user_id);
+        if (token.empty() || user_id.empty())
+        {
+            sendErrorResponse(context->fd, 503, "Device identity is unavailable");
+            return;
+        }
+
+        LOG_INFO("Issued device identity {} from {}", user_id, clientKey(context));
+        sendHttpResponse(context->fd, 201, "application/json",
+                         fmt::format(R"({{"device_token":"{}","user_id":"{}","expires_in":{}}})",
+                                     token, user_id, security.device_token_ttl_seconds));
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Exception in device auth create: {}", e.what());
+        sendErrorResponse(context->fd, 500, "Internal server error");
+    }
+}
+
+void Server::handleDeviceAuthRevoke(const std::shared_ptr<ClientContext> &context, const std::string &)
+{
+    try
+    {
+        const auto &security = Config::instance().security();
+        if (!security.device_auth_enabled || !device_auth_)
+        {
+            sendErrorResponse(context->fd, 503, "Device auth is disabled");
+            return;
+        }
+
+        const std::string token = bearerToken(context);
+        if (token.empty())
+        {
+            sendHttpResponse(context->fd, 401, "application/json",
+                             R"({"error":"device_token_required"})",
+                             "WWW-Authenticate: Bearer realm=\"device\"\r\n");
+            return;
+        }
+
+        const std::string user_id = device_auth_->revoke(token);
+        if (user_id.empty())
+        {
+            sendHttpResponse(context->fd, 401, "application/json",
+                             R"({"error":"invalid_device_token"})",
+                             "WWW-Authenticate: Bearer realm=\"device\"\r\n");
+            return;
+        }
+
+        // Also drop the derived profile data: "revoke" is the app's data-delete.
+        const bool baseline_deleted =
+            file_processor_ && file_processor_->delete_user_baseline(user_id);
+
+        LOG_INFO("Revoked device identity {} (baseline deleted: {})", user_id, baseline_deleted);
+        sendHttpResponse(context->fd, 200, "application/json",
+                         fmt::format(R"({{"revoked":true,"baseline_deleted":{}}})",
+                                     baseline_deleted ? "true" : "false"));
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR("Exception in device auth revoke: {}", e.what());
         sendErrorResponse(context->fd, 500, "Internal server error");
     }
 }

@@ -124,7 +124,7 @@ If the backend sets `security.api_token`, include a demo token in this field
 | Approximate location | **Not** collected |
 | Personal info (name, email) | **Not** collected |
 | Is data encrypted in transit? | Yes (HTTPS only) |
-| Can users request deletion? | Yes — see the privacy policy contact |
+| Can users request deletion? | Yes — in-app: Privacy tab → **Delete profile and identity** revokes the device token and deletes the saved baseline. Uploaded analysis files are not linked to the profile and are governed by the retention policy. |
 
 Declare the app as **not a medical device**.
 
@@ -156,6 +156,7 @@ least one screenshot.
 ## Pre-submission checklist
 
 - [x] Shared API token support (`security.api_token`) and per-IP rate limiting.
+- [x] Device-scoped identity and in-app profile/identity deletion (Privacy tab).
 - [x] Resumable uploads for large files on mobile data.
 - [x] JDK 21 documented and wired into `make mobile_android`.
 - [x] Real app icon / splash (see `mobile/assets/`).

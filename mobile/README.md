@@ -88,12 +88,18 @@ the backend must allow the SPA's analytics headers (`X-Client-Id`, `X-Traffic-So
 The backend has a `security:` config section (`config_template.yaml`):
 
 - **`api_token`** — when non-empty, every `/api/` request must send
-  `Authorization: Bearer <token>` (or `X-API-Key`). `/api/health` is exempt.
-  Set `VITE_API_TOKEN` in `frontend/.env.mobile` to match. The token is embedded in
-  the app bundle, so it is extractable — it is a revocable gate, not per-user auth.
-- **Rate limiting** — a per-client token bucket over all requests
+  `X-API-Key: <token>`. `/api/health` is exempt. Set `VITE_API_TOKEN` in
+  `frontend/.env.mobile` to match. The token is embedded in the app bundle, so it is
+  extractable — it is a revocable gate, not per-user auth.
+- **Device identity** — the app bootstraps once via `POST /api/auth/device` and stores
+  the returned token (`razuma_device_token` in localStorage), sent as
+  `Authorization: Bearer`. The server derives `user_id` from it, so the burnout baseline
+  is per-device and a client-supplied `user_id` is ignored. The Privacy tab's
+  **Delete profile and identity** button calls `POST /api/auth/revoke`, which deletes the token and
+  the baseline.
+- **Rate limiting** — a per-client token bucket over all `/api/` requests
   (`rate_limit_per_minute`, `rate_limit_burst`). Rejections are `429` with
-  `Retry-After`.
+  `Retry-After`. `/static/` and pages are never limited.
 - **`trust_proxy_headers`** — set `true` only behind `config/nginx`, which sets
   `X-Real-IP`; otherwise every visitor shares the proxy's bucket.
 
@@ -137,7 +143,7 @@ See [`STORE_LISTING.md`](STORE_LISTING.md) for store copy, the wellness
 positioning, Apple review notes and the Play data-safety answers. Code-side
 prerequisites are done:
 
-1. **Authentication + rate limiting** — implemented (`security:` section).
+1. **App token + device identity + rate limiting** — implemented (`security:` section).
 2. **Large uploads** — resumable chunked upload implemented.
 3. **JDK 21** — documented and wired into `make mobile_android`.
 4. **Icons/splash + in-app wellness disclaimer** — done.

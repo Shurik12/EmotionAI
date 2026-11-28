@@ -57,3 +57,4 @@ model:
 # the way so assertions are deterministic.
 security:
   rate_limit_enabled: false
+  device_auth_enabled: false  # legacy tests supply user_id directly

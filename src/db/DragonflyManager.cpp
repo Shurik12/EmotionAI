@@ -682,6 +682,84 @@ std::vector<std::optional<std::string>> DragonflyManager::pipeline_get(const std
 	return results;
 }
 
+bool DragonflyManager::set_with_ttl(const std::string &key, const std::string &value, int ttl_seconds)
+{
+	auto conn = get_connection();
+	if (!conn)
+	{
+		LOG_ERROR("No DragonflyDB connection available to set {}", key);
+		return false;
+	}
+
+	bool ok = false;
+	try
+	{
+		redisReply *reply = execute_command(conn, "SETEX %s %d %b",
+											key.c_str(), ttl_seconds,
+											value.data(), value.size());
+		ok = reply && reply->type == REDIS_REPLY_STATUS;
+		free_reply(reply);
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Error setting {}: {}", key, e.what());
+	}
+
+	return_connection(conn);
+	return ok;
+}
+
+std::optional<std::string> DragonflyManager::get_raw(const std::string &key)
+{
+	auto conn = get_connection();
+	if (!conn)
+	{
+		LOG_ERROR("No DragonflyDB connection available to get {}", key);
+		return std::nullopt;
+	}
+
+	std::optional<std::string> result;
+	try
+	{
+		redisReply *reply = execute_command(conn, "GET %s", key.c_str());
+		if (reply && reply->type == REDIS_REPLY_STRING)
+			result = std::string(reply->str, reply->len);
+		free_reply(reply);
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Error getting {}: {}", key, e.what());
+	}
+
+	return_connection(conn);
+	return result;
+}
+
+bool DragonflyManager::del_raw(const std::string &key)
+{
+	auto conn = get_connection();
+	if (!conn)
+	{
+		LOG_ERROR("No DragonflyDB connection available to delete {}", key);
+		return false;
+	}
+
+	bool ok = false;
+	try
+	{
+		redisReply *reply = execute_command(conn, "DEL %s", key.c_str());
+		ok = reply && reply->type == REDIS_REPLY_INTEGER && reply->integer > 0;
+		free_reply(reply);
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Error deleting {}: {}", key, e.what());
+	}
+
+	return_connection(conn);
+	return ok;
+}
+
 DragonflyManager::PoolStats DragonflyManager::get_pool_stats() const
 {
 	std::lock_guard<std::mutex> lock(connection_pool_->mutex);

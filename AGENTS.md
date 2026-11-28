@@ -123,6 +123,17 @@ method dispatch (OPTIONS is exempt so preflights never need credentials):
   capability). Static files and pages stay public. Comparison is constant-time. The
   token is also embedded in the SPA/mobile bundle when `VITE_API_TOKEN` is set, so it
   is an access gate, not user identity.
+- **Device identity** — `POST /api/auth/device` issues an opaque token (two UUIDs, ~244
+  bits) bound to a server-generated `user_id`; the client stores it and sends
+  `Authorization: Bearer <token>`. Only `SHA-256(token)` -> `{user_id}` is kept in
+  Dragonfly (`src/server/DeviceAuth`), so a dump yields no usable tokens; TTL is
+  `security.device_token_ttl_seconds` (180 days). The server **ignores any
+  client-supplied `user_id`** for `/api/burnout/baseline` when device auth is on, so one
+  device cannot read or overwrite another's baseline. An unknown token is a hard 401
+  (`invalid_device_token`) that the client answers by re-bootstrapping. Token minting has
+  its own tight bucket (10/min, burst 3). `POST /api/auth/revoke` deletes the token *and*
+  the baseline — it backs the app's "Delete profile and identity" action (Privacy tab).
+  `security.device_auth_enabled: false` restores the legacy client-supplied `user_id`.
 - **Rate limiting** — `src/server/RateLimiter` is a per-client token bucket
   (`rate_limit_per_minute` / `rate_limit_burst`), keyed by `client_ip`, or by
   `X-Real-IP` / `X-Forwarded-For` when `security.trust_proxy_headers` is true (only

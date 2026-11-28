@@ -152,3 +152,8 @@ security:
   rate_limit_burst: 80
   rate_limit_max_keys: 10000
   trust_proxy_headers: false
+  # Device-scoped identity: POST /api/auth/device issues an opaque token; the
+  # server derives user_id from it and ignores client-supplied ids. With this
+  # true, /api/burnout/baseline requires a valid device token.
+  device_auth_enabled: true
+  device_token_ttl_seconds: 15552000  # 180 days

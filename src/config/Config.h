@@ -236,6 +236,12 @@ private:
 		// of the socket peer. Enable only when a trusted proxy sets them,
 		// otherwise a client can spoof the header to bypass the limit.
 		bool trust_proxy_headers{false};
+		// Device-scoped identity: POST /api/auth/device issues an opaque token;
+		// the server derives user_id from it and ignores client-supplied ids.
+		// When true, /api/burnout/baseline requires a valid device token.
+		bool device_auth_enabled{true};
+		// Token lifetime; the client re-bootstraps after expiry.
+		int device_token_ttl_seconds{15552000}; // 180 days
 	};
 
 	struct ConfigData
