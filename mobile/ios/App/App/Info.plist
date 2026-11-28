@@ -23,13 +23,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Razuma использует камеру, чтобы анализировать эмоции во время работы над задачей. Кадры не покидают ваш телефон, если вы не отправите файл на анализ.</string>
+	<string>Razuma uses the camera to analyse emotions while you work on a task. / Razuma использует камеру, чтобы анализировать эмоции во время работы над задачей.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Razuma использует микрофон, только если вы записываете аудио для анализа.</string>
+	<string>Razuma uses the microphone only if you record audio for analysis. / Razuma использует микрофон, только если вы записываете аудио для анализа.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Razuma открывает галерею, чтобы вы могли выбрать фото или видео для анализа эмоций.</string>
+	<string>Razuma opens your library so you can pick a photo or video to analyse. / Razuma открывает галерею, чтобы вы могли выбрать фото или видео для анализа эмоций.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Razuma сохраняет результаты анализа в вашу галерею, только если вы об этом попросите.</string>
+	<string>Razuma saves a result to your library only when you ask it to. / Razuma сохраняет результат в галерею, только если вы об этом попросите.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

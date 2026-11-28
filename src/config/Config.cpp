@@ -326,6 +326,9 @@ bool Config::loadFromFile(const std::string &config_path)
                 new_data.security.trusted_proxies = security["trusted_proxies"].as<std::vector<std::string>>(new_data.security.trusted_proxies);
             new_data.security.device_auth_enabled = security["device_auth_enabled"].as<bool>(new_data.security.device_auth_enabled);
             new_data.security.device_token_ttl_seconds = security["device_token_ttl_seconds"].as<int>(new_data.security.device_token_ttl_seconds);
+            new_data.security.device_issue_per_minute = security["device_issue_per_minute"].as<int>(new_data.security.device_issue_per_minute);
+            new_data.security.device_issue_burst = security["device_issue_burst"].as<int>(new_data.security.device_issue_burst);
+            new_data.security.device_issue_daily_limit = security["device_issue_daily_limit"].as<int>(new_data.security.device_issue_daily_limit);
             if (security["exempt_paths"])
                 new_data.security.exempt_paths = security["exempt_paths"].as<std::vector<std::string>>(new_data.security.exempt_paths);
         }
@@ -425,6 +428,10 @@ bool Config::loadFromFile(const std::string &config_path)
         spdlog::info("  Device auth: {}", data_.security.device_auth_enabled ? "enabled" : "disabled");
         if (data_.security.device_auth_enabled)
             spdlog::info("  Device token TTL: {}s", data_.security.device_token_ttl_seconds);
+        spdlog::info("  Device minting: {} req/min, burst {}, daily cap {}",
+                     data_.security.device_issue_per_minute,
+                     data_.security.device_issue_burst,
+                     data_.security.device_issue_daily_limit);
         spdlog::info("  Resumable upload chunk: {} bytes", data_.app.upload_chunk_size);
 
         return true;
@@ -641,6 +648,25 @@ bool Config::validate() const
     {
         spdlog::error("Invalid device_token_ttl_seconds: {}", data_.security.device_token_ttl_seconds);
         return false;
+    }
+
+    if (data_.security.device_auth_enabled)
+    {
+        if (data_.security.device_issue_per_minute <= 0)
+        {
+            spdlog::error("Invalid device_issue_per_minute: {}", data_.security.device_issue_per_minute);
+            return false;
+        }
+        if (data_.security.device_issue_burst <= 0)
+        {
+            spdlog::error("Invalid device_issue_burst: {}", data_.security.device_issue_burst);
+            return false;
+        }
+        if (data_.security.device_issue_daily_limit < 0)
+        {
+            spdlog::error("Invalid device_issue_daily_limit: {}", data_.security.device_issue_daily_limit);
+            return false;
+        }
     }
 
     spdlog::info("Configuration validation passed");

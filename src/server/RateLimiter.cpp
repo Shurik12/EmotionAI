@@ -73,15 +73,12 @@ double RateLimiter::allowAt(const std::string &key, double now_seconds)
 
 void RateLimiter::evictIfFullLocked()
 {
-    // Bounded memory: drop the least-recently-seen bucket. Called only when the
-    // map is at capacity, so a full scan is rare.
-    auto oldest = buckets_.begin();
-    for (auto it = buckets_.begin(); it != buckets_.end(); ++it)
-    {
-        if (it->second.last_seen < oldest->second.last_seen)
-            oldest = it;
-    }
-    buckets_.erase(oldest);
+    // O(1) approximate eviction. The map is unordered, so begin() is an
+    // arbitrary entry; an evicted client gets a fresh bucket (slightly
+    // lenient), but a flood of distinct keys can no longer force a full
+    // 10k-entry scan per request.
+    if (!buckets_.empty())
+        buckets_.erase(buckets_.begin());
 }
 
 void RateLimiter::pruneIdleLocked(double now_seconds)

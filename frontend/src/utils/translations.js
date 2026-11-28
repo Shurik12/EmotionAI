@@ -899,6 +899,10 @@ export const translations = {
       modeFileMismatch: 'Этот режим обработки не подходит для выбранного файла. Для «Выгорания» и «Внешнего влияния» нужен аудиофайл — для изображений и видео выберите «Стандартный анализ».',
       noAudioStream: 'В файле нет аудиодорожки, поэтому анализ в этом режиме невозможен.',
       networkError: 'Ошибка сети',
+      deviceRequired: 'Не удалось подтвердить устройство. Перезапустите приложение.',
+      deviceInvalid: 'Сессия устройства истекла. Перезапустите приложение.',
+      rateLimited: 'Слишком много запросов. Подождите немного и повторите.',
+      invalidFileType: 'Этот тип файла не поддерживается.',
     },
   },
   en: {
@@ -1777,6 +1781,10 @@ export const translations = {
       modeFileMismatch: 'This processing mode does not fit the selected file. Burnout and External influence need an audio file — for images and video pick Standard analysis.',
       noAudioStream: 'The file has no audio track, so it cannot be analyzed in this mode.',
       networkError: 'Network error',
+      deviceRequired: 'Could not verify this device. Please restart the app.',
+      deviceInvalid: 'The device session expired. Please restart the app.',
+      rateLimited: 'Too many requests. Please wait a moment and try again.',
+      invalidFileType: 'This file type is not supported.',
     },
   },
 };

@@ -80,7 +80,7 @@ private:
 		int max_content_length = 314572800; // 300MB
 		// Chunk size advertised to clients using the resumable upload API
 		// (POST /api/upload/chunk). Capped by max_content_length.
-		int upload_chunk_size = 8388608; // 8MB
+		int upload_chunk_size = 4194304; // 4MB
 		std::vector<std::string> allowed_extensions = {"png", "jpg", "jpeg", "mp4", "avi", "webm", "mp3"};
 		int task_expiration = 3600;			  // 1 hour in seconds
 		int application_expiration = 2592000; // 30 days in seconds
@@ -223,8 +223,10 @@ private:
 		std::string api_token;
 		// /api/results is exempt because result images are loaded by <img>,
 		// which cannot attach the Authorization header. The file names are
-		// random task UUIDs (capability URLs).
-		std::vector<std::string> exempt_paths{"/api/health", "/api/results"};
+		// random task UUIDs (capability URLs). /api/metrics is exempt so
+		// Prometheus keeps scraping after api_token is enabled; it exposes
+		// counters only.
+		std::vector<std::string> exempt_paths{"/api/health", "/api/results", "/api/metrics"};
 		// Per-client token bucket, applied to every /api/ request (auth or not).
 		// 240/min = 4 req/s sustained, which leaves headroom for the Focus
 		// stream (~1 frame/s + session polling) while still capping abuse.
@@ -247,6 +249,11 @@ private:
 		bool device_auth_enabled{true};
 		// Token lifetime; the client re-bootstraps after expiry.
 		int device_token_ttl_seconds{15552000}; // 180 days
+		// Per-client minting bucket and a global daily ceiling. The global cap
+		// bounds Dragonfly growth even when `api_token` is empty; 0 = no cap.
+		int device_issue_per_minute{10};
+		int device_issue_burst{3};
+		int device_issue_daily_limit{1000};
 	};
 
 	struct ConfigData

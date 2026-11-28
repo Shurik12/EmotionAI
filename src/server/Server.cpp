@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cstdint>
+#include <ctime>
 #include <cmath>
 #include <sys/resource.h>
 
@@ -313,7 +314,8 @@ void Server::initialize()
     // Device-scoped identity (token -> user_id). Created after components so
     // Dragonfly is initialised.
     device_auth_ = std::make_unique<DeviceAuth>(dragonfly_manager_.get());
-    device_issue_limiter_ = std::make_unique<RateLimiter>(10, 3, 10000);
+    device_issue_limiter_ = std::make_unique<RateLimiter>(
+        security.device_issue_per_minute, security.device_issue_burst, 10000);
     if (security.device_auth_enabled)
     {
         LOG_INFO("Device auth enabled (token TTL {}s); /api/burnout/baseline requires a device token",
@@ -324,10 +326,30 @@ void Server::initialize()
         LOG_WARN("Device auth disabled: /api/burnout/baseline trusts client-supplied user_id");
     }
 
-    // Resumable uploads assemble chunks here before processing.
-    upload_temp_dir_ = upload_folder_ / ".chunks";
+    // Resumable uploads assemble chunks in a per-instance directory so a
+    // restart (or another instance sharing storage) cannot delete someone
+    // else's in-flight parts.
+    const fs::path chunks_root = upload_folder_ / ".chunks";
+    upload_temp_dir_ = chunks_root / instance_id_;
     fs::create_directories(upload_temp_dir_);
-    cleanupUploadSessions(); // remove parts left by an unclean shutdown
+
+    // Best-effort: drop instance directories abandoned for more than a day.
+    std::error_code prune_ec;
+    const auto stale_before = fs::file_time_type::clock::now() - std::chrono::hours(24);
+    for (const auto &entry : fs::directory_iterator(chunks_root, prune_ec))
+    {
+        if (!entry.is_directory() || entry.path() == upload_temp_dir_)
+            continue;
+        std::error_code time_ec;
+        const auto modified = fs::last_write_time(entry.path(), time_ec);
+        if (!time_ec && modified < stale_before)
+        {
+            std::error_code rm_ec;
+            fs::remove_all(entry.path(), rm_ec);
+        }
+    }
+
+    cleanupUploadSessions(); // remove leftover parts in our own directory
 
     setupRoutes();
     createSocket();
@@ -2078,7 +2100,14 @@ bool Server::isAuthorized(const std::shared_ptr<ClientContext> &context) const
 
     for (const auto &exempt : security.exempt_paths)
     {
-        if (!exempt.empty() && context->path.rfind(exempt, 0) == 0)
+        if (exempt.empty())
+            continue;
+        // Exact match, or a path *below* it ("/api/results/<id>"). A bare
+        // prefix match would also exempt an unrelated "/api/healthz".
+        if (context->path == exempt ||
+            (context->path.size() > exempt.size() &&
+             context->path.compare(0, exempt.size(), exempt) == 0 &&
+             context->path[exempt.size()] == '/'))
             return true;
     }
 
@@ -2148,6 +2177,17 @@ namespace
                 return true;
         }
         return false;
+    }
+
+    // UTC day stamp (YYYYMMDD) for the daily device-identity counter.
+    std::string utcDay()
+    {
+        const std::time_t now = std::time(nullptr);
+        std::tm tm{};
+        gmtime_r(&now, &tm);
+        char buffer[16] = {0};
+        std::strftime(buffer, sizeof(buffer), "%Y%m%d", &tm);
+        return buffer;
     }
 }
 
@@ -2255,10 +2295,34 @@ void Server::handleUploadInit(const std::shared_ptr<ClientContext> &context, con
             return;
         }
 
-        const std::string filename = request.value("filename", "");
+        // Validate types before reading: `json::value` throws on a type
+        // mismatch, which would surface as a 500 for a malformed client.
+        if (!request.is_object())
+        {
+            sendErrorResponse(context->fd, 400, "Expected a JSON object");
+            return;
+        }
+        if (!request.contains("filename") || !request["filename"].is_string() ||
+            !request.contains("size") || !request["size"].is_number_integer())
+        {
+            sendErrorResponse(context->fd, 400, "filename and an integer size are required");
+            return;
+        }
+        if (request.contains("mode") && !request["mode"].is_string())
+        {
+            sendErrorResponse(context->fd, 400, "mode must be a string");
+            return;
+        }
+        if (request.contains("self_score") && !request["self_score"].is_number())
+        {
+            sendErrorResponse(context->fd, 400, "self_score must be a number");
+            return;
+        }
+
+        const std::string filename = request["filename"].get<std::string>();
         const std::string mode = request.value("mode", std::string("standard"));
         const double self_score = request.value("self_score", -1.0);
-        const long long declared_size = request.value("size", -1LL);
+        const long long declared_size = request["size"].get<long long>();
 
         if (filename.empty())
         {
@@ -2463,12 +2527,13 @@ void Server::handleUploadComplete(const std::shared_ptr<ClientContext> &context,
             return;
         }
 
-        const std::string upload_id = request.value("upload_id", "");
-        if (upload_id.empty())
+        if (!request.is_object() || !request.contains("upload_id") ||
+            !request["upload_id"].is_string() || request["upload_id"].get<std::string>().empty())
         {
             sendErrorResponse(context->fd, 400, "upload_id is required");
             return;
         }
+        const std::string upload_id = request["upload_id"].get<std::string>();
 
         UploadSession session;
         {
@@ -2541,12 +2606,13 @@ void Server::handleUploadAbort(const std::shared_ptr<ClientContext> &context, co
             return;
         }
 
-        const std::string upload_id = request.value("upload_id", "");
-        if (upload_id.empty())
+        if (!request.is_object() || !request.contains("upload_id") ||
+            !request["upload_id"].is_string() || request["upload_id"].get<std::string>().empty())
         {
             sendErrorResponse(context->fd, 400, "upload_id is required");
             return;
         }
+        const std::string upload_id = request["upload_id"].get<std::string>();
 
         {
             std::lock_guard<std::mutex> lock(upload_sessions_mutex_);
@@ -2594,6 +2660,32 @@ void Server::handleDeviceAuthCreate(const std::shared_ptr<ClientContext> &contex
                 sendHttpResponse(context->fd, 429, "application/json",
                                  fmt::format(R"({{"error":"Too many requests","retry_after":{}}})", seconds),
                                  fmt::format("Retry-After: {}\r\n", seconds));
+                return;
+            }
+        }
+
+        // Global daily ceiling, independent of the per-IP bucket: bounds the
+        // number of live identities even when `api_token` is empty and an
+        // attacker rotates source addresses. The counter is date-scoped and
+        // expires on its own.
+        if (security.device_issue_daily_limit > 0)
+        {
+            const long long issued = dragonfly_manager_
+                                         ? dragonfly_manager_->incr_with_ttl(
+                                               "device:mint:" + utcDay(), 90000)
+                                         : -1;
+            if (issued < 0)
+            {
+                sendErrorResponse(context->fd, 503, "Device identity is unavailable");
+                return;
+            }
+            if (issued > security.device_issue_daily_limit)
+            {
+                LOG_WARN("Daily device identity limit reached ({})",
+                         security.device_issue_daily_limit);
+                sendHttpResponse(context->fd, 429, "application/json",
+                                 R"({"error":"device_identity_quota_exhausted"})",
+                                 "Retry-After: 3600\r\n");
                 return;
             }
         }

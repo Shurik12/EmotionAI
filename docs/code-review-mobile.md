@@ -258,3 +258,32 @@ The three 🔴 High findings were fixed on `emo-mobile-capacitor`:
   the header is ignored and the second request is `429`.
 
 Still open: **M1–M7** and **L1–L11**.
+
+## Remediation round 2 (Medium / Low)
+
+- **M1** — global daily ceiling for new identities (`device_issue_daily_limit`, default 1000,
+  `0` = unlimited) enforced with an atomic date-scoped Dragonfly counter; the per-IP minting
+  bucket is now configurable (`device_issue_per_minute` / `device_issue_burst`). Verified with a
+  limit of 2: two `201`s, then `429 device_identity_quota_exhausted`.
+- **M2** — parts live in `<uploads>/.chunks/<instance_id>/`; startup prunes instance dirs
+  abandoned for more than 24 h. Verified: the per-instance directory is created.
+- **M3** — **partially** addressed: the default/advertised chunk size is 4 MB (was 8 MB). The
+  write still runs synchronously on the epoll thread; a fully async path needs an fd-write
+  outbox and is left as residual risk.
+- **M5** — `DeviceAuth` caches `SHA-256(token) → user_id` for 30 s (bounded, cleared wholesale,
+  erased on revoke), removing the per-request Redis GET.
+- **M6** — `/api/metrics` is in the default `exempt_paths`. Verified: `200` without a token.
+- **M7** — rate-limiter eviction is O(1) (`buckets_.begin()`), no full scan.
+- **L1** — exempt paths match exactly or with a `/` boundary. Verified: `/api/healthz` → `401`.
+- **L2** — the minting bucket is configurable.
+- **L3** — baseline TTL is `max(application_expiration, device_token_ttl_seconds)`. Verified:
+  `15552000`s with the 180-day token TTL.
+- **L4** — the client maps known backend error codes to `errors.*` keys (RU/EN).
+- **L5** — `filename` / `size` type validation returns `400`. Verified with a string `size`.
+- **L7** — `RECORD_AUDIO` / `MODIFY_AUDIO_SETTINGS` removed from the Android manifest.
+- **L8** — iOS usage descriptions are bilingual (no Xcode localization surgery).
+- **L10** — the Makefile auto-detects JDK 21 and degrades to the system JDK.
+- **L11** — unused baseline client methods removed.
+
+Still open: **M4** (no automated auth/upload tests; `libgtest-dev` is not installed) and **L9**
+(the app bundle still copies the landing `public/`, ~1.6 MB).

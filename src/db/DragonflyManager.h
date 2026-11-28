@@ -61,6 +61,9 @@ public:
 	bool set_with_ttl(const std::string &key, const std::string &value, int ttl_seconds);
 	std::optional<std::string> get_raw(const std::string &key);
 	bool del_raw(const std::string &key);
+	// Atomic INCR that applies the TTL only when the counter is created.
+	// Returns the new value, or -1 on failure.
+	long long incr_with_ttl(const std::string &key, int ttl_seconds);
 
 	// Connection pool stats
 	struct PoolStats

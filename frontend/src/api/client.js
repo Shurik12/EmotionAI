@@ -139,14 +139,24 @@ async function authFetch(url, init = {}, retried = false) {
   return response;
 }
 
+// Map backend error codes to translation keys so RU mode never shows a raw
+// server string. Unknown codes fall through verbatim (and `t()` returns them).
+const ERROR_KEYS = {
+  device_token_required: 'errors.deviceRequired',
+  invalid_device_token: 'errors.deviceInvalid',
+  device_identity_quota_exhausted: 'errors.rateLimited',
+  'Too many requests': 'errors.rateLimited',
+  'Invalid file type': 'errors.invalidFileType',
+};
+
 // Parse an error response into something the UI can translate. Server errors are
 // `{"error": "..."}`; a 413 falls back to the localized size-limit key.
 const errorFrom = async (response, fallback = 'errors.uploadFailed') => {
   const text = await response.text().catch(() => '');
   try {
     const parsed = JSON.parse(text);
-    if (parsed?.error) return parsed.error;
-    if (parsed?.message) return parsed.message;
+    const code = parsed?.error || parsed?.message;
+    if (code) return ERROR_KEYS[code] || code;
   } catch {
     // Non-JSON error body (e.g. the plain-text 413 from the body-size guard).
   }
@@ -348,19 +358,6 @@ export const apiClient = {
     return this.request('/focus/breakdown', {
       method: 'POST',
       body: JSON.stringify({ text, duration, lang }),
-    });
-  },
-
-  // ---- Burnout baseline ----
-  // Identity comes from the device token; no user_id is sent or trusted.
-  async getBurnoutBaseline() {
-    return this.request('/burnout/baseline');
-  },
-
-  async saveBurnoutBaseline(baseline) {
-    return this.request('/burnout/baseline', {
-      method: 'POST',
-      body: JSON.stringify({ baseline }),
     });
   },
 

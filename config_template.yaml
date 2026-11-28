@@ -10,7 +10,7 @@ paths:
 
 app:
   max_content_length: 314572800  # 300MB in bytes
-  upload_chunk_size: 8388608     # 8MB per chunk for resumable uploads (init/chunk/complete)
+  upload_chunk_size: 4194304     # 4MB per chunk for resumable uploads (init/chunk/complete)
   allowed_extensions: ["png", "jpg", "jpeg", "mp4", "avi", "webm", "mp3", "wav"]
   task_expiration: 3600  # 1 hour in seconds
   application_expiration: 2592000  # 30 days in seconds
@@ -148,7 +148,7 @@ security:
   api_token: ""
   # /api/results is exempt: result images are loaded via <img>, which cannot send
   # the Authorization header. The task UUID in the path is the capability.
-  exempt_paths: ["/api/health", "/api/results"]
+  exempt_paths: ["/api/health", "/api/results", "/api/metrics"]
   rate_limit_enabled: true
   rate_limit_per_minute: 240
   rate_limit_burst: 80
@@ -160,3 +160,6 @@ security:
   # true, /api/burnout/baseline requires a valid device token.
   device_auth_enabled: true
   device_token_ttl_seconds: 15552000  # 180 days
+  device_issue_per_minute: 10
+  device_issue_burst: 3
+  device_issue_daily_limit: 1000  # global cap across all clients; 0 = unlimited

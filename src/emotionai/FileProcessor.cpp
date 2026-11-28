@@ -3,6 +3,7 @@
 #include <chrono>
 #include <thread>
 #include <set>
+#include <algorithm>
 
 #include <fmt/format.h>
 #include <nlohmann/json.hpp>
@@ -428,7 +429,11 @@ bool FileProcessor::save_user_baseline(
     // set_task_status() path added a "task:" prefix and expired it after
     // task_expiration (~1 hour), so baselines never actually persisted.
     const std::string key = "baseline:user:" + user_id;
-    const int ttl = Config::instance().app().application_expiration;
+    const auto &security = Config::instance().security();
+    int ttl = Config::instance().app().application_expiration;
+    // A baseline should outlive the identity it belongs to, not expire first.
+    if (security.device_auth_enabled)
+        ttl = std::max(ttl, security.device_token_ttl_seconds);
     if (!dragonfly_manager_->set_with_ttl(key, baseline.dump(), ttl)) {
         LOG_ERROR("Failed to save baseline for user: {}", user_id);
         return false;

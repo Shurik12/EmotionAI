@@ -88,3 +88,6 @@ security:
   trusted_proxies: ["127.0.0.0/8", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
   device_auth_enabled: true
   device_token_ttl_seconds: 15552000  # 180 days
+  device_issue_per_minute: 10
+  device_issue_burst: 3
+  device_issue_daily_limit: 1000

@@ -1,6 +1,9 @@
 #pragma once
 
+#include <cstddef>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 
 class DragonflyManager;
 
@@ -34,5 +37,21 @@ public:
     static std::string hashToken(const std::string &token);
 
 private:
+    struct CacheEntry
+    {
+        std::string user_id;
+        double expires_at{0.0};
+    };
+
+    static double nowSeconds();
+
     DragonflyManager *dragonfly_;
+
+    // Auth runs on every /api/ request (including the 1 fps Focus stream), so a
+    // short-lived cache removes the per-request Redis GET. Bound and evicted
+    // wholesale; a revoked token is removed explicitly.
+    mutable std::mutex cache_mutex_;
+    mutable std::unordered_map<std::string, CacheEntry> cache_;
+    static constexpr double kCacheTtlSeconds = 30.0;
+    static constexpr std::size_t kMaxCacheEntries = 5000;
 };

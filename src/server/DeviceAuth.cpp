@@ -24,6 +24,12 @@ DeviceAuth::DeviceAuth(DragonflyManager *dragonfly)
 {
 }
 
+double DeviceAuth::nowSeconds()
+{
+    using clock = std::chrono::steady_clock;
+    return std::chrono::duration<double>(clock::now().time_since_epoch()).count();
+}
+
 std::string DeviceAuth::hashToken(const std::string &token)
 {
     unsigned char digest[EVP_MAX_MD_SIZE];
@@ -51,7 +57,24 @@ bool DeviceAuth::authenticate(const std::string &token, std::string &user_id) co
     if (!dragonfly_ || token.empty())
         return false;
 
-    const auto raw = dragonfly_->get_raw(std::string(kTokenPrefix) + hashToken(token));
+    const std::string hash = hashToken(token);
+    const double now = nowSeconds();
+
+    {
+        std::lock_guard<std::mutex> lock(cache_mutex_);
+        auto it = cache_.find(hash);
+        if (it != cache_.end())
+        {
+            if (now < it->second.expires_at)
+            {
+                user_id = it->second.user_id;
+                return true;
+            }
+            cache_.erase(it);
+        }
+    }
+
+    const auto raw = dragonfly_->get_raw(std::string(kTokenPrefix) + hash);
     if (!raw)
         return false;
 
@@ -66,7 +89,17 @@ bool DeviceAuth::authenticate(const std::string &token, std::string &user_id) co
         return false;
     }
 
-    return !user_id.empty();
+    if (user_id.empty())
+        return false;
+
+    {
+        std::lock_guard<std::mutex> lock(cache_mutex_);
+        if (cache_.size() >= kMaxCacheEntries)
+            cache_.clear();
+        cache_[hash] = {user_id, now + kCacheTtlSeconds};
+    }
+
+    return true;
 }
 
 std::string DeviceAuth::issue(std::string &user_id) const
@@ -105,7 +138,13 @@ std::string DeviceAuth::revoke(const std::string &token) const
     if (!dragonfly_ || token.empty())
         return "";
 
-    const std::string key = std::string(kTokenPrefix) + hashToken(token);
+    const std::string hash = hashToken(token);
+    const std::string key = std::string(kTokenPrefix) + hash;
+
+    {
+        std::lock_guard<std::mutex> lock(cache_mutex_);
+        cache_.erase(hash);
+    }
 
     std::string user_id;
     if (const auto raw = dragonfly_->get_raw(key))

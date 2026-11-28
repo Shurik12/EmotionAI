@@ -34,11 +34,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Razuma Focus streams camera frames through getUserMedia(). The WebView
-         denies the request unless these are declared; Capacitor's
-         BridgeWebChromeClient then prompts for the runtime grant. -->
+         denies the request unless CAMERA is declared; Capacitor's
+         BridgeWebChromeClient then prompts for the runtime grant. Audio is not
+         captured by the app (Focus uses audio:false and uploads come from the
+         system picker), so RECORD_AUDIO is intentionally not requested. -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <!-- Camera is optional so the app still installs on devices without one. -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />

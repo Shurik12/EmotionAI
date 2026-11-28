@@ -118,11 +118,12 @@ method dispatch (OPTIONS is exempt so preflights never need credentials):
 
 - **Auth** — `security.api_token`, when non-empty, requires
   `Authorization: Bearer <token>` or `X-API-Key` on every `/api/` path except
-  `security.exempt_paths` (default `/api/health` and `/api/results`; the latter is
-  loaded by `<img>`, which cannot send headers, so its random task UUID is the
-  capability). Static files and pages stay public. Comparison is constant-time. The
-  token is also embedded in the SPA/mobile bundle when `VITE_API_TOKEN` is set, so it
-  is an access gate, not user identity.
+  `security.exempt_paths` (default `/api/health`, `/api/results` and `/api/metrics`; results are
+  loaded by `<img>`, which cannot send headers, so their random task UUID is the capability;
+  metrics are operational counters). Exempt matching is exact or a path *below* the entry, not a
+  bare prefix. Static files and pages stay public. Comparison is constant-time. The token is also
+  embedded in the SPA/mobile bundle when `VITE_API_TOKEN` is set, so it is an access gate, not
+  user identity.
 - **Device identity** — `POST /api/auth/device` issues an opaque token (two UUIDs, ~244
   bits) bound to a server-generated `user_id`; the client stores it and sends
   `Authorization: Bearer <token>`. Only `SHA-256(token)` -> `{user_id}` is kept in
@@ -130,9 +131,13 @@ method dispatch (OPTIONS is exempt so preflights never need credentials):
   `security.device_token_ttl_seconds` (180 days). The server **ignores any
   client-supplied `user_id`** for `/api/burnout/baseline` when device auth is on, so one
   device cannot read or overwrite another's baseline. An unknown token is a hard 401
-  (`invalid_device_token`) that the client answers by re-bootstrapping. Token minting has
-  its own tight bucket (10/min, burst 3). `POST /api/auth/revoke` deletes the token *and*
-  the baseline — it backs the app's "Delete profile and identity" action (Privacy tab).
+  (`invalid_device_token`) that the client answers by re-bootstrapping. Token minting has its
+  own bucket (`device_issue_per_minute` / `device_issue_burst`, default 10/3) plus a global
+  `device_issue_daily_limit` (default 1000, 0 = unlimited) enforced with a date-scoped Dragonfly
+  counter, so rotating source IPs cannot grow storage without bound. Auth lookups are cached in
+  memory for 30 s (`DeviceAuth`), which removes a Redis GET from every request. `POST
+  /api/auth/revoke` deletes the token *and* the baseline — it backs the app's "Delete profile and
+  identity" action (Privacy tab).
   `security.device_auth_enabled: false` restores the legacy client-supplied `user_id`.
 - **Rate limiting** — `src/server/RateLimiter` is a per-client token bucket
   (`rate_limit_per_minute` / `rate_limit_burst`), keyed by `client_ip`, or by
@@ -149,9 +154,13 @@ method dispatch (OPTIONS is exempt so preflights never need credentials):
 `application/octet-stream` body with `X-Upload-Id` / `X-Chunk-Offset` and replies
 `{received,size}` (a `409` reports the real offset to resume from);
 `POST /api/upload/complete {upload_id}` runs the same pipeline as the one-shot upload;
-`POST /api/upload/abort` drops the part. Parts live in `<uploads>/.chunks/<id>.part`
-and expire after an hour. `FileStorage::saveFileFromPath` avoids re-reading the finished
-file into a `std::string` for local/NFS storage.
+`POST /api/upload/abort` drops the part. Parts live in
+`<uploads>/.chunks/<instance_id>/<id>.part` (per instance, so a restart or a second replica
+cannot delete another instance's in-flight parts; abandoned instance dirs are pruned after 24 h)
+and expire after an hour. Chunk size is `app.upload_chunk_size` (default 4 MB).
+`FileStorage::saveFileFromPath` avoids re-reading the finished file into a `std::string` for
+local/NFS storage. Finalization (storage + local copy) runs on the worker thread, not the epoll
+loop.
 
 The Focus camera uses an in-memory session (`src/focus/FocusSessionManager`) instead of one
 async task per frame: `POST /api/focus/session` creates it, `POST /api/focus/session/<id>/frame`

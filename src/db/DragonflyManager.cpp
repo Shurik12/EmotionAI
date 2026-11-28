@@ -760,6 +760,39 @@ bool DragonflyManager::del_raw(const std::string &key)
 	return ok;
 }
 
+long long DragonflyManager::incr_with_ttl(const std::string &key, int ttl_seconds)
+{
+	auto conn = get_connection();
+	if (!conn)
+	{
+		LOG_ERROR("No DragonflyDB connection available to increment {}", key);
+		return -1;
+	}
+
+	long long value = -1;
+	try
+	{
+		// Atomic: INCR and set the TTL only on the first increment, so a crash
+		// between the two commands cannot leave a counter without an expiry.
+		static const char *script =
+			"local v=redis.call('INCR',KEYS[1]) "
+			"if v==1 then redis.call('EXPIRE',KEYS[1],ARGV[1]) end "
+			"return v";
+		redisReply *reply = execute_command(conn, "EVAL %s 1 %s %d",
+											script, key.c_str(), ttl_seconds);
+		if (reply && reply->type == REDIS_REPLY_INTEGER)
+			value = reply->integer;
+		free_reply(reply);
+	}
+	catch (const std::exception &e)
+	{
+		LOG_ERROR("Error incrementing {}: {}", key, e.what());
+	}
+
+	return_connection(conn);
+	return value;
+}
+
 DragonflyManager::PoolStats DragonflyManager::get_pool_stats() const
 {
 	std::lock_guard<std::mutex> lock(connection_pool_->mutex);
