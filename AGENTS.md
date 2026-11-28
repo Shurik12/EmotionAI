@@ -136,10 +136,12 @@ method dispatch (OPTIONS is exempt so preflights never need credentials):
   `security.device_auth_enabled: false` restores the legacy client-supplied `user_id`.
 - **Rate limiting** — `src/server/RateLimiter` is a per-client token bucket
   (`rate_limit_per_minute` / `rate_limit_burst`), keyed by `client_ip`, or by
-  `X-Real-IP` / `X-Forwarded-For` when `security.trust_proxy_headers` is true (only
-  behind `config/nginx`; otherwise clients can spoof it). Rejections are `429` with
-  `Retry-After`, and `Access-Control-Expose-Headers: Retry-After` lets the SPA read it.
-  Test configs set `rate_limit_enabled: false` so bursts aren't throttled.
+  `X-Real-IP` / `X-Forwarded-For` when `security.trust_proxy_headers` is true **and** the
+  socket peer matches `security.trusted_proxies` (default: loopback + RFC1918, which covers
+  nginx on the same host and the Docker bridge). A public client reaching the binary
+  directly cannot spoof the header. Rejections are `429` with `Retry-After`, and
+  `Access-Control-Expose-Headers: Retry-After` lets the SPA read it. Test configs set
+  `rate_limit_enabled: false` so bursts aren't throttled.
 
 **Resumable uploads** (`init → chunk* → complete`) exist for large mobile files:
 `POST /api/upload/init {filename,size,mode[,self_score]}` returns

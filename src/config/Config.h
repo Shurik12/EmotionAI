@@ -233,9 +233,14 @@ private:
 		int rate_limit_burst{80};
 		int rate_limit_max_keys{10000};
 		// Behind nginx: identify clients by X-Real-IP / X-Forwarded-For instead
-		// of the socket peer. Enable only when a trusted proxy sets them,
-		// otherwise a client can spoof the header to bypass the limit.
-		bool trust_proxy_headers{false};
+		// of the socket peer. The headers are honored only when the socket peer
+		// matches `trusted_proxies`, so a directly exposed server cannot be
+		// spoofed by a public client. Loopback + RFC1918 covers nginx on the
+		// same host and the Docker bridge.
+		bool trust_proxy_headers{true};
+		std::vector<std::string> trusted_proxies{
+			"127.0.0.0/8", "::1",
+			"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"};
 		// Device-scoped identity: POST /api/auth/device issues an opaque token;
 		// the server derives user_id from it and ignores client-supplied ids.
 		// When true, /api/burnout/baseline requires a valid device token.

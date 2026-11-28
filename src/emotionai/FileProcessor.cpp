@@ -414,13 +414,13 @@ audio::Result FileProcessor::analyze_burnout_from_result(
     return burnout_result;
 }
 
-void FileProcessor::save_user_baseline(
+bool FileProcessor::save_user_baseline(
     const std::string& user_id,
     const nlohmann::json& baseline)
 {
     if (!dragonfly_manager_) {
         LOG_ERROR("DragonflyManager not available for saving baseline");
-        return;
+        return false;
     }
     
     // A baseline is long-lived profile data, not a task status: store it under
@@ -431,9 +431,10 @@ void FileProcessor::save_user_baseline(
     const int ttl = Config::instance().app().application_expiration;
     if (!dragonfly_manager_->set_with_ttl(key, baseline.dump(), ttl)) {
         LOG_ERROR("Failed to save baseline for user: {}", user_id);
-        return;
+        return false;
     }
     LOG_INFO("Saved baseline for user: {} (ttl {}s)", user_id, ttl);
+    return true;
 }
 
 nlohmann::json FileProcessor::get_user_baseline(const std::string& user_id)

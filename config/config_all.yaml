@@ -85,5 +85,6 @@ security:
   rate_limit_per_minute: 240
   rate_limit_burst: 80
   trust_proxy_headers: true
+  trusted_proxies: ["127.0.0.0/8", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
   device_auth_enabled: true
   device_token_ttl_seconds: 15552000  # 180 days

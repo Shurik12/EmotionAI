@@ -70,8 +70,9 @@ public:
         const nlohmann::json& baseline = {}
     );
     
-    // Save user baseline
-    void save_user_baseline(
+    // Save user baseline. Returns false when the write failed (the caller must
+    // not report success).
+    bool save_user_baseline(
         const std::string& user_id,
         const nlohmann::json& baseline
     );

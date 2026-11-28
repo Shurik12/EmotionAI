@@ -5,6 +5,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cstring>
+#include <cstdint>
 #include <cmath>
 #include <sys/resource.h>
 
@@ -1764,7 +1765,10 @@ void Server::handleBurnoutBaseline(
         }
         
         // Save baseline
-        file_processor_->save_user_baseline(user_id, json_body["baseline"]);
+        if (!file_processor_ || !file_processor_->save_user_baseline(user_id, json_body["baseline"])) {
+            sendErrorResponse(context->fd, 503, "Baseline storage unavailable");
+            return;
+        }
         
         sendHttpResponse(context->fd, 200, "application/json", 
                          R"({"status": "baseline_saved", "message": "Baseline saved successfully"})");
@@ -2099,10 +2103,61 @@ bool Server::isAuthorized(const std::shared_ptr<ClientContext> &context) const
     return tokenEquals(presented, security.api_token);
 }
 
+namespace
+{
+    // Exact match, or IPv4 CIDR ("10.0.0.0/8"). IPv6 entries such as "::1" are
+    // matched exactly; the listener is IPv4, so CIDR support for IPv6 is not
+    // needed.
+    bool ipMatchesRule(const std::string &ip, const std::string &rule)
+    {
+        if (ip.empty() || rule.empty())
+            return false;
+
+        const auto slash = rule.find('/');
+        if (slash == std::string::npos)
+            return ip == rule;
+
+        in_addr ip_addr{};
+        in_addr net_addr{};
+        if (inet_pton(AF_INET, ip.c_str(), &ip_addr) != 1)
+            return false;
+        if (inet_pton(AF_INET, rule.substr(0, slash).c_str(), &net_addr) != 1)
+            return false;
+
+        int prefix = -1;
+        try
+        {
+            prefix = std::stoi(rule.substr(slash + 1));
+        }
+        catch (const std::exception &)
+        {
+            return false;
+        }
+        if (prefix < 0 || prefix > 32)
+            return false;
+
+        const uint32_t mask = prefix == 0 ? 0u : (0xFFFFFFFFu << (32 - prefix));
+        return (ntohl(ip_addr.s_addr) & mask) == (ntohl(net_addr.s_addr) & mask);
+    }
+
+    bool peerIsTrustedProxy(const std::string &ip)
+    {
+        for (const auto &rule : Config::instance().security().trusted_proxies)
+        {
+            if (ipMatchesRule(ip, rule))
+                return true;
+        }
+        return false;
+    }
+}
+
 std::string Server::clientKey(const std::shared_ptr<ClientContext> &context) const
 {
     const auto &security = Config::instance().security();
-    if (security.trust_proxy_headers)
+    // Honor a forwarding header only when the direct peer really is one of the
+    // trusted proxies; otherwise a public client could rotate the header to
+    // get a fresh bucket per request.
+    if (security.trust_proxy_headers && peerIsTrustedProxy(context->client_ip))
     {
         auto trim = [](std::string value)
         {
@@ -2456,8 +2511,8 @@ void Server::handleUploadComplete(const std::shared_ptr<ClientContext> &context,
             std::lock_guard<std::mutex> lock(upload_sessions_mutex_);
             upload_sessions_.erase(upload_id);
         }
-        std::error_code rm_ec;
-        fs::remove(session.temp_path, rm_ec);
+        // The temp part is handed to the enqueued finalization job, which
+        // deletes it after the storage/local copies (see submitFileFromPath).
 
         LOG_INFO("Upload {} completed ({} bytes, mode={}), task_id: {}",
                  upload_id, session.expected_size, session.mode, task_id);
@@ -2622,33 +2677,90 @@ std::string Server::submitFileFromPath(const fs::path &local_source, const std::
 
     const std::string safe_filename = task_id + extension;
     const std::string storage_path = "uploads/" + safe_filename;
-
-    LOG_INFO("Saving resumable upload to storage: {} (original: {})", storage_path, filename);
-    if (!file_storage_->saveFileFromPath(local_source.string(), storage_path))
-        throw std::runtime_error("Failed to save uploaded file to storage");
-    if (!file_storage_->fileExists(storage_path))
-        throw std::runtime_error("Failed to verify uploaded file in storage");
-
     const fs::path local_path = upload_folder_ / safe_filename;
-    fs::create_directories(local_path.parent_path());
-    std::error_code copy_ec;
-    fs::copy_file(local_source, local_path, fs::copy_options::overwrite_existing, copy_ec);
-    if (copy_ec)
-        throw std::runtime_error("Failed to prepare file for processing: " + copy_ec.message());
 
+    // Give /api/progress something to return immediately (the client polls right
+    // after the 202). This one status write is far cheaper than blocking the
+    // epoll loop on the file copies below.
+    auto timestamp = []()
+    {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    };
+    TaskManager::instance().set_task_status(task_id, {
+        {"task_id", task_id}, {"progress", 0}, {"message", "Preparing uploaded file"},
+        {"error", nullptr}, {"complete", false}, {"mode", mode},
+        {"instance_id", instance_id_}, {"storage_path", storage_path},
+        {"timestamp", timestamp()}});
+
+    // Capture the storage shared_ptr and paths by value: the job must not touch
+    // `this`, which may be destroyed while the pool drains.
+    auto storage = file_storage_;
     auto *file_processor = file_processor_.get();
     const std::string instance_id = instance_id_;
 
-    thread_pool_->enqueue([file_processor, task_id, local_path, safe_filename,
-                           storage_path, mode, self_score, instance_id]()
+    thread_pool_->enqueue([storage, file_processor, task_id, local_source, filename,
+                           local_path, safe_filename, storage_path, mode, self_score,
+                           instance_id]()
                           {
         auto &task_manager = TaskManager::instance();
-        auto timestamp = []()
+        auto now = []()
         {
             return std::chrono::duration_cast<std::chrono::milliseconds>(
                        std::chrono::system_clock::now().time_since_epoch())
                 .count();
         };
+
+        auto mark_failed = [&](const std::string &message)
+        {
+            try
+            {
+                task_manager.set_task_status(task_id, {
+                    {"task_id", task_id}, {"progress", 0}, {"message", "Processing failed"},
+                    {"error", message}, {"complete", true}, {"mode", mode},
+                    {"instance_id", instance_id}, {"storage_path", storage_path},
+                    {"timestamp", now()}});
+            }
+            catch (const std::exception &db_error)
+            {
+                LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
+            }
+        };
+
+        // Heavy I/O runs here, not on the event loop. A 300 MB upload used to
+        // block every connection for the duration of two full copies.
+        try
+        {
+            LOG_INFO("Saving resumable upload to storage: {} (original: {})",
+                     storage_path, filename);
+            if (!storage->saveFileFromPath(local_source.string(), storage_path))
+                throw std::runtime_error("Failed to save uploaded file to storage");
+            if (!storage->fileExists(storage_path))
+                throw std::runtime_error("Failed to verify uploaded file in storage");
+
+            std::error_code copy_ec;
+            fs::create_directories(local_path.parent_path());
+            fs::copy_file(local_source, local_path, fs::copy_options::overwrite_existing, copy_ec);
+            if (copy_ec)
+                throw std::runtime_error("Failed to prepare file for processing: " + copy_ec.message());
+        }
+        catch (const std::exception &e)
+        {
+            LOG_ERROR("Failed to prepare upload for task {}: {}", task_id, e.what());
+            // Do not leave a half-written object behind.
+            try
+            {
+                storage->deleteFile(storage_path);
+            }
+            catch (...)
+            {
+            }
+            mark_failed(e.what());
+            std::error_code rm_ec;
+            fs::remove(local_source, rm_ec);
+            return;
+        }
 
         try
         {
@@ -2660,7 +2772,7 @@ std::string Server::submitFileFromPath(const fs::path &local_source, const std::
                                                   : "Processing audio for external influence analysis"},
                     {"error", nullptr}, {"complete", false}, {"mode", mode},
                     {"instance_id", instance_id}, {"storage_path", storage_path},
-                    {"timestamp", timestamp()}});
+                    {"timestamp", now()}});
 
                 if (mode == "burnout")
                 {
@@ -2674,7 +2786,7 @@ std::string Server::submitFileFromPath(const fs::path &local_source, const std::
                         {"type", "audio_burnout"}, {"result", result},
                         {"duration", result.value("duration", 0.0)},
                         {"sample_rate", result.value("sample_rate", 0)},
-                        {"timestamp", timestamp()}});
+                        {"timestamp", now()}});
                 }
                 else
                 {
@@ -2688,7 +2800,7 @@ std::string Server::submitFileFromPath(const fs::path &local_source, const std::
                         {"type", "audio_external_influence"}, {"result", result},
                         {"duration", result.value("duration", 0.0)},
                         {"sample_rate", result.value("sample_rate", 0)},
-                        {"timestamp", timestamp()}});
+                        {"timestamp", now()}});
                 }
             }
             else
@@ -2699,7 +2811,7 @@ std::string Server::submitFileFromPath(const fs::path &local_source, const std::
                     {"message", "Starting file processing"},
                     {"error", nullptr}, {"complete", false}, {"mode", "batch"},
                     {"instance_id", instance_id}, {"storage_path", storage_path},
-                    {"timestamp", timestamp()}};
+                    {"timestamp", now()}};
                 if (emotionai::ReviewScorer::isValidSelfScore(self_score))
                     init_status["self_score"] = self_score;
 
@@ -2712,19 +2824,13 @@ std::string Server::submitFileFromPath(const fs::path &local_source, const std::
         catch (const std::exception &e)
         {
             LOG_ERROR("Processing failed for task {}: {}", task_id, e.what());
-            try
-            {
-                task_manager.set_task_status(task_id, {
-                    {"task_id", task_id}, {"progress", 0}, {"message", "Processing failed"},
-                    {"error", e.what()}, {"complete", true}, {"mode", mode},
-                    {"instance_id", instance_id}, {"storage_path", storage_path},
-                    {"timestamp", timestamp()}});
-            }
-            catch (const std::exception &db_error)
-            {
-                LOG_ERROR("Failed to update error status for task {}: {}", task_id, db_error.what());
-            }
-        } });
+            mark_failed(e.what());
+        }
+
+        // The temp part is owned by this job; the handler must not delete it.
+        std::error_code rm_ec;
+        fs::remove(local_source, rm_ec);
+    });
 
     return task_id;
 }

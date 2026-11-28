@@ -100,8 +100,10 @@ The backend has a `security:` config section (`config_template.yaml`):
 - **Rate limiting** — a per-client token bucket over all `/api/` requests
   (`rate_limit_per_minute`, `rate_limit_burst`). Rejections are `429` with
   `Retry-After`. `/static/` and pages are never limited.
-- **`trust_proxy_headers`** — set `true` only behind `config/nginx`, which sets
-  `X-Real-IP`; otherwise every visitor shares the proxy's bucket.
+- **`trust_proxy_headers`** — honors `X-Real-IP` / `X-Forwarded-For`, but only when the
+  socket peer matches `security.trusted_proxies` (default: loopback + RFC1918, covering
+  nginx on the same host and the Docker bridge). A directly exposed public client cannot
+  spoof it. Add your proxy's address if it lives on a different network.
 
 ## Resumable uploads
 
