@@ -95,8 +95,11 @@ are no labelled burnout positives, so only false-positive rate on the control se
 **C++ test tiers.** `tests/CMakeLists.txt` builds one binary, `emotionai_tests`. Unit tests
 (`tests/unit/*`) build by default and need no services. Integration/e2e tests start a real `Server`
 and need DragonflyDB + model weights, so they are behind `-DEMOTIONAI_BUILD_INTEGRATION_TESTS=ON`
-(`make test_integration`). GTest is optional: if it is missing, the tests directory warns and is
-skipped instead of failing the configure. The `ServerFactory`/`IServer` architecture older test docs
+(`make test_integration`). The integration tier covers device identity, resumable uploads and rate
+limiting (`tests/integration/server/{DeviceAuthTest,ResumableUploadTest,RateLimitTest}.cpp`, with
+configs on ports 8084/8085 and Dragonfly DBs 3/4). GTest is optional: if it is missing, the tests
+directory warns and is skipped instead of failing the configure. `GTest::gmock` is linked only
+when present (the unused mock header was its only consumer). The `ServerFactory`/`IServer` architecture older test docs
 refer to no longer exists — tests construct `Server` directly.
 
 **`src/common/httplib.h` is vendored but is not the request path.** Routing happens in the epoll

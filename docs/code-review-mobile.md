@@ -287,3 +287,29 @@ Still open: **M1–M7** and **L1–L11**.
 
 Still open: **M4** (no automated auth/upload tests; `libgtest-dev` is not installed) and **L9**
 (the app bundle still copies the landing `public/`, ~1.6 MB).
+
+## Remediation round 3 (M4 — automated tests)
+
+`libgtest-dev` is now installed, so the suite builds and runs. Three integration suites were
+added under `tests/integration/server/` (opt-in via
+`-DEMOTIONAI_BUILD_INTEGRATION_TESTS=ON` / `make test_integration`):
+
+- **`DeviceAuthTest`** (8 tests) — app key required for bootstrap; token issued; baseline
+  requires a device token; the baseline is scoped to the token (a foreign `user_id` is ignored);
+  a second device sees `404`; an invalid token is `401 invalid_device_token`; revoke deletes the
+  identity and the baseline. `/api/health` and `/api/metrics` are exempt while `/api/healthz`
+  is not.
+- **`ResumableUploadTest`** (5 tests) — app key required, non-integer `size` → `400`, offset
+  `409` resync → chunk → `complete` `202` → progress `200`, chunk beyond the declared size
+  `413`, abort drops the session (`404` afterwards).
+- **`RateLimitTest`** (1 test) — first request `200`, second `429` with `Retry-After`, and a
+  different trusted `X-Real-IP` gets its own bucket.
+
+New configs: `tests/configs/device_auth_config.yaml` (port 8084, Dragonfly db 3) and
+`tests/configs/rate_limit_config.yaml` (port 8085, db 4), on isolated directories so they never
+touch dev data. `tests/CMakeLists.txt` links `GTest::gmock` only when that target exists (the
+unused mock header was the only consumer).
+
+Result: **61 tests from 17 suites, all passing** (`./build/tests/emotionai_tests`).
+
+Still open: **L9** — the app bundle still copies the landing `public/` (~1.6 MB).

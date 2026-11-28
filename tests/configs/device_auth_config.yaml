@@ -1,0 +1,71 @@
+server:
+  host: "127.0.0.1"
+  port: 8084
+
+paths:
+  upload: "/tmp/test_device_auth_upload"
+  results: "/tmp/test_device_auth_results"
+  logs: "/tmp/test_device_auth_logs"
+  frontend: "/tmp/test_device_auth_static"
+
+app:
+  max_content_length: 52428800  # 50MB
+  upload_chunk_size: 1048576    # 1MB, keeps the chunk tests small
+  allowed_extensions: ["png", "jpg", "jpeg", "mp4", "avi", "webm", "mp3"]
+  task_expiration: 1800
+  application_expiration: 604800
+  emotion_categories: ["anger", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"]
+
+logging:
+  level: "error"
+  max_file_size: 10485760
+  max_files: 5
+  console_enabled: true
+  file_enabled: true
+  pattern: "[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%n] %v"
+  file_pattern: "[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] %v"
+  flush_on_level: "error"
+
+redis:
+  host: "localhost"
+  port: 6379
+  db: 3
+  password: "redis_password"
+
+dragonfly:
+  host: "127.0.0.1"
+  port: 6379
+  db: 3
+  password: ""
+
+storage:
+  type: "local"
+  base_path: "/tmp/test_device_auth_storage"
+
+mtcnn:
+  keep_all: true
+  post_process: true
+  min_face_size: 40
+  device: "cpu"
+
+model:
+  backend: "torch"
+  emotion_model_path: "models/enet_b0_8_va_mtl.pt"
+  face_detection_models_path: "models/"
+
+# Device-auth/upload integration tests. The general limiter is effectively
+# disabled; RateLimitTest uses its own config.
+security:
+  api_token: "test-app-token"
+  exempt_paths: ["/api/health", "/api/results", "/api/metrics"]
+  rate_limit_enabled: true
+  rate_limit_per_minute: 100000
+  rate_limit_burst: 100000
+  rate_limit_max_keys: 100
+  trust_proxy_headers: true
+  trusted_proxies: ["127.0.0.0/8"]
+  device_auth_enabled: true
+  device_token_ttl_seconds: 15552000
+  device_issue_per_minute: 100000
+  device_issue_burst: 100000
+  device_issue_daily_limit: 0

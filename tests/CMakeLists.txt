@@ -61,9 +61,14 @@ target_link_libraries(emotionai_tests
     emotionai_lib # This brings in all the package dependencies
     GTest::gtest
     GTest::gtest_main
-    GTest::gmock
     Threads::Threads
 )
+
+# gmock is optional: the only mock header is unused, so libgtest-dev alone is
+# enough to build and run the suite.
+if(TARGET GTest::gmock)
+    target_link_libraries(emotionai_tests GTest::gmock)
+endif()
 
 set_target_properties(emotionai_tests PROPERTIES
     CXX_STANDARD 23
